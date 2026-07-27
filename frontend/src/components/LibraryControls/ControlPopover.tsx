@@ -10,6 +10,7 @@ interface ControlPopoverProps {
   label: ReactNode;
   headerLeft?: ReactNode;
   title?: string;
+  panelClassName?: string;
   children: ReactNode;
 }
 
@@ -21,6 +22,7 @@ export function ControlPopover({
   label,
   headerLeft,
   title,
+  panelClassName,
   children,
 }: ControlPopoverProps) {
   useDismiss(open, onClose);
@@ -32,7 +34,7 @@ export function ControlPopover({
         <span>{label}</span>
       </button>
       {open && <div className={styles.overlay} onClick={onClose} />}
-      <div className={`${styles.panel} ${open ? styles.panelOpen : ""}`}>
+      <div className={`${styles.panel} ${panelClassName ?? ""} ${open ? styles.panelOpen : ""}`}>
         <div className={styles.panelHeader}>
           {headerLeft ?? (title ? <span className={styles.panelTitle}>{title}</span> : <span />)}
           <button type="button" className={styles.close} onClick={onClose}>

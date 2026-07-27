@@ -8,6 +8,7 @@ import { refreshStaleEntries } from "./services/librarySyncService.js";
 import { refreshStaleSeries, notifyDueSeriesEpisodes } from "./services/seriesLibrarySyncService.js";
 import { refreshCollections } from "./services/collectionSyncService.js";
 import { notifyDueReleases } from "./services/releaseNotifyService.js";
+import { backfillGameModes } from "./services/gameModesBackfillService.js";
 import { animeRoutes } from "./routes/animeRoutes.js";
 import { libraryRoutes } from "./routes/libraryRoutes.js";
 import { movieRoutes } from "./routes/movieRoutes.js";
@@ -67,6 +68,7 @@ async function start(): Promise<void> {
     process.stdout.write(`Backend rodando em http://localhost:${PORT}\n`);
   });
   notifyDueSeriesEpisodes().catch((error) => void notifyError("Job notifyDueSeriesEpisodes", error));
+  backfillGameModes().catch((error) => void notifyError("Job backfillGameModes", error));
 
   setInterval(() => {
     refreshStaleEntries().catch((error) => void notifyError("Job refreshStaleEntries", error));

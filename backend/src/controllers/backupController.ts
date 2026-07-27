@@ -95,6 +95,7 @@ const TABLES: TableSpec[] = [
       { column: "metacritic", get: (e) => e.metacritic ?? null },
       { column: "game_status", get: (e) => e.gameStatus ?? "RELEASED" },
       { column: "collection_id", get: (e) => e.collectionId ?? null },
+      { column: "game_modes", get: (e) => e.gameModes ?? null },
       { column: "finished_at", get: (e) => e.finishedAt ?? null },
     ],
   },

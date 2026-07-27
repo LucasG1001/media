@@ -73,6 +73,7 @@ export function LibraryControls({
           </svg>
         }
         label="Filtros"
+        panelClassName={styles.filtersPanel}
         headerLeft={
           <button
             type="button"

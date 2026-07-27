@@ -13,10 +13,22 @@ export interface GameLibraryEntry {
   collectionId: number | null;
   isCover: boolean;
   isRewatching: boolean;
+  gameModes: string[] | null;
   finishedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
+
+export type GameMode = "singleplayer" | "multiplayer" | "coop" | "split_screen" | "mmo" | "battle_royale";
+
+export const GAME_MODE_LABELS: Record<GameMode, string> = {
+  singleplayer: "Um jogador",
+  multiplayer: "Multiplayer",
+  coop: "Cooperativo",
+  split_screen: "Tela dividida",
+  mmo: "MMO",
+  battle_royale: "Battle Royale",
+};
 
 export interface CreateGameLibraryEntry {
   igdbId: number;

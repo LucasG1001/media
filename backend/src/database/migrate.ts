@@ -193,6 +193,13 @@ export async function migrate(): Promise<void> {
     ADD COLUMN IF NOT EXISTS is_rewatching BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 
+  // NULL = ainda não backfilled; [] = jogo sem modo conhecido. Distinção usada
+  // pelo backfill (backfillGameModes) para só reprocessar linhas nunca buscadas.
+  await pool.query(`
+    ALTER TABLE game_library
+    ADD COLUMN IF NOT EXISTS game_modes TEXT[];
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS books_library (
       id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),

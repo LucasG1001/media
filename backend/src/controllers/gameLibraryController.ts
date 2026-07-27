@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { createLibraryController } from "../lib/createLibraryController.js";
 import { gameLibraryModel, bulkUpsertGames } from "../models/gameLibraryModel.js";
-import { discoverGameCollection } from "../services/igdbService.js";
+import { discoverGameCollection, fetchGameModes } from "../services/igdbService.js";
 import { gameCreateSchema, gameUpdateSchema } from "../schemas/library.js";
 import type { CreateGameLibraryEntry } from "../types/gameLibrary.js";
 import { notifyError } from "../services/notifyService.js";
@@ -47,12 +47,14 @@ export async function create(req: Request, res: Response): Promise<void> {
     const collection = await discoverGameCollection(data.igdbId);
 
     if (!collection) {
-      const entry = await gameLibraryModel.create(data);
+      const modes = await fetchGameModes([data.igdbId]);
+      const entry = await gameLibraryModel.create({ ...data, gameModes: modes.get(data.igdbId) ?? [] });
       res.status(201).json([entry]);
       return;
     }
 
     const { collectionId, members } = collection;
+    const modes = await fetchGameModes(members.map((m) => m.id));
     const entries: CreateGameLibraryEntry[] = members.map((m) => ({
       igdbId: m.id,
       title: m.title,
@@ -62,6 +64,7 @@ export async function create(req: Request, res: Response): Promise<void> {
       released: m.released,
       metacritic: m.metacritic,
       gameStatus: m.gameStatus,
+      gameModes: modes.get(m.id) ?? [],
     }));
 
     const group = await bulkUpsertGames(entries, collectionId);

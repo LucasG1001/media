@@ -15,6 +15,7 @@ export const gameLibraryModel = createLibraryModel<GameLibraryEntry, CreateGameL
     { column: "game_status", field: "gameStatus", default: "RELEASED" },
     { column: "collection_id", field: "collectionId", default: null },
     { column: "is_cover", field: "isCover", default: false, readonly: true },
+    { column: "game_modes", field: "gameModes", default: null },
   ],
   statusField: "status",
   completion: { column: "finished_at", field: "finishedAt", whenStatus: "beaten" },
@@ -36,6 +37,7 @@ function toEntry(row: GameLibraryRow): GameLibraryEntry {
     collectionId: row.collection_id,
     isCover: row.is_cover,
     isRewatching: row.is_rewatching,
+    gameModes: row.game_modes,
     finishedAt: row.finished_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -52,7 +54,7 @@ export async function bulkUpsertGames(entries: CreateGameLibraryEntry[], collect
   for (const entry of entries) {
     const statusParam = `$${i + 3}`;
     rows.push(
-      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, CASE WHEN ${statusParam} = 'beaten' THEN NOW() ELSE NULL END)`
+      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, CASE WHEN ${statusParam} = 'beaten' THEN NOW() ELSE NULL END)`
     );
     values.push(
       entry.igdbId,
@@ -63,14 +65,15 @@ export async function bulkUpsertGames(entries: CreateGameLibraryEntry[], collect
       entry.released ?? null,
       entry.metacritic ?? null,
       entry.gameStatus ?? "RELEASED",
-      collectionId
+      collectionId,
+      entry.gameModes ?? null
     );
-    i += 9;
+    i += 10;
   }
 
   const result = await pool.query<GameLibraryRow>(
     `INSERT INTO game_library
-       (igdb_id, title, background_image, status, score, released, metacritic, game_status, collection_id, finished_at)
+       (igdb_id, title, background_image, status, score, released, metacritic, game_status, collection_id, game_modes, finished_at)
      VALUES ${rows.join(", ")}
      ON CONFLICT (igdb_id) DO UPDATE SET
        collection_id = COALESCE(game_library.collection_id, EXCLUDED.collection_id)
@@ -78,4 +81,16 @@ export async function bulkUpsertGames(entries: CreateGameLibraryEntry[], collect
     values
   );
   return result.rows.map(toEntry);
+}
+
+// Backfill: linhas nunca processadas têm game_modes NULL; [] marca "sem modo".
+export async function findIgdbIdsWithoutModes(): Promise<number[]> {
+  const result = await pool.query<{ igdb_id: number }>(
+    `SELECT igdb_id FROM game_library WHERE game_modes IS NULL`
+  );
+  return result.rows.map((r) => r.igdb_id);
+}
+
+export async function setGameModes(igdbId: number, modes: string[]): Promise<void> {
+  await pool.query(`UPDATE game_library SET game_modes = $1 WHERE igdb_id = $2`, [modes, igdbId]);
 }

@@ -13,6 +13,7 @@ export interface GameLibraryEntry {
   collectionId: number | null;
   isCover: boolean;
   isRewatching: boolean;
+  gameModes: string[] | null;
   finishedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -28,6 +29,7 @@ export interface CreateGameLibraryEntry {
   metacritic?: number | null;
   gameStatus?: string;
   collectionId?: number | null;
+  gameModes?: string[] | null;
 }
 
 export interface UpdateGameLibraryEntry {
@@ -54,6 +56,7 @@ export interface GameLibraryRow {
   collection_id: number | null;
   is_cover: boolean;
   is_rewatching: boolean;
+  game_modes: string[] | null;
   finished_at: string | null;
   created_at: string;
   updated_at: string;

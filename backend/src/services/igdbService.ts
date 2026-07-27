@@ -40,6 +40,16 @@ const STORE_SITES: Record<number, { slug: string; name: string }> = {
 const STEAM_SOURCE = 1;
 const OFFICIAL_SITE_TYPE = 1;
 
+// IDs estáveis do enum game_modes da IGDB → slugs canônicos (armazenados no banco).
+const GAME_MODE_SLUGS: Record<number, string> = {
+  1: "singleplayer",
+  2: "multiplayer",
+  3: "coop",
+  4: "split_screen",
+  5: "mmo",
+  6: "battle_royale",
+};
+
 async function igdbQuery<T>(endpoint: string, body: string): Promise<T> {
   const exec = async (forceRefresh: boolean): Promise<T> => {
     const token = await getIgdbToken(forceRefresh);
@@ -184,6 +194,24 @@ export async function discoverGameCollection(gameId: number): Promise<{ collecti
 
   if (members.length === 0) return null;
   return { collectionId, members };
+}
+
+// Modos de jogo por igdbId (só os ids conhecidos do enum). Uma query por lote;
+// o chamador deve fatiar em lotes ≤ 500 (limite da IGDB).
+export async function fetchGameModes(ids: number[]): Promise<Map<number, string[]>> {
+  const result = new Map<number, string[]>();
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return result;
+
+  const data = await igdbQuery<{ id: number; game_modes?: number[] }[]>(
+    "games",
+    `fields id, game_modes; where id = (${unique.join(",")}); limit ${unique.length};`
+  );
+  for (const game of data) {
+    const slugs = (game.game_modes ?? []).map((m) => GAME_MODE_SLUGS[m]).filter(Boolean);
+    result.set(game.id, slugs);
+  }
+  return result;
 }
 
 export async function fetchGameById(id: number): Promise<GameDetail> {

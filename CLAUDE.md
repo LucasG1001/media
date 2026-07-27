@@ -10,7 +10,7 @@ e biblioteca pessoal (CRUD em PostgreSQL):
 
 - **Anime** — AniList (GraphQL); descoberta de franquia (sequências/OVAs/filmes).
 - **Filmes** e **Séries** — TMDB; filmes têm coleções (ex.: trilogias).
-- **Jogos** — IGDB (auth via Twitch OAuth); coleções/sagas.
+- **Jogos** — IGDB (auth via Twitch OAuth); coleções/sagas; filtro por modos de jogo (`game_modes`).
 - **Livros** — Google Books.
 - **YouTube** — vídeos curtidos/salvos (YouTube Data API); modelo à parte (status `liked`/`removed`).
 
@@ -81,7 +81,9 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   - **`releaseNotifyService.ts`** — avisa lançamentos de filmes/jogos.
   - **`notifyService.ts`** — envia ao Telegram via notify-api; nunca lança.
 - **Jobs (agendados em `server.ts`):** `refreshStaleEntries`+séries a cada 30 min; **collection
-  sync** diário (04:00); **notificação de lançamentos** diária (09:00).
+  sync** diário (04:00); **notificação de lançamentos** diária (09:00). No boot roda também
+  `backfillGameModes` (one-shot): preenche `game_modes` dos jogos com a coluna NULL via
+  `fetchGameModes` (IGDB) — idempotente (`NULL` = nunca buscado; `[]` = sem modo conhecido).
 
 ### Frontend (`frontend/src/`)
 

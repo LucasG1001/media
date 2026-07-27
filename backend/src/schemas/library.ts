@@ -38,6 +38,7 @@ export const gameCreateSchema = z.object({
   released: nullableString,
   metacritic: nullableNumber,
   gameStatus: z.string().optional(),
+  gameModes: z.array(z.string()).optional(),
 });
 export const gameUpdateSchema = gameCreateSchema.partial().extend({ isRewatching: z.boolean().optional() });
 

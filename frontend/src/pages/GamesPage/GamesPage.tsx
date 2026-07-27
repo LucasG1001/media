@@ -12,8 +12,8 @@ import { useDebounce } from "../../hooks/useDebounce";
 import { useSingleSort } from "../../hooks/useSingleSort";
 import { LibraryControls } from "../../components/LibraryControls/LibraryControls";
 import type { GameCard, GameDetail } from "../../types/game";
-import type { GameLibraryStatus, GameLibraryEntry } from "../../types/gameLibrary";
-import { GAME_LIBRARY_STATUS_LABELS } from "../../types/gameLibrary";
+import type { GameLibraryStatus, GameLibraryEntry, GameMode } from "../../types/gameLibrary";
+import { GAME_LIBRARY_STATUS_LABELS, GAME_MODE_LABELS } from "../../types/gameLibrary";
 import { MONTH_PT } from "../../utils/month";
 import { getCurrentYear, getRecentYears } from "../../utils/year";
 import { buildGameCollectionGroups, releaseTimeOf } from "../../utils/gameCollectionGroups";
@@ -30,6 +30,7 @@ const TABS = [
 ];
 
 const STATUS_OPTIONS = Object.entries(GAME_LIBRARY_STATUS_LABELS) as [GameLibraryStatus, string][];
+const MODE_OPTIONS = Object.entries(GAME_MODE_LABELS) as [GameMode, string][];
 
 export function GamesPage() {
   const [activeTab, setActiveTab] = useState("upcoming");
@@ -38,6 +39,7 @@ export function GamesPage() {
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
   const [selectedGameForModal, setSelectedGameForModal] = useState<GameCard | null>(null);
   const [libraryFilter, setLibraryFilter] = useState<GameLibraryStatus[]>([]);
+  const [modeFilter, setModeFilter] = useState<GameMode[]>([]);
   const sort = useSingleSort("release");
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
   const [selectedMonth, setSelectedMonth] = useState(0);
@@ -135,12 +137,25 @@ export function GamesPage() {
       prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]
     );
 
+  const toggleModeFilter = (mode: GameMode) =>
+    setModeFilter((prev) =>
+      prev.includes(mode) ? prev.filter((m) => m !== mode) : [...prev, mode]
+    );
+
   const collectionGroups = useMemo(() => {
-    const hasFilter = libraryFilter.length > 0;
+    const hasFilter = libraryFilter.length > 0 || modeFilter.length > 0;
+    // Multi-seleção: OU dentro de cada grupo, E entre status e modos de jogo.
     const memberFilter = hasFilter
-      ? (m: GameLibraryEntry) =>
-          libraryFilter.includes(m.status as GameLibraryStatus) ||
-          (libraryFilter.includes("plan_to_play") && m.isRewatching)
+      ? (m: GameLibraryEntry) => {
+          const statusOk =
+            libraryFilter.length === 0 ||
+            libraryFilter.includes(m.status as GameLibraryStatus) ||
+            (libraryFilter.includes("plan_to_play") && m.isRewatching);
+          const modeOk =
+            modeFilter.length === 0 ||
+            (m.gameModes?.some((mode) => modeFilter.includes(mode as GameMode)) ?? false);
+          return statusOk && modeOk;
+        }
       : undefined;
     let groups = buildGameCollectionGroups(libraryEntries, memberFilter);
     if (!hasFilter) {
@@ -151,11 +166,11 @@ export function GamesPage() {
         ? sortGroupsByAvgScore(groups, sort.dir)
         : sortGroupsByMemberDate(groups, releaseTimeOf, sort.dir);
     return filterGroupsBySearch(groups, librarySearch);
-  }, [libraryEntries, libraryFilter, sort.field, sort.dir, librarySearch]);
+  }, [libraryEntries, libraryFilter, modeFilter, sort.field, sort.dir, librarySearch]);
 
   const gridKey =
     activeTab === "library"
-      ? `library-${libraryFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
+      ? `library-${libraryFilter.join(",")}-${modeFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
       : activeTab === "search"
       ? `search-${debouncedSearch}`
       : activeTab === "popular"
@@ -222,8 +237,18 @@ export function GamesPage() {
               selected: libraryFilter,
               onToggle: (v) => toggleLibraryFilter(v as GameLibraryStatus),
             },
+            {
+              key: "gameModes",
+              title: "Modos de jogo",
+              options: MODE_OPTIONS.map(([value, label]) => ({ value, label })),
+              selected: modeFilter,
+              onToggle: (v) => toggleModeFilter(v as GameMode),
+            },
           ]}
-          onClearFilters={() => setLibraryFilter([])}
+          onClearFilters={() => {
+            setLibraryFilter([]);
+            setModeFilter([]);
+          }}
           sort={{
             active: sort.field,
             dir: sort.dir,
