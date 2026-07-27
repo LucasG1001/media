@@ -22,7 +22,6 @@ export function YoutubeLibraryModal({ entry, onClose, onSave, onRemove, onSetCov
       hasEntry
       canSetCover={entry.collectionId != null}
       isCover={entry.isCover}
-      rewatch={{ label: "Reassistindo", whenStatus: "liked", initial: entry.isRewatching }}
       onSetCover={() => onSetCover(entry.id)}
       onClose={onClose}
       onSave={(data) =>
