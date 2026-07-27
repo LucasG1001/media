@@ -1,4 +1,4 @@
-import { compareByScore } from "./librarySort";
+import { averageScore, compareByScore } from "./librarySort";
 import type { CollectionGroup } from "./buildCollectionGroups";
 import type { SortDir } from "../hooks/useSingleSort";
 
@@ -27,11 +27,9 @@ export function sortGroupsByAvgScore<E extends { score: number }>(
   groups: CollectionGroup<E>[],
   dir: SortDir
 ): CollectionGroup<E>[] {
-  const avg = (g: CollectionGroup<E>) => {
-    const scored = g.members.filter((m) => m.score > 0);
-    return scored.length ? scored.reduce((sum, m) => sum + m.score, 0) / scored.length : 0;
-  };
-  return [...groups].sort((a, b) => compareByScore({ score: avg(a) }, { score: avg(b) }, dir));
+  return [...groups].sort((a, b) =>
+    compareByScore({ score: averageScore(a.members) }, { score: averageScore(b.members) }, dir)
+  );
 }
 
 export function sortGroupsBySumViews<E>(

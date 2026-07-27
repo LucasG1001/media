@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { MediaCard, type MediaCardConfig } from "../MediaCard/MediaCard";
+import { averageScore } from "../../utils/librarySort";
 import styles from "./FranchiseCard.module.css";
 
 export interface MediaGroup<E> {
@@ -58,6 +59,11 @@ export function FranchiseCard<
   collectionExtra,
 }: FranchiseCardProps<E, T>) {
   const card = entryToCard(group.representative);
+  // Nota exibida = média da coleção (mesmo critério da ordenação por nota),
+  // não a nota do representante.
+  const displayEntry = libraryEntry
+    ? { ...libraryEntry, score: averageScore(group.members) }
+    : libraryEntry;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(collectionName ?? "");
   const deleteLabel = collectionName || group.representative.title;
@@ -130,7 +136,7 @@ export function FranchiseCard<
       <MediaCard
         item={card}
         config={config}
-        libraryEntry={libraryEntry}
+        libraryEntry={displayEntry}
         onClick={() => onCardClick(card)}
         onAdd={() => onAddToLibrary(card)}
         isLibraryView
