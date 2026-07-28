@@ -23,6 +23,13 @@ export interface AniListNextAiringEpisode {
   airingAt: number;
 }
 
+export interface AniListStreamingEpisode {
+  title: string | null;
+  thumbnail: string | null;
+  url: string;
+  site: string | null;
+}
+
 export interface AniListExternalLink {
   url: string;
   site: string;
@@ -48,6 +55,8 @@ export interface AniListAnime {
   trailer: AniListTrailer | null;
   nextAiringEpisode: AniListNextAiringEpisode | null;
   externalLinks: AniListExternalLink[];
+  // Só pedido na query de detalhe (fetchAnimeById).
+  streamingEpisodes?: AniListStreamingEpisode[] | null;
   stats?: {
     scoreDistribution: { amount: number }[] | null;
   } | null;
@@ -98,6 +107,7 @@ export interface AnimeDetail extends AnimeCard {
   studios: string[];
   trailer: AniListTrailer | null;
   externalLinks: AniListExternalLink[];
+  streamingEpisodes: AniListStreamingEpisode[];
   ratingCount?: number;
 }
 

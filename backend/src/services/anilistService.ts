@@ -77,6 +77,7 @@ function toAnimeDetail(anime: AniListAnime): AnimeDetail {
     studios: anime.studios.nodes.map((s) => s.name),
     trailer: anime.trailer,
     externalLinks: anime.externalLinks || [],
+    streamingEpisodes: anime.streamingEpisodes ?? [],
   };
 }
 
@@ -224,6 +225,12 @@ export async function fetchAnimeById(id: number): Promise<AnimeDetail> {
     query ($id: Int) {
       Media(id: $id, type: ANIME) {
         ${MEDIA_FIELDS}
+        streamingEpisodes {
+          title
+          thumbnail
+          url
+          site
+        }
         stats {
           scoreDistribution {
             amount

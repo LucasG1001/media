@@ -276,6 +276,7 @@ export function GamesPage() {
           statusLabels={GAME_LIBRARY_STATUS_LABELS}
           onBulkSetStatus={(ids, status) => updateManyEntries(ids, status)}
           expandTitle="Ver jogos da coleção"
+          coverIsCollectionOnly
           animationKey={gridKey}
           emptyMessage="Sua biblioteca está vazia."
           emptyHint="Adicione jogos para começar!"

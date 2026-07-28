@@ -27,6 +27,13 @@ export interface AnimeExternalLink {
   type: string | null;
 }
 
+export interface AnimeStreamingEpisode {
+  title: string | null;
+  thumbnail: string | null;
+  url: string;
+  site: string | null;
+}
+
 export interface AnimeCard {
   id: number;
   title: string;
@@ -48,6 +55,7 @@ export interface AnimeDetail extends AnimeCard {
   studios: string[];
   trailer: AnimeTrailer | null;
   externalLinks: AnimeExternalLink[];
+  streamingEpisodes: AnimeStreamingEpisode[];
   ratingCount?: number;
 }
 

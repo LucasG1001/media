@@ -1,5 +1,6 @@
 import type { CollectionGroup } from "./buildCollectionGroups";
 import type { SeriesLibraryEntry } from "../types/seriesLibrary";
+import { averageScore } from "./librarySort";
 
 // Membro sintético da "coleção de temporadas". Satisfaz o contrato exigido por
 // FranchiseGrid ({ id, status, score, title }); os demais campos alimentam o
@@ -18,9 +19,11 @@ export interface SeasonMember {
   episodeCount: number | null;
   // Nos membros temporada: indica se é a capa da coleção.
   isCover?: boolean;
-  // Só no representante: indica se há temporadas reais (define se vira coleção
-  // expansível ou card simples no FranchiseGrid).
+  // Só no representante: indica se há temporadas reais.
   hasSeasons?: boolean;
+  // Série de temporada única: o card representa a série (nome + capa) mas o
+  // estado é o da única temporada. Não é coleção — vira card simples.
+  isOnlySeason?: boolean;
 }
 
 export type SeasonGroup = CollectionGroup<SeasonMember>;
@@ -32,7 +35,8 @@ export function seasonDateOf(member: SeasonMember): number {
 function seriesRepresentative(
   entry: SeriesLibraryEntry,
   hasSeasons: boolean,
-  coverPoster: string | null
+  coverPoster: string | null,
+  score: number
 ): SeasonMember {
   return {
     id: `series-${entry.tmdbId}`,
@@ -42,7 +46,10 @@ function seriesRepresentative(
     title: entry.title,
     // Capa da coleção = pôster da temporada escolhida (cover_season), senão da série.
     poster: coverPoster ?? entry.posterImage,
-    score: entry.score,
+    // Nota da série = média das temporadas avaliadas. Nunca a coluna `score` da
+    // linha, que pode ter nota legada de antes das temporadas (viraria "nota
+    // fantasma" em série sem temporada avaliada).
+    score,
     status: entry.status,
     isRewatching: false,
     airDate: entry.firstAirDate,
@@ -55,8 +62,10 @@ function seriesRepresentative(
 const DEFAULT_STATE = { status: "plan_to_watch", score: 0, isRewatching: false };
 
 // Uma coleção por série: representante = a série (capa + nome), membros = as
-// temporadas (cada uma com status/nota/reassistindo próprios). Séries sem
-// season_list caem no fallback de 1 membro (a própria série), como card simples.
+// temporadas (cada uma com status/nota/reassistindo próprios). Só é coleção com
+// 2+ temporadas: com 1 temporada o grupo vira card simples que mostra a série mas
+// carrega o estado daquela temporada (`isOnlySeason`), e séries sem season_list
+// caem no fallback de 1 membro (a própria série).
 // `memberFilter` (quando presente) reduz aos que batem — total (`count`) não muda.
 export function buildSeasonGroups(
   entries: SeriesLibraryEntry[],
@@ -75,39 +84,56 @@ export function buildSeasonGroups(
     const coverPoster = entry.coverSeason != null
       ? seasons.find((s) => s.number === entry.coverSeason)?.poster ?? null
       : null;
-    const representative = seriesRepresentative(entry, hasSeasons, coverPoster);
+    const seasonMembers: SeasonMember[] = seasons.map((s) => {
+      const st = states[String(s.number)] ?? DEFAULT_STATE;
+      return {
+        id: `s${entry.tmdbId}-${s.number}`,
+        kind: "season" as const,
+        tmdbId: entry.tmdbId,
+        seasonNumber: s.number,
+        title: s.name || `Temporada ${s.number}`,
+        poster: s.poster ?? entry.posterImage,
+        score: st.score,
+        status: st.status,
+        isRewatching: st.isRewatching,
+        airDate: s.airDate,
+        episodeCount: s.episodeCount,
+        isCover: entry.coverSeason === s.number,
+      };
+    });
 
-    const allMembers: SeasonMember[] = hasSeasons
-      ? seasons.map((s) => {
-          const st = states[String(s.number)] ?? DEFAULT_STATE;
-          return {
-            id: `s${entry.tmdbId}-${s.number}`,
-            kind: "season" as const,
-            tmdbId: entry.tmdbId,
-            seasonNumber: s.number,
-            title: s.name || `Temporada ${s.number}`,
-            poster: s.poster ?? entry.posterImage,
-            score: st.score,
-            status: st.status,
-            isRewatching: st.isRewatching,
-            airDate: s.airDate,
-            episodeCount: s.episodeCount,
-            isCover: entry.coverSeason === s.number,
-          };
-        })
-      : [representative];
+    const representative = seriesRepresentative(
+      entry,
+      hasSeasons,
+      coverPoster,
+      averageScore(seasonMembers)
+    );
 
-    const shown = memberFilter ? allMembers.filter(memberFilter) : allMembers;
+    const allMembers: SeasonMember[] = hasSeasons ? seasonMembers : [representative];
+
+    // Temporada única: um card só, com nome e capa da série e o estado da temporada.
+    const single: SeasonMember | null = allMembers.length === 1 && hasSeasons
+      ? {
+          ...allMembers[0],
+          title: entry.title,
+          poster: coverPoster ?? allMembers[0].poster,
+          airDate: allMembers[0].airDate ?? entry.firstAirDate,
+          isOnlySeason: true,
+        }
+      : null;
+    const members = single ? [single] : allMembers;
+
+    const shown = memberFilter ? members.filter(memberFilter) : members;
     if (shown.length === 0) continue;
 
-    lookup.set(representative.id, representative);
+    if (!single) lookup.set(representative.id, representative);
     for (const m of shown) lookup.set(m.id, m);
 
     groups.push({
       key: `series-${entry.tmdbId}`,
-      representative,
+      representative: single ?? representative,
       members: shown,
-      count: allMembers.length,
+      count: members.length,
       completedCount: shown.length,
     });
   }

@@ -136,8 +136,8 @@ export async function setCoverSeason(id: string, seasonNumber: number): Promise<
   return result.rows[0] ? toSeriesEntry(result.rows[0]) : null;
 }
 
-// Média das notas > 0; retorna 0 quando nenhuma temporada tem nota (nesse caso
-// o score da série é mantido, não zerado — preserva nota legada).
+// Média das notas > 0; 0 quando nenhuma temporada tem nota (o score da série é
+// sempre a média das temporadas — nunca uma nota própria).
 function averageOfStates(states: Record<string, SeriesSeasonState>): number {
   const values = Object.values(states).map((s) => s.score).filter((v) => v > 0);
   if (values.length === 0) return 0;
@@ -156,8 +156,7 @@ export async function setSeasonState(
   const states: Record<string, SeriesSeasonState> = { ...(row.season_states ?? {}) };
   states[String(seasonNumber)] = state;
 
-  const avg = averageOfStates(states);
-  const nextScore = avg > 0 ? avg : parseFloat(row.score);
+  const nextScore = averageOfStates(states);
 
   const result = await pool.query<SeriesLibraryRow>(
     `UPDATE series_library

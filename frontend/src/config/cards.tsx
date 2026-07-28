@@ -123,10 +123,6 @@ export const seasonCardConfig: MediaCardConfig<SeasonMember> = {
   formatScore: (s) => s.toFixed(1),
   scoreColor: scoreColorFn(7.5, 5),
   libraryStatusColor: catalogStatusColor,
-  // A capa da coleção não tem botão de status — só a média, e o clique expande
-  // as temporadas. Série sem temporadas (card simples) mantém o botão, senão
-  // ficaria impossível editar/remover pela biblioteca.
-  hideAddButton: (m) => m.kind === "series" && m.hasSeasons === true,
   renderMeta: (m) => (
     <div className={cardStyles.meta}>
       <span className={cardStyles.year}>

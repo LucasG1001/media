@@ -250,6 +250,7 @@ export function MoviesPage() {
           statusLabels={MOVIE_LIBRARY_STATUS_LABELS}
           onBulkSetStatus={(ids, status) => updateManyEntries(ids, status)}
           expandTitle="Ver filmes da coleção"
+          coverIsCollectionOnly
           animationKey={gridKey}
           emptyMessage="Sua biblioteca está vazia."
           emptyHint="Adicione filmes para começar!"

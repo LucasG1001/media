@@ -16,9 +16,6 @@ export interface MediaCardConfig<T> {
   libraryStatusColor: (status: string | undefined) => string;
   renderMeta: (item: T) => ReactNode;
   renderBelow?: (item: T) => ReactNode;
-  // Quando retorna true, esconde o botão de status/adicionar (ex.: capa da
-  // coleção de temporadas, que só exibe a média e abre o drawer).
-  hideAddButton?: (item: T) => boolean;
 }
 
 const TONE_CLASS: Record<StatusTone, string> = {
@@ -34,6 +31,8 @@ interface MediaCardProps<T, E extends { status: string; score: number; isRewatch
   onClick: () => void;
   onAdd: (e: MouseEvent) => void;
   isLibraryView?: boolean;
+  // Capa de coleção: só a média, sem botão de status (o status é dos membros).
+  hideAddButton?: boolean;
   index?: number;
   selectionMode?: boolean;
   selected?: boolean;
@@ -48,6 +47,7 @@ export function MediaCard<T, E extends { status: string; score: number; isRewatc
   onClick,
   onAdd,
   isLibraryView,
+  hideAddButton = false,
   index = 0,
   selectionMode = false,
   selected = false,
@@ -114,7 +114,7 @@ export function MediaCard<T, E extends { status: string; score: number; isRewatc
         )}
 
         <div className={styles.topBadges}>
-          {!config.hideAddButton?.(item) && (
+          {!hideAddButton && (
             <button
               type="button"
               className={`${styles.addButton} ${libraryEntry ? styles.inLibrary : ""}`}

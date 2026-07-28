@@ -82,7 +82,7 @@ export function SeriesPage() {
   };
 
   // Clique na imagem: temporada → drawer da temporada (dados da série + episódios).
-  // A capa da coleção não abre drawer (expande — ver coverTogglesExpansion); só a
+  // A capa da coleção não abre drawer (expande — ver coverIsCollectionOnly); só a
   // série sem temporadas, que é card simples, cai no drawer da série.
   const handleCollectionCardClick = useCallback((card: SeasonMember) => {
     if (card.kind === "season" && card.seasonNumber != null) {
@@ -281,9 +281,8 @@ export function SeriesPage() {
             const entry = findByTmdbId(group.representative.tmdbId);
             if (entry) removeEntry(entry.id);
           }}
-          getCollectionKey={(m) => (m.hasSeasons ? m.tmdbId : null)}
           expandTitle="Ver temporadas"
-          coverTogglesExpansion
+          coverIsCollectionOnly
           animationKey={gridKey}
           emptyMessage="Sua biblioteca está vazia."
           emptyHint="Adicione séries para começar!"
@@ -340,7 +339,7 @@ export function SeriesPage() {
         <SeasonLibraryModal
           seriesTitle={seasonModal.entry.title}
           seasonNumber={seasonModal.member.seasonNumber}
-          seasonName={seasonModal.member.title}
+          seasonName={seasonModal.member.isOnlySeason ? null : seasonModal.member.title}
           poster={seasonModal.member.poster}
           status={seasonModal.member.status as SeriesLibraryStatus}
           score={seasonModal.member.score}
@@ -351,7 +350,19 @@ export function SeriesPage() {
             saveSeason(seasonModal.entry.id, seasonModal.member.seasonNumber as number, data);
             setSeasonModal(null);
           }}
-          onSetCover={() => setCoverSeason(seasonModal.entry.id, seasonModal.member.seasonNumber as number)}
+          onSetCover={
+            seasonModal.member.isOnlySeason
+              ? undefined
+              : () => setCoverSeason(seasonModal.entry.id, seasonModal.member.seasonNumber as number)
+          }
+          onRemove={
+            seasonModal.member.isOnlySeason
+              ? () => {
+                  removeEntry(seasonModal.entry.id);
+                  setSeasonModal(null);
+                }
+              : undefined
+          }
         />
       )}
     </div>

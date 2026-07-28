@@ -120,25 +120,39 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     leitura **mais recente** (`agg:"latest"`). Avulsos contam como coleção de 1.
   - Padrões: anime/filmes/jogos = Lançamento(desc)+Nota; séries idem; livros =
     Publicação(desc)+Leitura+Nota; YouTube = Alfabética(asc)+Data+Visualizações.
+  - **Capa é só coleção (anime/filmes/séries/jogos; prop `coverIsCollectionOnly` do
+    `FranchiseGrid`/`FranchiseCard`, que livros e YouTube NÃO passam)**: em grupo com 2+ itens a capa
+    exibe apenas a **média** — sem botão de status (`MediaCard` prop `hideAddButton`) — e o clique
+    **expande/recolhe** em vez de abrir o drawer do representante (que segue acessível como membro da
+    expansão, já que `buildCollectionGroups` inclui o representante em `members`). **Grupo de 1 item
+    é card simples normal**: botão de status (status/nota/remover) + drawer no clique. Como `count` é
+    o total **não filtrado**, um grupo de 2+ reduzido a 1 pelo filtro continua sendo coleção.
   - **Séries = coleção de temporadas** (`utils/seasonGroups.ts`, `buildSeasonGroups`): a coleção
     NÃO vem de linhas do banco — cada série é **1 linha** e os membros (temporadas) são sintetizados
     do JSONB `season_list` (metadado) + `season_states` (estado do usuário por temporada:
     `{status,score,isRewatching}`). **Cada temporada se comporta como um filme da coleção**: card com
     botão de status colorido + nota própria. Representante = a série (nome + capa: pôster da temporada
-    `cover_season`, senão da série); a **capa não tem botão de status** (`MediaCardConfig.hideAddButton`),
-    só mostra a **média**, e **não abre drawer**: clicar nela expande/recolhe as temporadas
-    (`FranchiseGrid`/`FranchiseCard` prop opt-in `coverTogglesExpansion` — só séries usam). Nos
+    `cover_season`, senão da série), sujeito à regra `coverIsCollectionOnly` acima. Nos
     membros: clique na **imagem** → `SeasonDrawer`, que traz **os dados da série** (banner, trailer,
     gêneros, onde assistir, grade de 5 infos — corpo compartilhado `SeriesDrawer/SeriesDetailBody.tsx`,
     com overrides de pôster/tagline/sinopse da temporada) **+ a lista de episódios** (`GET
     /api/series/:id/season/:n`); clique no **botão de status** →
-    `SeasonLibraryModal` (`LibraryModalBase`, status/nota/reassistindo + "Definir como capa", **sem
-    remover**) → `saveSeason` (`PUT /:id/seasons/:n`, `setSeasonState` recalcula `score` da série =
-    média das notas > 0) e `setCoverSeason` (`PUT /:id/cover-season/:n`). Filtro de status age **por
+    `SeasonLibraryModal` (`LibraryModalBase`, status/nota/reassistindo + "Definir como capa"; `onSetCover`
+    e `onRemove` são opcionais — temporada de coleção não se remove sozinha) → `saveSeason`
+    (`PUT /:id/seasons/:n`, `setSeasonState` recalcula `score` da série =
+    média das notas > 0) e `setCoverSeason` (`PUT /:id/cover-season/:n`). A coluna `score` de
+    `series_library` é **sempre** a média das temporadas — nunca uma nota própria: antes das
+    temporadas o modal da série tinha campo Nota, e essas notas legadas viravam "nota fantasma" em
+    série sem temporada avaliada. Por isso a nota exibida vem de `seasonGroups` + `averageScore`
+    (nunca de `entry.score`) e o `migrate()` zera `score` de linha com nota mas sem temporada
+    avaliada (roda a cada boot; só bate em linha inconsistente). Filtro de status age **por
     temporada** (member-level, como filmes; esconde só séries 100% dropadas quando sem filtro); sem
-    seleção/bulk. Remover a série = lixeira do `FranchiseCard`. Séries sem `season_list` caem em
-    fallback de 1 membro: card simples que **mantém** o botão de status (→ `SeriesLibraryModal`, com
-    remover) e abre o `SeriesDrawer` no clique da imagem. `store.mutate` = primitivo de update otimista
+    seleção/bulk. Remover a série = lixeira do `FranchiseCard`. Dois casos **não** são coleção (card
+    simples, sem `getCollectionKey`): série de **1 temporada** (`isOnlySeason` — card mostra nome/capa
+    da série mas carrega o estado da temporada; botão de status abre o `SeasonLibraryModal` **com
+    remover** (remove a série) e **sem** "definir como capa") e série **sem `season_list`** (fallback de
+    1 membro `kind:"series"`: botão de status → `SeriesLibraryModal`, imagem → `SeriesDrawer`).
+    `store.mutate` = primitivo de update otimista
     com endpoint custom (usado por `saveSeason`/`setCoverSeason`).
   - `hooks/useDismiss.ts` centraliza Escape + scroll-lock (mobile) dos painéis.
 - **`hooks/useMediaList.ts`** — estado de catálogo com paginação, cache por chave, `AbortController`
@@ -181,7 +195,10 @@ e `cover_season` (INTEGER, temporada usada como capa da coleção). `game_librar
   na prática degradado (~30/min). Todo tráfego passa por `queryAniList`, que aplica o
   `rateLimiter` (throttle ~2s + pacing por header) e normaliza erros em `AniListError` (a AniList
   responde HTTP 200 com `{ errors, data:null }` em erro de validação; 404 vira 404). Estações:
-  meses 1–3 WINTER, 4–6 SPRING, 7–9 SUMMER, 10–12 FALL.
+  meses 1–3 WINTER, 4–6 SPRING, 7–9 SUMMER, 10–12 FALL. `MEDIA_FIELDS` é compartilhado com as
+  listagens — campo pesado vai só na query do `fetchAnimeById` (é o caso de `stats` e de
+  `streamingEpisodes`, que alimenta a lista de episódios do `AnimeDrawer` e vem vazia para anime sem
+  streaming licenciado).
 - **TMDB** (filmes/séries), **IGDB** (jogos, via token Twitch em `igdbAuth`), **Google Books**,
   **YouTube Data API** — chaves em env.
 - **notify-api** (Telegram) — gateway compartilhado; o app só envia (texto/campos/botões).

@@ -28,7 +28,7 @@ interface FranchiseGridProps<
   emptyMessage?: string;
   emptyHint?: string;
   expandTitle: string;
-  coverTogglesExpansion?: boolean;
+  coverIsCollectionOnly?: boolean;
   animationKey?: string;
   getCollectionKey?: (entry: E) => number | null | undefined;
   onFormGroup?: (ids: string[], name: string) => void | Promise<unknown>;
@@ -60,7 +60,7 @@ export function FranchiseGrid<
   emptyMessage = "Nada encontrado.",
   emptyHint = "Adicione itens para começar!",
   expandTitle,
-  coverTogglesExpansion,
+  coverIsCollectionOnly,
   animationKey,
   getCollectionKey,
   onFormGroup,
@@ -199,7 +199,7 @@ export function FranchiseGrid<
           cardConfig={cardConfig}
           entryToCard={entryToCard}
           expandTitle={expandTitle}
-          coverTogglesExpansion={coverTogglesExpansion}
+          coverIsCollectionOnly={coverIsCollectionOnly}
           selectionMode={selectionActive}
           selected={memberIds.length > 0 && memberIds.every((id) => selectedIds.has(id))}
           onLongPress={selectionEnabled ? () => toggleIds(memberIds) : undefined}

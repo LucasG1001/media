@@ -13,11 +13,15 @@ interface SeasonLibraryModalProps {
   isCover: boolean;
   onClose: () => void;
   onSave: (data: { status: SeriesLibraryStatus; score: number; isRewatching: boolean }) => void;
-  onSetCover: () => void;
+  // Só nas coleções de 2+ temporadas: definir esta como capa.
+  onSetCover?: () => void;
+  // Só na série de temporada única: remover = remover a série.
+  onRemove?: () => void;
 }
 
 // Modal de temporada igual ao dos filmes (status + nota + reassistindo + definir
-// capa), mas sem "Remover" (temporada não é removida individualmente).
+// capa). Temporada de coleção não é removida individualmente — daí o "Remover"
+// aparecer só quando a série tem uma única temporada.
 export function SeasonLibraryModal({
   seriesTitle,
   seasonNumber,
@@ -30,6 +34,7 @@ export function SeasonLibraryModal({
   onClose,
   onSave,
   onSetCover,
+  onRemove,
 }: SeasonLibraryModalProps) {
   return (
     <LibraryModalBase
@@ -39,8 +44,8 @@ export function SeasonLibraryModal({
       statusLabels={SERIES_LIBRARY_STATUS_LABELS}
       initialStatus={status}
       initialScore={score}
-      hasEntry={false}
-      canSetCover
+      hasEntry={!!onRemove}
+      canSetCover={!!onSetCover}
       isCover={isCover}
       onSetCover={onSetCover}
       rewatch={{ label: "Reassistindo", whenStatus: "watched", initial: isRewatching }}
@@ -52,7 +57,7 @@ export function SeasonLibraryModal({
           isRewatching: data.rewatching ?? false,
         })
       }
-      onRemove={() => {}}
+      onRemove={() => onRemove?.()}
     />
   );
 }

@@ -282,6 +282,7 @@ export function AnimePage() {
           statusLabels={LIBRARY_STATUS_LABELS}
           onBulkSetStatus={(ids, status) => updateManyEntries(ids, status)}
           expandTitle="Ver temporadas, OVAs e filmes"
+          coverIsCollectionOnly
           animationKey={gridKey}
           emptyMessage="Sua biblioteca está vazia."
           emptyHint="Adicione animes para começar!"

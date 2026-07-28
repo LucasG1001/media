@@ -157,6 +157,21 @@ export async function migrate(): Promise<void> {
     WHERE season_states IS NULL AND season_scores IS NOT NULL AND season_scores <> '{}'::jsonb;
   `);
 
+  // Zera nota legada da série (antes das temporadas o modal da série tinha campo
+  // Nota): score da série é a média das temporadas avaliadas, então nota sem
+  // nenhuma temporada avaliada é fantasma. Roda a cada boot — a condição só bate
+  // em linha inconsistente.
+  await pool.query(`
+    UPDATE series_library
+    SET score = 0
+    WHERE score > 0
+      AND NOT EXISTS (
+        SELECT 1
+        FROM jsonb_each(COALESCE(season_states, '{}'::jsonb)) AS state(key, value)
+        WHERE (value->>'score')::numeric > 0
+      );
+  `);
+
   // Número da temporada usada como capa da coleção (NULL = pôster da série).
   await pool.query(`
     ALTER TABLE series_library

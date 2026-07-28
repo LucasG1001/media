@@ -182,6 +182,31 @@ export function AnimeDrawer({ animeId, onClose, onAnimeLoad }: AnimeDrawerProps)
                 </div>
               )}
 
+              {anime.streamingEpisodes.length > 0 && (
+                <div>
+                  <div className={styles.sectionTitle}>Episódios</div>
+                  <div className={styles.episodes}>
+                    {anime.streamingEpisodes.map((ep) => (
+                      <a
+                        key={ep.url}
+                        className={styles.episode}
+                        href={ep.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {ep.thumbnail && (
+                          <img className={styles.episodeThumb} src={ep.thumbnail} alt="" loading="lazy" />
+                        )}
+                        <div className={styles.episodeBody}>
+                          <div className={styles.episodeName}>{ep.title || "Episódio"}</div>
+                          {ep.site && <div className={styles.episodeSite}>{ep.site}</div>}
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </div>
           </>
         ) : (

@@ -26,9 +26,10 @@ interface FranchiseCardProps<
   cardConfig: MediaCardConfig<T>;
   entryToCard: (entry: E) => T;
   expandTitle: string;
-  // Quando true, clicar na capa expande/recolhe a coleção em vez de abrir o
-  // detalhe do representante (séries: o detalhe fica nos membros).
-  coverTogglesExpansion?: boolean;
+  // Quando true a capa é só a coleção: sem botão de status e o clique
+  // expande/recolhe em vez de abrir o detalhe do representante (que segue
+  // acessível como membro da expansão).
+  coverIsCollectionOnly?: boolean;
   selectionMode?: boolean;
   selected?: boolean;
   onLongPress?: () => void;
@@ -53,7 +54,7 @@ export function FranchiseCard<
   cardConfig,
   entryToCard,
   expandTitle,
-  coverTogglesExpansion,
+  coverIsCollectionOnly,
   selectionMode,
   selected,
   onLongPress,
@@ -63,10 +64,10 @@ export function FranchiseCard<
   collectionExtra,
 }: FranchiseCardProps<E, T>) {
   const card = entryToCard(group.representative);
-  // Nota exibida = média da coleção (mesmo critério da ordenação por nota),
-  // não a nota do representante.
+  // Nota exibida = média da coleção (mesmo critério da ordenação por nota), não a
+  // nota do representante: sem nenhum membro avaliado a capa não mostra nota.
   const displayEntry = libraryEntry
-    ? { ...libraryEntry, score: averageScore(group.members) || libraryEntry.score }
+    ? { ...libraryEntry, score: averageScore(group.members) }
     : libraryEntry;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(collectionName ?? "");
@@ -141,9 +142,10 @@ export function FranchiseCard<
         item={card}
         config={config}
         libraryEntry={displayEntry}
-        onClick={coverTogglesExpansion ? onToggle : () => onCardClick(card)}
+        onClick={coverIsCollectionOnly ? onToggle : () => onCardClick(card)}
         onAdd={() => onAddToLibrary(card)}
         isLibraryView
+        hideAddButton={coverIsCollectionOnly}
         index={index}
         selectionMode={selectionMode}
         selected={selected}
