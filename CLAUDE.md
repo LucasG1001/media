@@ -79,15 +79,22 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     faltantes e adiciona como "planejo"; notifica cada novo item.
   - **`librarySyncService.ts`** / **`seriesLibrarySyncService.ts`** — atualizam entradas "stale"
     (episódios/status) e disparam notificações de novo episódio/finalização.
+  - **`releaseLibrarySyncService.ts`** — o mesmo para filmes/jogos, que não têm episódio: TTL de
+    12 h para `UPCOMING` (pega adiamento de data) e 7 dias para `RELEASED`. Filmes vão 1 requisição
+    por item (o TMDB não tem lote) e por isso têm teto por execução; jogos vão em lote na IGDB.
   - **`releaseNotifyService.ts`** — avisa lançamentos de filmes/jogos.
   - **`notifyService.ts`** — envia ao Telegram via notify-api; nunca lança.
-- **Jobs (agendados em `server.ts`):** `refreshStaleEntries`+séries a cada 30 min; **collection
-  sync** diário (04:00); **notificação de lançamentos** diária (09:00). No boot roda também
-  `backfillGameModes` (one-shot): preenche `game_modes` dos jogos com a coluna NULL via
+- **Jobs (agendados em `server.ts`):** a cada 30 min, refresh de anime, séries, filmes e jogos;
+  **collection sync** diário (04:00); **notificação de lançamentos** diária (09:00). No boot roda
+  também `backfillGameModes` (one-shot): preenche `game_modes` dos jogos com a coluna NULL via
   `fetchGameModes` (IGDB) — idempotente (`NULL` = nunca buscado; `[]` = sem modo conhecido). E
   `backfillSeriesSeasons` (one-shot): preenche `season_list` das séries com a coluna NULL via
-  `fetchSeriesById` (TMDB). O refresh de séries (30 min) também atualiza `season_list` (pega novas
+  `fetchSeriesById` (TMDB). O refresh de séries também atualiza `season_list` (pega novas
   temporadas), sem tocar em `season_scores`.
+- **Invariante do refresh:** cada job grava o mesmo conjunto de campos que o `handle*Load` da
+  página grava ao abrir o drawer — inclusive **título e capa**, que antes só mudavam por lá e por
+  isso envelheciam. Título/capa usam `COALESCE(NULLIF(...))` no `UPDATE`: resposta com campo
+  vazio (TMDB pt-BR devolve `poster_path` nulo às vezes) não pode apagar um valor bom.
 
 ### Frontend (`frontend/src/`)
 
@@ -97,8 +104,10 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   agrupada por franquia/coleção), `LibraryModalBase` (seletor de status derivado do mapa de labels
   de cada mídia), `LibraryControls` (barra de biblioteca: busca + botões Filtros/Ordenação com painel
   que é bottom-sheet no mobile e popover ancorado no desktop + chip de contagem; dirigido por config
-  `filterGroups`/`sort`, cada página monta a config do seu estado). Config visual por mídia em
-  **`config/cards.tsx`**.
+  `filterGroups`/`sort`, cada página monta a config do seu estado. As opções de filtro ficam em
+  **grade** (`.filterOptions`), não em `flex-wrap`: com rótulos de larguras diferentes o wrap
+  desalinhava as linhas; rótulo longo trunca com reticências e o texto inteiro vai no `title`).
+  Config visual por mídia em **`config/cards.tsx`**.
 - **Filtros/ordenação da biblioteca — lógica com base em coleções (invariantes):**
   - **Agrupamento**: `buildCollectionGroups` agrupa por franquia/coleção/autor; cada grupo tem
     `representative` (capa: `isCover` senão o mais antigo), `members`, `count`, `completedCount`. Os
@@ -112,6 +121,13 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     "planejo" → `3/6` (expansão mostra só esses 3, capa vira um deles). Coleção sem match some. Sem filtro (array vazio):
     `memberFilter` fica `undefined`, mostra tudo (inclusive `dropped`), escondendo só coleções 100%
     `dropped` (`.filter(some não-dropped)` na página). `filterGroupsBySearch` continua por título.
+  - **Grupos de filtro por mídia** (todos member-level e combinados em **E** entre si, **OU** dentro
+    de cada um): anime = Status + **Exibição** (`animeStatus`, 3 estados); filmes = Status +
+    **Lançamento** (`movieStatus`); jogos = Status + **Lançamento** (`gameStatus`) + Modos de jogo;
+    livros/YouTube não têm o de lançamento. **Séries é a exceção**: o de Exibição é da série, não da
+    temporada (o TMDB não dá status de exibição por temporada), então recorta a lista de entries
+    **antes** do `buildSeasonGroups`, enquanto o de Status segue member-level. O mapeamento
+    `air_status` cru → `on_air`/`finished`/`upcoming` fica em `utils/seriesFormat.ts`.
   - **Ordenação (de seleção única, `hooks/useSingleSort.ts`; sempre uma ativa)** opera sobre o grupo
     **já reduzido**, via `utils/sortGroups.ts`: **data** = item **mais antigo** da coleção
     (`sortGroupsByMemberDate`, `agg:"oldest"`); **nota** = **média** das notas dos membros com
@@ -172,6 +188,14 @@ Convenções comuns: `is_cover` (capa da coleção), `is_rewatching`, timestamp 
 (JSONB, estado por temporada `{ "1": {status,score,isRewatching} }`; `score` da série = média das notas)
 e `cover_season` (INTEGER, temporada usada como capa da coleção). `game_library` tem `game_modes`
 (`TEXT[]`). Colunas JSONB são escritas com `JSON.stringify` explícito (ver `seriesLibraryModel`).
+
+**Status vindos da API externa** (todos alimentados pelos jobs de refresh, nunca editáveis pelo
+usuário): `anime_status` (AniList: `RELEASING`/`FINISHED`/`NOT_YET_RELEASED`) e, em filmes/séries/
+jogos, `movie_status`/`series_status`/`game_status`, que são só `RELEASED`/`UPCOMING` derivados da
+data. Séries têm além disso `air_status` — o status cru do TMDB (`Returning Series`/`Ended`/…),
+que é o que dá os três estados do filtro de Exibição; `NULL` = nunca sincronizado, e é o que faz
+o `findStaleSeries` puxar a linha para backfill. `synced_at` (todas as quatro tabelas) guarda o
+último refresh; `NULL` entra na próxima execução do job.
 
 **Status da biblioteca:** `plan_to_*` (planejo) → concluído (`watched`/`beaten`/`read`) →
 `dropped`. Não existe status "em progresso". YouTube usa `liked`/`removed`.

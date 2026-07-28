@@ -30,6 +30,8 @@ export interface SeriesLibraryEntry {
   seasons: number | null;
   episodes: number | null;
   seriesStatus: string;
+  // Status cru do TMDB ("Returning Series"/"Ended"/...); NULL até o primeiro sync.
+  airStatus: string | null;
   nextAiringEpisode: SeriesNextAiringEpisode | null;
   syncedAt: string | null;
   lastNotifiedEpisode: number | null;
@@ -79,6 +81,7 @@ export interface SeriesLibraryRow {
   seasons: number | null;
   episodes: number | null;
   series_status: string;
+  air_status: string | null;
   next_airing_episode: SeriesNextAiringEpisode | null;
   synced_at: string | null;
   last_notified_episode: number | null;

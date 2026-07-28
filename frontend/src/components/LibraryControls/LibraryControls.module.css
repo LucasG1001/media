@@ -157,11 +157,21 @@
   gap: var(--spacing-sm);
 }
 
+/* Opções de filtro em grade, não em flex-wrap: os rótulos têm larguras muito
+   diferentes (nome de coleção do YouTube, por exemplo) e o wrap deixava cada
+   linha começando num ponto diferente. A grade alinha as colunas. */
+.filterOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--spacing-sm);
+}
+
 .checkbox,
 .sortOption {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-xs);
+  min-width: 0;
   padding: 6px 12px;
   border-radius: var(--radius-sm);
   background: var(--color-bg-card);
@@ -176,6 +186,14 @@
   accent-color: var(--color-accent);
   cursor: pointer;
   margin: 0;
+  flex: none;
+}
+
+/* Rótulo longo encurta em vez de estourar a célula da grade (title tem o texto). */
+.checkboxLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sortOptionActive {

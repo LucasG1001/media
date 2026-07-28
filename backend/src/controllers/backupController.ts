@@ -60,6 +60,7 @@ const TABLES: TableSpec[] = [
       { column: "movie_status", get: (e) => e.movieStatus ?? "RELEASED" },
       { column: "collection_id", get: (e) => e.collectionId ?? null },
       { column: "watched_at", get: (e) => e.watchedAt ?? null },
+      { column: "synced_at", get: (e) => e.syncedAt ?? null },
     ],
   },
   {
@@ -76,6 +77,7 @@ const TABLES: TableSpec[] = [
       { column: "seasons", get: (e) => e.seasons ?? null },
       { column: "episodes", get: (e) => e.episodes ?? null },
       { column: "series_status", get: (e) => e.seriesStatus ?? "RELEASED" },
+      { column: "air_status", get: (e) => e.airStatus ?? null },
       { column: "next_airing_episode", get: (e) => e.nextAiringEpisode ?? null, json: true },
       { column: "synced_at", get: (e) => e.syncedAt ?? null },
       { column: "watched_at", get: (e) => e.watchedAt ?? null },
@@ -97,6 +99,7 @@ const TABLES: TableSpec[] = [
       { column: "collection_id", get: (e) => e.collectionId ?? null },
       { column: "game_modes", get: (e) => e.gameModes ?? null },
       { column: "finished_at", get: (e) => e.finishedAt ?? null },
+      { column: "synced_at", get: (e) => e.syncedAt ?? null },
     ],
   },
   {

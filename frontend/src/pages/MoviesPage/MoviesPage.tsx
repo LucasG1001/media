@@ -31,6 +31,11 @@ const TABS = [
 
 const STATUS_OPTIONS = Object.entries(MOVIE_LIBRARY_STATUS_LABELS) as [MovieLibraryStatus, string][];
 
+const RELEASE_OPTIONS: [string, string][] = [
+  ["RELEASED", "Lançado"],
+  ["UPCOMING", "Em breve"],
+];
+
 export function MoviesPage() {
   const [activeTab, setActiveTab] = useState("now_playing");
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,6 +43,7 @@ export function MoviesPage() {
   const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
   const [selectedMovieForModal, setSelectedMovieForModal] = useState<MovieCard | null>(null);
   const [libraryFilter, setLibraryFilter] = useState<MovieLibraryStatus[]>([]);
+  const [releaseFilter, setReleaseFilter] = useState<string[]>([]);
   const sort = useSingleSort("release");
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
   const [selectedMonth, setSelectedMonth] = useState(0);
@@ -134,12 +140,23 @@ export function MoviesPage() {
       prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]
     );
 
+  const toggleReleaseFilter = (value: string) =>
+    setReleaseFilter((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+
   const collectionGroups = useMemo(() => {
-    const hasFilter = libraryFilter.length > 0;
+    const hasFilter = libraryFilter.length > 0 || releaseFilter.length > 0;
+    // Multi-seleção: OU dentro de cada grupo, E entre status e lançamento.
     const memberFilter = hasFilter
-      ? (m: MovieLibraryEntry) =>
-          libraryFilter.includes(m.status as MovieLibraryStatus) ||
-          (libraryFilter.includes("plan_to_watch") && m.isRewatching)
+      ? (m: MovieLibraryEntry) => {
+          const statusOk =
+            libraryFilter.length === 0 ||
+            libraryFilter.includes(m.status as MovieLibraryStatus) ||
+            (libraryFilter.includes("plan_to_watch") && m.isRewatching);
+          const releaseOk = releaseFilter.length === 0 || releaseFilter.includes(m.movieStatus);
+          return statusOk && releaseOk;
+        }
       : undefined;
     let groups = buildMovieCollectionGroups(libraryEntries, memberFilter);
     if (!hasFilter) {
@@ -150,11 +167,11 @@ export function MoviesPage() {
         ? sortGroupsByAvgScore(groups, sort.dir)
         : sortGroupsByMemberDate(groups, releaseTimeOf, sort.dir);
     return filterGroupsBySearch(groups, librarySearch);
-  }, [libraryEntries, libraryFilter, sort.field, sort.dir, librarySearch]);
+  }, [libraryEntries, libraryFilter, releaseFilter, sort.field, sort.dir, librarySearch]);
 
   const gridKey =
     activeTab === "library"
-      ? `library-${libraryFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
+      ? `library-${libraryFilter.join(",")}-${releaseFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
       : activeTab === "search"
       ? `search-${debouncedSearch}`
       : activeTab === "popular"
@@ -221,8 +238,18 @@ export function MoviesPage() {
               selected: libraryFilter,
               onToggle: (v) => toggleLibraryFilter(v as MovieLibraryStatus),
             },
+            {
+              key: "release",
+              title: "Lançamento",
+              options: RELEASE_OPTIONS.map(([value, label]) => ({ value, label })),
+              selected: releaseFilter,
+              onToggle: toggleReleaseFilter,
+            },
           ]}
-          onClearFilters={() => setLibraryFilter([])}
+          onClearFilters={() => {
+            setLibraryFilter([]);
+            setReleaseFilter([]);
+          }}
           sort={{
             active: sort.field,
             dir: sort.dir,

@@ -109,6 +109,25 @@ export async function fetchMovieById(id: number): Promise<MovieDetail> {
   return toMovieDetail(data);
 }
 
+export interface MovieSyncResult {
+  title: string;
+  posterImage: string | null;
+  releaseDate: string | null;
+  runtime: number | null;
+  movieStatus: string;
+}
+
+export async function fetchMovieSyncData(id: number): Promise<MovieSyncResult> {
+  const data = await queryTmdb<TmdbMovieDetail>(`/movie/${id}`, {});
+  return {
+    title: data.title,
+    posterImage: buildImage(data.poster_path, POSTER_SIZE),
+    releaseDate: data.release_date || null,
+    runtime: data.runtime,
+    movieStatus: deriveStatus(data.release_date || null),
+  };
+}
+
 export async function discoverCollection(tmdbId: number): Promise<{ collectionId: number; members: MovieCard[] } | null> {
   const detail = await queryTmdb<TmdbMovieDetail>(`/movie/${tmdbId}`, {});
   const collection = detail.belongs_to_collection;

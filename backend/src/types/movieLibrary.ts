@@ -13,6 +13,7 @@ export interface MovieLibraryEntry {
   collectionId: number | null;
   isCover: boolean;
   isRewatching: boolean;
+  syncedAt: string | null;
   watchedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -41,6 +42,14 @@ export interface UpdateMovieLibraryEntry {
   isRewatching?: boolean;
 }
 
+export interface MovieSyncData {
+  title: string;
+  posterImage: string | null;
+  releaseDate: string | null;
+  runtime: number | null;
+  movieStatus: string;
+}
+
 export interface MovieLibraryRow {
   id: string;
   tmdb_id: number;
@@ -54,6 +63,7 @@ export interface MovieLibraryRow {
   collection_id: number | null;
   is_cover: boolean;
   is_rewatching: boolean;
+  synced_at: string | null;
   watched_at: string | null;
   created_at: string;
   updated_at: string;

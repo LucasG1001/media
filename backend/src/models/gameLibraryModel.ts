@@ -1,6 +1,12 @@
 import { pool } from "../database/connection.js";
 import { createLibraryModel } from "../lib/createLibraryModel.js";
-import type { GameLibraryEntry, CreateGameLibraryEntry, UpdateGameLibraryEntry, GameLibraryRow } from "../types/gameLibrary.js";
+import type {
+  GameLibraryEntry,
+  CreateGameLibraryEntry,
+  UpdateGameLibraryEntry,
+  GameLibraryRow,
+  GameSyncData,
+} from "../types/gameLibrary.js";
 
 export const gameLibraryModel = createLibraryModel<GameLibraryEntry, CreateGameLibraryEntry, UpdateGameLibraryEntry>({
   table: "game_library",
@@ -16,6 +22,7 @@ export const gameLibraryModel = createLibraryModel<GameLibraryEntry, CreateGameL
     { column: "collection_id", field: "collectionId", default: null },
     { column: "is_cover", field: "isCover", default: false, readonly: true },
     { column: "game_modes", field: "gameModes", default: null },
+    { column: "synced_at", field: "syncedAt", default: null, readonly: true },
   ],
   statusField: "status",
   completion: { column: "finished_at", field: "finishedAt", whenStatus: "beaten" },
@@ -38,6 +45,7 @@ function toEntry(row: GameLibraryRow): GameLibraryEntry {
     isCover: row.is_cover,
     isRewatching: row.is_rewatching,
     gameModes: row.game_modes,
+    syncedAt: row.synced_at,
     finishedAt: row.finished_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -81,6 +89,42 @@ export async function bulkUpsertGames(entries: CreateGameLibraryEntry[], collect
     values
   );
   return result.rows.map(toEntry);
+}
+
+// TTL curto para não lançados (a data pode ser adiada) e longo para lançados,
+// que só mudam título/capa/metacritic. Sem `limit` como em filmes: a IGDB aceita
+// consulta em lote, então a biblioteca inteira cabe em poucas requisições.
+export async function findStaleGames(
+  upcomingTtlHours: number,
+  releasedTtlHours: number
+): Promise<GameLibraryEntry[]> {
+  const result = await pool.query<GameLibraryRow>(
+    `SELECT * FROM game_library
+     WHERE status != 'dropped'
+       AND (
+         synced_at IS NULL
+         OR (game_status = 'UPCOMING' AND synced_at < NOW() - ($1 || ' hours')::interval)
+         OR (game_status != 'UPCOMING' AND synced_at < NOW() - ($2 || ' hours')::interval)
+       )`,
+    [upcomingTtlHours, releasedTtlHours]
+  );
+  return result.rows.map(toEntry);
+}
+
+// Título/capa usam COALESCE(NULLIF(...)): jogo sem cover na IGDB devolve imagem
+// nula, e um job silencioso não pode trocar uma capa boa por nada.
+export async function updateGameSyncData(igdbId: number, data: GameSyncData): Promise<void> {
+  await pool.query(
+    `UPDATE game_library
+     SET title = COALESCE(NULLIF($2, ''), title),
+         background_image = COALESCE(NULLIF($3, ''), background_image),
+         released = COALESCE($4, released),
+         metacritic = COALESCE($5, metacritic),
+         game_status = $6,
+         synced_at = NOW()
+     WHERE igdb_id = $1`,
+    [igdbId, data.title ?? null, data.backgroundImage ?? null, data.released ?? null, data.metacritic ?? null, data.gameStatus]
+  );
 }
 
 // Backfill: linhas nunca processadas têm game_modes NULL; [] marca "sem modo".

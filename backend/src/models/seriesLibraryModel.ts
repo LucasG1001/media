@@ -22,6 +22,7 @@ export const seriesLibraryModel = createLibraryModel<SeriesLibraryEntry, CreateS
     { column: "seasons", field: "seasons", default: null },
     { column: "episodes", field: "episodes", default: null },
     { column: "series_status", field: "seriesStatus", default: "RELEASED" },
+    { column: "air_status", field: "airStatus", default: null, readonly: true },
     { column: "next_airing_episode", field: "nextAiringEpisode", default: null, readonly: true },
     { column: "synced_at", field: "syncedAt", default: null, readonly: true },
     { column: "last_notified_episode", field: "lastNotifiedEpisode", default: null, readonly: true },
@@ -48,6 +49,7 @@ function toSeriesEntry(row: SeriesLibraryRow): SeriesLibraryEntry {
     seasons: row.seasons,
     episodes: row.episodes,
     seriesStatus: row.series_status,
+    airStatus: row.air_status,
     nextAiringEpisode: row.next_airing_episode,
     syncedAt: row.synced_at,
     lastNotifiedEpisode: row.last_notified_episode,
@@ -70,6 +72,7 @@ export async function findStaleSeries(
      WHERE status != 'dropped'
        AND (
          synced_at IS NULL
+         OR air_status IS NULL
          OR (next_airing_episode IS NOT NULL AND synced_at < NOW() - ($1 || ' hours')::interval)
          OR (next_airing_episode IS NULL AND synced_at < NOW() - ($2 || ' hours')::interval)
        )`,
@@ -97,20 +100,45 @@ export async function markSeriesEpisodeNotified(tmdbId: number, episode: number)
 }
 
 export interface SeriesSyncData {
+  title: string;
+  posterImage: string | null;
+  firstAirDate: string | null;
+  seasons: number | null;
   episodes: number | null;
+  seriesStatus: string;
+  airStatus: string | null;
   nextAiringEpisode: SeriesNextAiringEpisode | null;
   seasonList: SeriesSeasonMeta[];
 }
 
+// Título/pôster usam COALESCE(NULLIF(...)): o TMDB em pt-BR às vezes devolve
+// poster_path nulo, e um job silencioso não pode trocar uma capa boa por nada.
 export async function updateSeriesSyncData(tmdbId: number, data: SeriesSyncData): Promise<void> {
   await pool.query(
     `UPDATE series_library
      SET episodes = $2,
          next_airing_episode = $3,
          season_list = $4,
+         title = COALESCE(NULLIF($5, ''), title),
+         poster_image = COALESCE(NULLIF($6, ''), poster_image),
+         first_air_date = COALESCE($7, first_air_date),
+         seasons = COALESCE($8, seasons),
+         series_status = $9,
+         air_status = COALESCE($10, air_status),
          synced_at = NOW()
      WHERE tmdb_id = $1`,
-    [tmdbId, data.episodes, JSON.stringify(data.nextAiringEpisode ?? null), JSON.stringify(data.seasonList)]
+    [
+      tmdbId,
+      data.episodes,
+      JSON.stringify(data.nextAiringEpisode ?? null),
+      JSON.stringify(data.seasonList),
+      data.title ?? null,
+      data.posterImage ?? null,
+      data.firstAirDate ?? null,
+      data.seasons ?? null,
+      data.seriesStatus,
+      data.airStatus ?? null,
+    ]
   );
 }
 

@@ -20,6 +20,7 @@ import { MONTH_PT } from "../../utils/month";
 import { getCurrentYear, getRecentYears } from "../../utils/year";
 import { buildSeasonGroups, seasonDateOf, type SeasonMember } from "../../utils/seasonGroups";
 import { seriesLibraryEntryToCard } from "../../utils/seriesLibraryEntryToCard";
+import { SERIES_AIR_GROUP_LABELS, seriesAirGroup, type SeriesAirGroup } from "../../utils/seriesFormat";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import styles from "./SeriesPage.module.css";
@@ -31,6 +32,7 @@ const TABS = [
 ];
 
 const STATUS_OPTIONS = Object.entries(SERIES_LIBRARY_STATUS_LABELS) as [SeriesLibraryStatus, string][];
+const AIR_OPTIONS = Object.entries(SERIES_AIR_GROUP_LABELS) as [SeriesAirGroup, string][];
 
 export function SeriesPage() {
   const [activeTab, setActiveTab] = useState("popular");
@@ -41,6 +43,7 @@ export function SeriesPage() {
   const [selectedSeason, setSelectedSeason] = useState<SeasonMember | null>(null);
   const [seasonModal, setSeasonModal] = useState<{ entry: SeriesLibraryEntry; member: SeasonMember } | null>(null);
   const [libraryFilter, setLibraryFilter] = useState<SeriesLibraryStatus[]>([]);
+  const [airFilter, setAirFilter] = useState<SeriesAirGroup[]>([]);
   const sort = useSingleSort("release");
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
   const [selectedMonth, setSelectedMonth] = useState(0);
@@ -159,17 +162,28 @@ export function SeriesPage() {
       prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]
     );
 
+  const toggleAirFilter = (group: SeriesAirGroup) =>
+    setAirFilter((prev) =>
+      prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group]
+    );
+
   // Filtro de status age POR TEMPORADA (como filmes): reduz a coleção às que
-  // batem; sem filtro esconde só as séries 100% abandonadas.
+  // batem; sem filtro esconde só as séries 100% abandonadas. Já o de exibição é
+  // da SÉRIE (o TMDB não dá status de exibição por temporada), então recorta a
+  // lista de entries antes de montar as coleções.
   const collectionGroups = useMemo(() => {
-    const hasFilter = libraryFilter.length > 0;
-    const memberFilter = hasFilter
+    const hasFilter = libraryFilter.length > 0 || airFilter.length > 0;
+    const memberFilter = libraryFilter.length > 0
       ? (m: SeasonMember) =>
           libraryFilter.includes(m.status as SeriesLibraryStatus) ||
           (libraryFilter.includes("plan_to_watch") && m.isRewatching)
       : undefined;
 
-    const { groups, lookup } = buildSeasonGroups(libraryEntries, memberFilter);
+    const entries = airFilter.length > 0
+      ? libraryEntries.filter((e) => airFilter.includes(seriesAirGroup(e.airStatus, e.seriesStatus)))
+      : libraryEntries;
+
+    const { groups, lookup } = buildSeasonGroups(entries, memberFilter);
     let result = groups;
     if (!hasFilter) {
       result = result.filter((g) => g.members.some((m) => m.status !== "dropped"));
@@ -179,7 +193,7 @@ export function SeriesPage() {
       : sortGroupsByMemberDate(result, seasonDateOf, sort.dir);
     result = filterGroupsBySearch(result, librarySearch);
     return { groups: result, lookup };
-  }, [libraryEntries, libraryFilter, librarySearch, sort.field, sort.dir]);
+  }, [libraryEntries, libraryFilter, airFilter, librarySearch, sort.field, sort.dir]);
 
   const displayLoading = activeTab === "library" ? libraryLoading : loading;
   const displayError = activeTab === "library" ? libraryError : error;
@@ -187,7 +201,7 @@ export function SeriesPage() {
 
   const gridKey =
     activeTab === "library"
-      ? `library-${libraryFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
+      ? `library-${libraryFilter.join(",")}-${airFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
       : activeTab === "search"
       ? `search-${debouncedSearch}`
       : `popular-${selectedYear}-${selectedMonth}`;
@@ -252,8 +266,18 @@ export function SeriesPage() {
               selected: libraryFilter,
               onToggle: (v) => toggleLibraryFilter(v as SeriesLibraryStatus),
             },
+            {
+              key: "air",
+              title: "Exibição",
+              options: AIR_OPTIONS.map(([value, label]) => ({ value, label })),
+              selected: airFilter,
+              onToggle: (v) => toggleAirFilter(v as SeriesAirGroup),
+            },
           ]}
-          onClearFilters={() => setLibraryFilter([])}
+          onClearFilters={() => {
+            setLibraryFilter([]);
+            setAirFilter([]);
+          }}
           sort={{
             active: sort.field,
             dir: sort.dir,

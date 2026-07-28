@@ -214,6 +214,22 @@ export async function fetchGameModes(ids: number[]): Promise<Map<number, string[
   return result;
 }
 
+// Dados de sync por igdbId. Uma query por lote (mesmo limite da IGDB do
+// fetchGameModes: o chamador fatia em ≤500). Jogo que sumiu da IGDB não volta
+// no Map — o chamador simplesmente não atualiza a linha.
+export async function fetchGamesSyncData(ids: number[]): Promise<Map<number, GameCard>> {
+  const result = new Map<number, GameCard>();
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return result;
+
+  const data = await igdbQuery<IgdbGameListItem[]>(
+    "games",
+    `${CARD_FIELDS} where id = (${unique.join(",")}); limit ${unique.length};`
+  );
+  for (const game of data) result.set(game.id, toGameCard(game));
+  return result;
+}
+
 export async function fetchGameById(id: number): Promise<GameDetail> {
   const data = await igdbQuery<IgdbGameDetail[]>("games", `${DETAIL_FIELDS} where id = ${id};`);
   const game = data[0];

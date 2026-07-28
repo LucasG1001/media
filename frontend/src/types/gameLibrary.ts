@@ -14,6 +14,7 @@ export interface GameLibraryEntry {
   isCover: boolean;
   isRewatching: boolean;
   gameModes: string[] | null;
+  syncedAt: string | null;
   finishedAt: string | null;
   createdAt: string;
   updatedAt: string;

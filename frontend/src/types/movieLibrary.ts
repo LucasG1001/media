@@ -13,6 +13,7 @@ export interface MovieLibraryEntry {
   collectionId: number | null;
   isCover: boolean;
   isRewatching: boolean;
+  syncedAt: string | null;
   watchedAt: string | null;
   createdAt: string;
   updatedAt: string;

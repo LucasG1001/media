@@ -32,6 +32,11 @@ const TABS = [
 const STATUS_OPTIONS = Object.entries(GAME_LIBRARY_STATUS_LABELS) as [GameLibraryStatus, string][];
 const MODE_OPTIONS = Object.entries(GAME_MODE_LABELS) as [GameMode, string][];
 
+const RELEASE_OPTIONS: [string, string][] = [
+  ["RELEASED", "Lançado"],
+  ["UPCOMING", "Em breve"],
+];
+
 export function GamesPage() {
   const [activeTab, setActiveTab] = useState("upcoming");
   const [searchQuery, setSearchQuery] = useState("");
@@ -40,6 +45,7 @@ export function GamesPage() {
   const [selectedGameForModal, setSelectedGameForModal] = useState<GameCard | null>(null);
   const [libraryFilter, setLibraryFilter] = useState<GameLibraryStatus[]>([]);
   const [modeFilter, setModeFilter] = useState<GameMode[]>([]);
+  const [releaseFilter, setReleaseFilter] = useState<string[]>([]);
   const sort = useSingleSort("release");
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
   const [selectedMonth, setSelectedMonth] = useState(0);
@@ -142,19 +148,25 @@ export function GamesPage() {
       prev.includes(mode) ? prev.filter((m) => m !== mode) : [...prev, mode]
     );
 
+  const toggleReleaseFilter = (value: string) =>
+    setReleaseFilter((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+
   const collectionGroups = useMemo(() => {
-    const hasFilter = libraryFilter.length > 0 || modeFilter.length > 0;
-    // Multi-seleção: OU dentro de cada grupo, E entre status e modos de jogo.
+    const hasFilter = libraryFilter.length > 0 || modeFilter.length > 0 || releaseFilter.length > 0;
+    // Multi-seleção: OU dentro de cada grupo, E entre status, lançamento e modos.
     const memberFilter = hasFilter
       ? (m: GameLibraryEntry) => {
           const statusOk =
             libraryFilter.length === 0 ||
             libraryFilter.includes(m.status as GameLibraryStatus) ||
             (libraryFilter.includes("plan_to_play") && m.isRewatching);
+          const releaseOk = releaseFilter.length === 0 || releaseFilter.includes(m.gameStatus);
           const modeOk =
             modeFilter.length === 0 ||
             (m.gameModes?.some((mode) => modeFilter.includes(mode as GameMode)) ?? false);
-          return statusOk && modeOk;
+          return statusOk && releaseOk && modeOk;
         }
       : undefined;
     let groups = buildGameCollectionGroups(libraryEntries, memberFilter);
@@ -166,11 +178,11 @@ export function GamesPage() {
         ? sortGroupsByAvgScore(groups, sort.dir)
         : sortGroupsByMemberDate(groups, releaseTimeOf, sort.dir);
     return filterGroupsBySearch(groups, librarySearch);
-  }, [libraryEntries, libraryFilter, modeFilter, sort.field, sort.dir, librarySearch]);
+  }, [libraryEntries, libraryFilter, modeFilter, releaseFilter, sort.field, sort.dir, librarySearch]);
 
   const gridKey =
     activeTab === "library"
-      ? `library-${libraryFilter.join(",")}-${modeFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
+      ? `library-${libraryFilter.join(",")}-${modeFilter.join(",")}-${releaseFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
       : activeTab === "search"
       ? `search-${debouncedSearch}`
       : activeTab === "popular"
@@ -238,6 +250,13 @@ export function GamesPage() {
               onToggle: (v) => toggleLibraryFilter(v as GameLibraryStatus),
             },
             {
+              key: "release",
+              title: "Lançamento",
+              options: RELEASE_OPTIONS.map(([value, label]) => ({ value, label })),
+              selected: releaseFilter,
+              onToggle: toggleReleaseFilter,
+            },
+            {
               key: "gameModes",
               title: "Modos de jogo",
               options: MODE_OPTIONS.map(([value, label]) => ({ value, label })),
@@ -248,6 +267,7 @@ export function GamesPage() {
           onClearFilters={() => {
             setLibraryFilter([]);
             setModeFilter([]);
+            setReleaseFilter([]);
           }}
           sort={{
             active: sort.field,

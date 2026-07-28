@@ -49,6 +49,9 @@ export interface UpdateLibraryEntry {
 }
 
 export interface SyncLibraryData {
+  title: string;
+  coverImage: string | null;
+  format: string | null;
   totalEpisodes: number | null;
   animeStatus: string;
   seasonYear: number | null;

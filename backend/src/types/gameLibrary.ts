@@ -14,6 +14,7 @@ export interface GameLibraryEntry {
   isCover: boolean;
   isRewatching: boolean;
   gameModes: string[] | null;
+  syncedAt: string | null;
   finishedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -43,6 +44,14 @@ export interface UpdateGameLibraryEntry {
   isRewatching?: boolean;
 }
 
+export interface GameSyncData {
+  title: string;
+  backgroundImage: string | null;
+  released: string | null;
+  metacritic: number | null;
+  gameStatus: string;
+}
+
 export interface GameLibraryRow {
   id: string;
   igdb_id: number;
@@ -57,6 +66,7 @@ export interface GameLibraryRow {
   is_cover: boolean;
   is_rewatching: boolean;
   game_modes: string[] | null;
+  synced_at: string | null;
   finished_at: string | null;
   created_at: string;
   updated_at: string;

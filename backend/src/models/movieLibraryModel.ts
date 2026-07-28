@@ -1,6 +1,12 @@
 import { pool } from "../database/connection.js";
 import { createLibraryModel } from "../lib/createLibraryModel.js";
-import type { MovieLibraryEntry, CreateMovieLibraryEntry, UpdateMovieLibraryEntry, MovieLibraryRow } from "../types/movieLibrary.js";
+import type {
+  MovieLibraryEntry,
+  CreateMovieLibraryEntry,
+  UpdateMovieLibraryEntry,
+  MovieLibraryRow,
+  MovieSyncData,
+} from "../types/movieLibrary.js";
 
 export const movieLibraryModel = createLibraryModel<MovieLibraryEntry, CreateMovieLibraryEntry, UpdateMovieLibraryEntry>({
   table: "movie_library",
@@ -15,6 +21,7 @@ export const movieLibraryModel = createLibraryModel<MovieLibraryEntry, CreateMov
     { column: "movie_status", field: "movieStatus", default: "RELEASED" },
     { column: "collection_id", field: "collectionId", default: null },
     { column: "is_cover", field: "isCover", default: false, readonly: true },
+    { column: "synced_at", field: "syncedAt", default: null, readonly: true },
   ],
   statusField: "status",
   completion: { column: "watched_at", field: "watchedAt", whenStatus: "watched" },
@@ -36,10 +43,50 @@ function toEntry(row: MovieLibraryRow): MovieLibraryEntry {
     collectionId: row.collection_id,
     isCover: row.is_cover,
     isRewatching: row.is_rewatching,
+    syncedAt: row.synced_at,
     watchedAt: row.watched_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+// TTL curto para não lançados (a data pode ser adiada) e longo para lançados,
+// que só mudam título/capa. `limit` espalha o primeiro backfill entre execuções:
+// o TMDB não tem endpoint em lote, é 1 requisição por filme.
+export async function findStaleMovies(
+  upcomingTtlHours: number,
+  releasedTtlHours: number,
+  limit: number
+): Promise<MovieLibraryEntry[]> {
+  const result = await pool.query<MovieLibraryRow>(
+    `SELECT * FROM movie_library
+     WHERE status != 'dropped'
+       AND (
+         synced_at IS NULL
+         OR (movie_status = 'UPCOMING' AND synced_at < NOW() - ($1 || ' hours')::interval)
+         OR (movie_status != 'UPCOMING' AND synced_at < NOW() - ($2 || ' hours')::interval)
+       )
+     ORDER BY synced_at ASC NULLS FIRST
+     LIMIT $3`,
+    [upcomingTtlHours, releasedTtlHours, limit]
+  );
+  return result.rows.map(toEntry);
+}
+
+// Título/pôster usam COALESCE(NULLIF(...)): o TMDB em pt-BR às vezes devolve
+// poster_path nulo, e um job silencioso não pode trocar uma capa boa por nada.
+export async function updateMovieSyncData(tmdbId: number, data: MovieSyncData): Promise<void> {
+  await pool.query(
+    `UPDATE movie_library
+     SET title = COALESCE(NULLIF($2, ''), title),
+         poster_image = COALESCE(NULLIF($3, ''), poster_image),
+         release_date = COALESCE($4, release_date),
+         runtime = COALESCE($5, runtime),
+         movie_status = $6,
+         synced_at = NOW()
+     WHERE tmdb_id = $1`,
+    [tmdbId, data.title ?? null, data.posterImage ?? null, data.releaseDate ?? null, data.runtime ?? null, data.movieStatus]
+  );
 }
 
 export async function bulkUpsertMovies(entries: CreateMovieLibraryEntry[], collectionId: number): Promise<MovieLibraryEntry[]> {

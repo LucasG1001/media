@@ -88,15 +88,15 @@ export function LibraryControls({
         {filterGroups.map((group) => (
           <div key={group.key} className={styles.filterGroup}>
             <span className={styles.filterGroupTitle}>{group.title}</span>
-            <div className={styles.checkboxRow}>
+            <div className={styles.filterOptions}>
               {group.options.map((opt) => (
-                <label key={opt.value} className={styles.checkbox}>
+                <label key={opt.value} className={styles.checkbox} title={opt.label}>
                   <input
                     type="checkbox"
                     checked={group.selected.includes(opt.value)}
                     onChange={() => group.onToggle(opt.value)}
                   />
-                  <span>{opt.label}</span>
+                  <span className={styles.checkboxLabel}>{opt.label}</span>
                 </label>
               ))}
             </div>

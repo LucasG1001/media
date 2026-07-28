@@ -50,6 +50,9 @@ async function doRefresh(): Promise<void> {
           detectAndNotify(old, anime);
         }
         return libraryModel.updateSyncData(anime.id, {
+          title: anime.title,
+          coverImage: anime.coverImage,
+          format: anime.format,
           totalEpisodes: anime.episodes,
           animeStatus: anime.status,
           seasonYear: anime.seasonYear,

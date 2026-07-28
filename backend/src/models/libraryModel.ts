@@ -136,6 +136,8 @@ export async function bulkUpsert(entries: CreateLibraryEntry[], franchiseId: num
   return result.rows.map(toLibraryEntry);
 }
 
+// Título/capa usam COALESCE(NULLIF(...)): a AniList ocasionalmente devolve o
+// campo vazio, e um job silencioso não pode trocar uma capa boa por nada.
 export async function updateSyncData(anilistId: number, data: SyncLibraryData): Promise<void> {
   await pool.query(
     `UPDATE anime_library
@@ -144,6 +146,9 @@ export async function updateSyncData(anilistId: number, data: SyncLibraryData): 
          next_airing_episode = $4,
          streaming_links = $5,
          season_year = $6,
+         title = COALESCE(NULLIF($7, ''), title),
+         cover_image = COALESCE(NULLIF($8, ''), cover_image),
+         format = COALESCE($9, format),
          synced_at = NOW()
      WHERE anilist_id = $1`,
     [
@@ -153,6 +158,9 @@ export async function updateSyncData(anilistId: number, data: SyncLibraryData): 
       JSON.stringify(data.nextAiringEpisode ?? null),
       JSON.stringify(data.streamingLinks ?? []),
       data.seasonYear ?? null,
+      data.title ?? null,
+      data.coverImage ?? null,
+      data.format ?? null,
     ]
   );
 }

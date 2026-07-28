@@ -87,6 +87,12 @@ export async function migrate(): Promise<void> {
     ADD COLUMN IF NOT EXISTS release_notified_at TIMESTAMPTZ;
   `);
 
+  // NULL = nunca sincronizado com o TMDB; findStaleMovies pega essas primeiro.
+  await pool.query(`
+    ALTER TABLE movie_library
+    ADD COLUMN IF NOT EXISTS synced_at TIMESTAMPTZ;
+  `);
+
   await pool.query(`
     ALTER TABLE movie_library
     ADD COLUMN IF NOT EXISTS is_rewatching BOOLEAN NOT NULL DEFAULT FALSE;
@@ -178,6 +184,14 @@ export async function migrate(): Promise<void> {
     ADD COLUMN IF NOT EXISTS cover_season INTEGER;
   `);
 
+  // Status de exibição cru do TMDB ("Returning Series"/"Ended"/"Canceled"/...).
+  // Distinto de series_status (RELEASED/UPCOMING, derivado da data de estreia).
+  // NULL = nunca sincronizado; findStaleSeries usa isso para fazer o backfill.
+  await pool.query(`
+    ALTER TABLE series_library
+    ADD COLUMN IF NOT EXISTS air_status TEXT;
+  `);
+
   await pool.query(`
     DO $$
     BEGIN
@@ -242,6 +256,12 @@ export async function migrate(): Promise<void> {
   await pool.query(`
     ALTER TABLE game_library
     ADD COLUMN IF NOT EXISTS game_modes TEXT[];
+  `);
+
+  // NULL = nunca sincronizado com a IGDB; findStaleGames pega essas primeiro.
+  await pool.query(`
+    ALTER TABLE game_library
+    ADD COLUMN IF NOT EXISTS synced_at TIMESTAMPTZ;
   `);
 
   await pool.query(`

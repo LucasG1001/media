@@ -39,7 +39,13 @@ async function doRefresh(): Promise<void> {
         const fresh = await fetchSeriesSyncData(entry.tmdbId);
         if (entry.syncedAt) await detectAndNotify(entry, fresh);
         await updateSeriesSyncData(entry.tmdbId, {
+          title: fresh.title,
+          posterImage: fresh.posterImage,
+          firstAirDate: fresh.firstAirDate,
+          seasons: fresh.seasons,
           episodes: fresh.episodes,
+          seriesStatus: fresh.seriesStatus,
+          airStatus: fresh.airStatus,
           nextAiringEpisode: fresh.nextAiringEpisode,
           seasonList: fresh.seasonList,
         });

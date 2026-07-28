@@ -148,7 +148,12 @@ export async function fetchSeasonById(seriesId: number, seasonNumber: number): P
 }
 
 export interface SeriesSyncResult {
+  title: string;
+  posterImage: string | null;
+  firstAirDate: string | null;
+  seasons: number | null;
   episodes: number | null;
+  seriesStatus: string;
   airStatus: string | null;
   nextAiringEpisode: { episode: number; airingAt: number } | null;
   seasonList: SeasonMeta[];
@@ -162,7 +167,12 @@ export async function fetchSeriesSyncData(id: number): Promise<SeriesSyncResult>
       ? { episode: next.episode_number, airingAt: Math.floor(new Date(`${next.air_date}T12:00:00Z`).getTime() / 1000) }
       : null;
   return {
+    title: data.name,
+    posterImage: buildImage(data.poster_path, POSTER_SIZE),
+    firstAirDate: data.first_air_date || null,
+    seasons: data.number_of_seasons,
     episodes: data.number_of_episodes,
+    seriesStatus: deriveStatus(data.first_air_date || null),
     airStatus: data.status,
     nextAiringEpisode,
     seasonList: toSeasonList(data),
