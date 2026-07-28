@@ -31,8 +31,10 @@ interface MediaCardProps<T, E extends { status: string; score: number; isRewatch
   onClick: () => void;
   onAdd: (e: MouseEvent) => void;
   isLibraryView?: boolean;
-  // Capa de coleção: só a média, sem botão de status (o status é dos membros).
-  hideAddButton?: boolean;
+  // Capa de coleção: mostra só a média. Sem botão de status e sem os badges do
+  // item (exibição/lançamento e "reassistindo") — esse estado é dos membros, não
+  // da coleção; o lugar deles no topo fica para a contagem do FranchiseCard.
+  isCollectionCover?: boolean;
   index?: number;
   selectionMode?: boolean;
   selected?: boolean;
@@ -47,7 +49,7 @@ export function MediaCard<T, E extends { status: string; score: number; isRewatc
   onClick,
   onAdd,
   isLibraryView,
-  hideAddButton = false,
+  isCollectionCover = false,
   index = 0,
   selectionMode = false,
   selected = false,
@@ -56,7 +58,7 @@ export function MediaCard<T, E extends { status: string; score: number; isRewatc
 }: MediaCardProps<T, E>) {
   const title = config.getTitle(item);
   const image = config.getImage(item);
-  const badge = config.getStatusBadge?.(item) ?? null;
+  const badge = isCollectionCover ? null : config.getStatusBadge?.(item) ?? null;
   const score = config.getScore?.(item) ?? null;
 
   const suppressClickRef = useRef(false);
@@ -114,7 +116,7 @@ export function MediaCard<T, E extends { status: string; score: number; isRewatc
         )}
 
         <div className={styles.topBadges}>
-          {!hideAddButton && (
+          {!isCollectionCover && (
             <button
               type="button"
               className={`${styles.addButton} ${libraryEntry ? styles.inLibrary : ""}`}
@@ -138,7 +140,7 @@ export function MediaCard<T, E extends { status: string; score: number; isRewatc
           {badge && (
             <span className={`${styles.statusBadge} ${TONE_CLASS[badge.tone]}`}>{badge.label}</span>
           )}
-          {libraryEntry?.isRewatching && (
+          {libraryEntry?.isRewatching && !isCollectionCover && (
             <span className={styles.rewatchBadge} title="Reassistindo" aria-label="Reassistindo">🔁</span>
           )}
         </div>

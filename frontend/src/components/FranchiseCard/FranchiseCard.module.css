@@ -26,6 +26,13 @@
   border-color: var(--color-accent);
 }
 
+/* Capa de coleção: o topo não tem mais botão de status nem badge de exibição,
+   então a contagem sobe e ocupa o lugar deles (o deslocamento de 32px existia
+   só para passar por baixo daquela linha). */
+.badgeTop {
+  top: var(--spacing-sm);
+}
+
 .count {
   display: flex;
   align-items: center;

@@ -145,7 +145,7 @@ export function FranchiseCard<
         onClick={coverIsCollectionOnly ? onToggle : () => onCardClick(card)}
         onAdd={() => onAddToLibrary(card)}
         isLibraryView
-        hideAddButton={coverIsCollectionOnly}
+        isCollectionCover={coverIsCollectionOnly}
         index={index}
         selectionMode={selectionMode}
         selected={selected}
@@ -167,7 +167,9 @@ export function FranchiseCard<
         </svg>
       </button>
       <button
-        className={`${styles.franchiseBadge} ${expanded ? styles.expanded : ""}`}
+        className={`${styles.franchiseBadge} ${expanded ? styles.expanded : ""} ${
+          coverIsCollectionOnly ? styles.badgeTop : ""
+        }`}
         onClick={(e) => {
           e.stopPropagation();
           onToggle();

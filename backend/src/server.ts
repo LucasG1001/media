@@ -69,18 +69,22 @@ async function start(): Promise<void> {
   app.listen(PORT, () => {
     process.stdout.write(`Backend rodando em http://localhost:${PORT}\n`);
   });
-  notifyDueSeriesEpisodes().catch((error) => void notifyError("Job notifyDueSeriesEpisodes", error));
   backfillGameModes().catch((error) => void notifyError("Job backfillGameModes", error));
   backfillSeriesSeasons().catch((error) => void notifyError("Job backfillSeriesSeasons", error));
 
-  setInterval(() => {
+  // Roda no boot e não só a cada 30 min: sem isso um restart deixava toda a
+  // sincronização parada por meia hora. Os jobs são singleFlight, então uma
+  // execução longa não se sobrepõe ao tick seguinte.
+  const runSyncTick = () => {
     refreshStaleEntries().catch((error) => void notifyError("Job refreshStaleEntries", error));
     notifyDueSeriesEpisodes()
       .then(() => refreshStaleSeries())
       .catch((error) => void notifyError("Job refreshStaleSeries", error));
     refreshStaleMovies().catch((error) => void notifyError("Job refreshStaleMovies", error));
     refreshStaleGames().catch((error) => void notifyError("Job refreshStaleGames", error));
-  }, SYNC_INTERVAL_MS);
+  };
+  runSyncTick();
+  setInterval(runSyncTick, SYNC_INTERVAL_MS);
 
   const runCollectionSync = () =>
     refreshCollections().catch((error) => void notifyError("Job refreshCollections", error));

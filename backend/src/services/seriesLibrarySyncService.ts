@@ -1,4 +1,5 @@
 import { findStaleSeries, updateSeriesSyncData, findDueSeriesEpisodes, markSeriesEpisodeNotified } from "../models/seriesLibraryModel.js";
+import { chunk } from "../lib/chunk.js";
 import { singleFlight } from "../lib/singleFlight.js";
 import { fetchSeriesSyncData, type SeriesSyncResult } from "./tmdbSeriesService.js";
 import { notifySeriesNewEpisode, notifySeriesFinished, notifyError } from "./notifyService.js";
@@ -7,6 +8,11 @@ import type { SeriesLibraryEntry } from "../types/seriesLibrary.js";
 const ONGOING_TTL_HOURS = 12;
 const ENDED_TTL_HOURS = 24 * 7;
 const FINISHED_AIR_STATUS = ["Ended", "Canceled"];
+
+// O TMDB é 1 requisição por série. Sem teto, um momento em que a biblioteca
+// inteira fica stale de uma vez (base nova, ou uma coluna recém-adicionada que
+// entra no findStaleSeries) dispararia tudo em paralelo e tomaria 429.
+const REFRESH_CONCURRENCY = 10;
 
 async function notifyDueEpisode(entry: SeriesLibraryEntry): Promise<void> {
   const pending = entry.nextAiringEpisode;
@@ -33,27 +39,29 @@ async function doRefresh(): Promise<void> {
   const stale = await findStaleSeries(ONGOING_TTL_HOURS, ENDED_TTL_HOURS);
   if (stale.length === 0) return;
 
-  await Promise.all(
-    stale.map(async (entry) => {
-      try {
-        const fresh = await fetchSeriesSyncData(entry.tmdbId);
-        if (entry.syncedAt) await detectAndNotify(entry, fresh);
-        await updateSeriesSyncData(entry.tmdbId, {
-          title: fresh.title,
-          posterImage: fresh.posterImage,
-          firstAirDate: fresh.firstAirDate,
-          seasons: fresh.seasons,
-          episodes: fresh.episodes,
-          seriesStatus: fresh.seriesStatus,
-          airStatus: fresh.airStatus,
-          nextAiringEpisode: fresh.nextAiringEpisode,
-          seasonList: fresh.seasonList,
-        });
-      } catch (error) {
-        await notifyError("seriesLibrarySyncService.refreshStaleSeries", error, { tmdbId: String(entry.tmdbId) });
-      }
-    })
-  );
+  for (const batch of chunk(stale, REFRESH_CONCURRENCY)) {
+    await Promise.all(
+      batch.map(async (entry) => {
+        try {
+          const fresh = await fetchSeriesSyncData(entry.tmdbId);
+          if (entry.syncedAt) await detectAndNotify(entry, fresh);
+          await updateSeriesSyncData(entry.tmdbId, {
+            title: fresh.title,
+            posterImage: fresh.posterImage,
+            firstAirDate: fresh.firstAirDate,
+            seasons: fresh.seasons,
+            episodes: fresh.episodes,
+            seriesStatus: fresh.seriesStatus,
+            airStatus: fresh.airStatus,
+            nextAiringEpisode: fresh.nextAiringEpisode,
+            seasonList: fresh.seasonList,
+          });
+        } catch (error) {
+          await notifyError("seriesLibrarySyncService.refreshStaleSeries", error, { tmdbId: String(entry.tmdbId) });
+        }
+      })
+    );
+  }
 }
 
 export const notifyDueSeriesEpisodes = singleFlight(doNotifyDue);

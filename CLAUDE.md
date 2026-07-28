@@ -84,17 +84,27 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     por item (o TMDB não tem lote) e por isso têm teto por execução; jogos vão em lote na IGDB.
   - **`releaseNotifyService.ts`** — avisa lançamentos de filmes/jogos.
   - **`notifyService.ts`** — envia ao Telegram via notify-api; nunca lança.
-- **Jobs (agendados em `server.ts`):** a cada 30 min, refresh de anime, séries, filmes e jogos;
+- **Jobs (agendados em `server.ts`):** refresh de anime, séries, filmes e jogos **no boot e a cada
+  30 min** (`runSyncTick`; rodar na subida evita deixar tudo parado meia hora após um restart —
+  todos são `singleFlight`, então execução longa não se sobrepõe ao tick seguinte);
   **collection sync** diário (04:00); **notificação de lançamentos** diária (09:00). No boot roda
   também `backfillGameModes` (one-shot): preenche `game_modes` dos jogos com a coluna NULL via
   `fetchGameModes` (IGDB) — idempotente (`NULL` = nunca buscado; `[]` = sem modo conhecido). E
   `backfillSeriesSeasons` (one-shot): preenche `season_list` das séries com a coluna NULL via
   `fetchSeriesById` (TMDB). O refresh de séries também atualiza `season_list` (pega novas
   temporadas), sem tocar em `season_scores`.
-- **Invariante do refresh:** cada job grava o mesmo conjunto de campos que o `handle*Load` da
-  página grava ao abrir o drawer — inclusive **título e capa**, que antes só mudavam por lá e por
-  isso envelheciam. Título/capa usam `COALESCE(NULLIF(...))` no `UPDATE`: resposta com campo
-  vazio (TMDB pt-BR devolve `poster_path` nulo às vezes) não pode apagar um valor bom.
+- **`docs/sincronizacao.md`** detalha todos os jobs (gatilho, condição de staleness, colunas
+  gravadas, custo estimado) e as limitações conhecidas. Consulte antes de mexer em job.
+- **Invariantes do refresh:**
+  - Cada job grava o mesmo conjunto de campos que o `handle*Load` da página grava ao abrir o
+    drawer — inclusive **título e capa**, que antes só mudavam por lá e por isso envelheciam.
+    Título/capa usam `COALESCE(NULLIF(...))` no `UPDATE`: resposta com campo vazio (TMDB pt-BR
+    devolve `poster_path` nulo às vezes) não pode apagar um valor bom.
+  - **Nada de fan-out ilimitado nem try/catch por execução.** Onde a API é 1 requisição por item
+    (TMDB), o lote vai fatiado com concorrência fixa; onde aceita lote (AniList, IGDB), a iteração
+    é por lote. O `try/catch` fica **dentro** da unidade (item ou lote), nunca em volta do job
+    inteiro: um item ruim não pode custar o ciclo dos outros. Vale lembrar que qualquer coluna
+    nova que entre num `findStale*` torna a biblioteca inteira stale de uma vez.
 
 ### Frontend (`frontend/src/`)
 
@@ -138,11 +148,15 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     Publicação(desc)+Leitura+Nota; YouTube = Alfabética(asc)+Data+Visualizações.
   - **Capa é só coleção (anime/filmes/séries/jogos; prop `coverIsCollectionOnly` do
     `FranchiseGrid`/`FranchiseCard`, que livros e YouTube NÃO passam)**: em grupo com 2+ itens a capa
-    exibe apenas a **média** — sem botão de status (`MediaCard` prop `hideAddButton`) — e o clique
-    **expande/recolhe** em vez de abrir o drawer do representante (que segue acessível como membro da
-    expansão, já que `buildCollectionGroups` inclui o representante em `members`). **Grupo de 1 item
-    é card simples normal**: botão de status (status/nota/remover) + drawer no clique. Como `count` é
-    o total **não filtrado**, um grupo de 2+ reduzido a 1 pelo filtro continua sendo coleção.
+    exibe apenas a **média** e o clique **expande/recolhe** em vez de abrir o drawer do representante
+    (que segue acessível como membro da expansão, já que `buildCollectionGroups` inclui o
+    representante em `members`). O `MediaCard` recebe `isCollectionCover` e some com **tudo que é
+    estado de item**: botão de status, badge de exibição/lançamento e o 🔁 de reassistindo — na
+    coleção esse estado é dos membros, e o representante é só quem empresta a capa. O topo assim
+    liberado é ocupado pela contagem `mostrados/total` do `FranchiseCard` (classe `.badgeTop`).
+    **Grupo de 1 item é card simples normal**: botão de status (status/nota/remover) + drawer no
+    clique. Como `count` é o total **não filtrado**, um grupo de 2+ reduzido a 1 pelo filtro
+    continua sendo coleção.
   - **Séries = coleção de temporadas** (`utils/seasonGroups.ts`, `buildSeasonGroups`): a coleção
     NÃO vem de linhas do banco — cada série é **1 linha** e os membros (temporadas) são sintetizados
     do JSONB `season_list` (metadado) + `season_states` (estado do usuário por temporada:
