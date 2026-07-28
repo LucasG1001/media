@@ -60,11 +60,14 @@ function toLibraryEntry(row: LibraryRow): LibraryEntry {
   };
 }
 
+// Sem condição por `season_year IS NULL`: a AniList devolve seasonYear nulo
+// legitimamente (filmes, OVAs, anime sem data), então essas linhas nunca saíam
+// do conjunto stale — eram rebuscadas a cada 30 min para sempre. Linha nunca
+// sincronizada já é coberta por `synced_at IS NULL`, que tem saída garantida.
 export async function findStale(nonFinishedTtlHours: number, finishedTtlHours: number): Promise<LibraryEntry[]> {
   const result = await pool.query<LibraryRow>(
     `SELECT * FROM anime_library
      WHERE synced_at IS NULL
-        OR season_year IS NULL
         OR (anime_status != 'FINISHED' AND synced_at < NOW() - ($1 || ' hours')::interval)
         OR (anime_status = 'FINISHED' AND synced_at < NOW() - ($2 || ' hours')::interval)`,
     [nonFinishedTtlHours, finishedTtlHours]

@@ -3,7 +3,6 @@ import { createLibraryController } from "../lib/createLibraryController.js";
 import * as libraryModel from "../models/libraryModel.js";
 import { animeLibraryModel } from "../models/libraryModel.js";
 import { discoverFranchise } from "../services/anilistService.js";
-import { refreshStaleEntries } from "../services/librarySyncService.js";
 import { animeCreateSchema, animeUpdateSchema } from "../schemas/library.js";
 import type { CreateLibraryEntry } from "../types/library.js";
 import { notifyError } from "../services/notifyService.js";
@@ -25,18 +24,11 @@ const base = createLibraryController({
   },
 });
 
-export const { update, updateManyStatus, setCover, remove, removeMany } = base;
-
-export async function getAll(_req: Request, res: Response): Promise<void> {
-  try {
-    await refreshStaleEntries();
-    const entries = await libraryModel.findAll();
-    res.json(entries);
-  } catch (error) {
-    void notifyError("API GET /api/library", error);
-    res.status(500).json({ error: "Erro ao buscar biblioteca." });
-  }
-}
+// getAll vem da factory, como nas outras mídias: listar a biblioteca não espera
+// sincronização. Antes havia um `await refreshStaleEntries()` aqui, o que fazia
+// a página de Anime (e o Dashboard, que carrega cinco bibliotecas) travar numa
+// ida à AniList com rate limiter de 2 s. Quem sincroniza é o runSyncTick.
+export const { getAll, update, updateManyStatus, setCover, remove, removeMany } = base;
 
 export async function create(req: Request, res: Response): Promise<void> {
   try {

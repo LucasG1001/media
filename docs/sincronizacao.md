@@ -34,6 +34,11 @@ O invariante é que **o job grava o mesmo conjunto de campos que o drawer grava*
 atalho, não a única forma de o dado sair do lugar. Antes isso não valia, e por isso título e capa
 envelheciam indefinidamente em item que você nunca abria.
 
+**Listar a biblioteca nunca espera sincronização.** Os seis `GET /api/*-library` só fazem
+`findAll`. O de anime já teve um `await refreshStaleEntries()` — o que fazia a página de Anime, e o
+Dashboard junto, travar numa ida à AniList com rate limiter de 2 s. Endpoint de leitura devolve o
+que está no banco; atualizar é responsabilidade do job.
+
 ---
 
 ## 2. `runSyncTick` — boot e a cada 30 min
@@ -53,7 +58,6 @@ meia hora.
 
 ```
 synced_at IS NULL
-OR season_year IS NULL
 OR (anime_status != 'FINISHED'  AND synced_at < agora - 1h)
 OR (anime_status  = 'FINISHED'  AND synced_at < agora - 7 dias)
 ```
@@ -318,24 +322,18 @@ Levantadas em revisão e **ainda não corrigidas**. Em ordem de impacto:
    sincronização; o custo cai ~90% com uma coluna de última verificação e TTL maior para franquia
    cujos membros já lançaram.
 
-2. **`season_year IS NULL` prende anime no estado stale para sempre.** A condição está em
-   `findStale`, mas a AniList devolve `seasonYear` nulo legitimamente para vários OVAs, filmes e
-   anime sem data. Esses registros são rebuscados a cada 30 min, indefinidamente, e o `UPDATE`
-   grava `NULL` de novo. É a mesma armadilha do `air_status IS NULL`, só que sem saída — o
-   `air_status` se resolve porque o TMDB sempre devolve um status.
-
-3. **Os jobs leem pelo cache de 1 h da interface.** Conceitualmente errado: um refresh de fundo
+2. **Os jobs leem pelo cache de 1 h da interface.** Conceitualmente errado: um refresh de fundo
    existe para buscar dado fresco e pode acabar gravando resposta de até 1 h atrás carimbando
    `synced_at = NOW()`. Hoje quase não morde — séries, filmes e jogos têm TTL de 12 h, bem acima
    do cache. O apertado é **anime**, cujo TTL de 1 h coincide com o do cache. Falta um
    `skipCache` no caminho dos jobs.
 
-4. **O cache nunca despeja nada.** Entrada expirada só sai se alguém pedir aquela chave de novo
+3. **O cache nunca despeja nada.** Entrada expirada só sai se alguém pedir aquela chave de novo
    (`cacheGet`). Quem alimenta o crescimento é a busca do catálogo: com debounce, digitar "naruto"
    grava `nar`, `naru`, `narut`, `naruto`, e três dessas nunca mais serão pedidas. Falta teto de
    tamanho e varredura periódica.
 
-5. **Anime sincroniza item abandonado; as outras mídias não.** O `findStale` de anime não filtra
+4. **Anime sincroniza item abandonado; as outras mídias não.** O `findStale` de anime não filtra
    por `status`, enquanto séries, filmes e jogos têm `status != 'dropped'` na query. Anime
    abandonado consome cota da API mais sensível do conjunto sem gerar notificação (o
    `detectAndNotify` já pula abandonado).
@@ -349,7 +347,13 @@ Levantadas em revisão e **ainda não corrigidas**. Em ordem de impacto:
 - **`try/catch` dentro da unidade** — item ou lote —, nunca em volta do job inteiro. Um item ruim
   não pode custar o ciclo dos outros.
 - **Coluna nova num `findStale*` torna a biblioteca inteira stale de uma vez.** Confira se o
-  fatiamento aguenta e se a condição tem saída garantida (ver limitação 2).
+  fatiamento aguenta.
+- **Condição de staleness precisa ter saída garantida.** `X IS NULL` só serve se o sync sempre
+  preencher `X`. O `findStale` de anime já teve `season_year IS NULL`, e como a AniList devolve
+  `seasonYear` nulo de verdade (filmes, OVAs), essas linhas eram rebuscadas a cada 30 min para
+  sempre. Para "linha nunca sincronizada", use `synced_at IS NULL`.
+- **Endpoint de leitura não sincroniza.** `GET` de biblioteca devolve o que está no banco; quem
+  atualiza é o job.
 - **Nunca sobrescreva título ou capa com valor vazio.** Use `COALESCE(NULLIF(...))`.
 - **Job novo entra no `runSyncTick`** e é embrulhado em `singleFlight` + `notifyError`.
 - **Não invente notificação no refresh.** Comparar estado antigo com novo é responsabilidade dos
