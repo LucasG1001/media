@@ -9,6 +9,7 @@ import { refreshStaleSeries, notifyDueSeriesEpisodes } from "./services/seriesLi
 import { refreshCollections } from "./services/collectionSyncService.js";
 import { notifyDueReleases } from "./services/releaseNotifyService.js";
 import { backfillGameModes } from "./services/gameModesBackfillService.js";
+import { backfillSeriesSeasons } from "./services/seasonListBackfillService.js";
 import { animeRoutes } from "./routes/animeRoutes.js";
 import { libraryRoutes } from "./routes/libraryRoutes.js";
 import { movieRoutes } from "./routes/movieRoutes.js";
@@ -69,6 +70,7 @@ async function start(): Promise<void> {
   });
   notifyDueSeriesEpisodes().catch((error) => void notifyError("Job notifyDueSeriesEpisodes", error));
   backfillGameModes().catch((error) => void notifyError("Job backfillGameModes", error));
+  backfillSeriesSeasons().catch((error) => void notifyError("Job backfillSeriesSeasons", error));
 
   setInterval(() => {
     refreshStaleEntries().catch((error) => void notifyError("Job refreshStaleEntries", error));

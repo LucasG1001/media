@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { fetchPopularSeries, searchSeries, fetchSeriesById } from "../services/tmdbSeriesService.js";
+import { fetchPopularSeries, searchSeries, fetchSeriesById, fetchSeasonById } from "../services/tmdbSeriesService.js";
 import { notifyError } from "../services/notifyService.js";
 
 export async function getPopular(req: Request, res: Response): Promise<void> {
@@ -48,5 +48,21 @@ export async function getById(req: Request, res: Response): Promise<void> {
   } catch (error) {
     void notifyError("API series/:id", error);
     res.status(500).json({ error: "Erro ao buscar detalhes da série." });
+  }
+}
+
+export async function getSeasonById(req: Request, res: Response): Promise<void> {
+  try {
+    const id = parseInt(String(req.params.id));
+    const seasonNumber = parseInt(String(req.params.seasonNumber));
+    if (isNaN(id) || isNaN(seasonNumber)) {
+      res.status(400).json({ error: "ID inválido." });
+      return;
+    }
+    const season = await fetchSeasonById(id, seasonNumber);
+    res.json(season);
+  } catch (error) {
+    void notifyError("API series/:id/season/:seasonNumber", error);
+    res.status(500).json({ error: "Erro ao buscar detalhes da temporada." });
   }
 }

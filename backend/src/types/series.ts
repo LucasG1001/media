@@ -27,6 +27,14 @@ export interface TmdbProvider {
   logo_path: string | null;
 }
 
+export interface TmdbSeason {
+  season_number: number;
+  name: string | null;
+  poster_path: string | null;
+  episode_count: number | null;
+  air_date: string | null;
+}
+
 export interface TmdbEpisode {
   air_date: string | null;
   episode_number: number;
@@ -34,9 +42,29 @@ export interface TmdbEpisode {
   name: string | null;
 }
 
+export interface TmdbSeasonEpisode {
+  episode_number: number;
+  name: string | null;
+  overview: string | null;
+  air_date: string | null;
+  runtime: number | null;
+  still_path: string | null;
+  vote_average: number | null;
+}
+
+export interface TmdbSeasonDetail {
+  season_number: number;
+  name: string | null;
+  overview: string | null;
+  poster_path: string | null;
+  air_date: string | null;
+  episodes: TmdbSeasonEpisode[];
+}
+
 export interface TmdbTvDetail extends TmdbTvListItem {
   number_of_seasons: number | null;
   number_of_episodes: number | null;
+  seasons?: TmdbSeason[];
   episode_run_time: number[];
   genres: TmdbGenre[];
   tagline: string | null;
@@ -68,6 +96,34 @@ export interface WatchProvider {
   logo: string | null;
 }
 
+export interface SeasonMeta {
+  number: number;
+  name: string | null;
+  poster: string | null;
+  episodeCount: number | null;
+  airDate: string | null;
+}
+
+export interface SeasonEpisode {
+  episodeNumber: number;
+  name: string | null;
+  overview: string | null;
+  airDate: string | null;
+  runtime: number | null;
+  still: string | null;
+  voteAverage: number | null;
+}
+
+export interface SeasonDetail {
+  seasonNumber: number;
+  name: string | null;
+  overview: string | null;
+  poster: string | null;
+  airDate: string | null;
+  episodeCount: number;
+  episodes: SeasonEpisode[];
+}
+
 export interface SeriesCard {
   id: number;
   title: string;
@@ -87,6 +143,7 @@ export interface SeriesDetail extends SeriesCard {
   airStatus: string | null;
   trailerKey: string | null;
   watchProviders: WatchProvider[];
+  seasonList: SeasonMeta[];
   voteCount: number | null;
 }
 

@@ -134,6 +134,35 @@ export async function migrate(): Promise<void> {
     ADD COLUMN IF NOT EXISTS is_rewatching BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 
+  // season_list = metadado das temporadas (TMDB); NULL = ainda não backfilled.
+  // season_states = estado do usuário por temporada ({ "1": {status,score,isRewatching} });
+  // score da série = média das notas > 0. Ver backfillSeriesSeasons e setSeasonState.
+  await pool.query(`
+    ALTER TABLE series_library
+    ADD COLUMN IF NOT EXISTS season_list JSONB,
+    ADD COLUMN IF NOT EXISTS season_scores JSONB,
+    ADD COLUMN IF NOT EXISTS season_states JSONB;
+  `);
+
+  // Converte o formato antigo (season_scores = { "1": 8.5 }) para season_states.
+  await pool.query(`
+    UPDATE series_library
+    SET season_states = (
+      SELECT jsonb_object_agg(
+        key,
+        jsonb_build_object('status', 'plan_to_watch', 'score', (value)::numeric, 'isRewatching', false)
+      )
+      FROM jsonb_each_text(season_scores)
+    )
+    WHERE season_states IS NULL AND season_scores IS NOT NULL AND season_scores <> '{}'::jsonb;
+  `);
+
+  // Número da temporada usada como capa da coleção (NULL = pôster da série).
+  await pool.query(`
+    ALTER TABLE series_library
+    ADD COLUMN IF NOT EXISTS cover_season INTEGER;
+  `);
+
   await pool.query(`
     DO $$
     BEGIN

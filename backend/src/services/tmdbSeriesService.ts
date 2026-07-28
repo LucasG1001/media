@@ -8,6 +8,9 @@ import type {
   SeriesListResult,
   SeriesPageInfo,
   WatchProvider,
+  SeasonMeta,
+  SeasonDetail,
+  TmdbSeasonDetail,
 } from "../types/series.js";
 
 const TMDB_URL = "https://api.themoviedb.org/3";
@@ -16,6 +19,7 @@ const IMAGE_BASE = "https://image.tmdb.org/t/p";
 const POSTER_SIZE = "w500";
 const BACKDROP_SIZE = "w1280";
 const LOGO_SIZE = "w92";
+const STILL_SIZE = "w300";
 
 function buildImage(path: string | null, size: string): string | null {
   return path ? `${IMAGE_BASE}/${size}${path}` : null;
@@ -40,6 +44,20 @@ function toSeriesCard(series: TmdbTvListItem): SeriesCard {
   };
 }
 
+// Exclui a temporada 0 (Especiais) e ordena por número.
+function toSeasonList(series: TmdbTvDetail): SeasonMeta[] {
+  return (series.seasons ?? [])
+    .filter((s) => s.season_number > 0)
+    .sort((a, b) => a.season_number - b.season_number)
+    .map((s) => ({
+      number: s.season_number,
+      name: s.name,
+      poster: buildImage(s.poster_path, POSTER_SIZE),
+      episodeCount: s.episode_count,
+      airDate: s.air_date || null,
+    }));
+}
+
 function toSeriesDetail(series: TmdbTvDetail): SeriesDetail {
   const trailer = (series.videos?.results ?? []).find(
     (v) => v.site === "YouTube" && v.type === "Trailer"
@@ -51,6 +69,8 @@ function toSeriesDetail(series: TmdbTvDetail): SeriesDetail {
     logo: buildImage(p.logo_path, LOGO_SIZE),
   }));
 
+  const seasonList = toSeasonList(series);
+
   return {
     ...toSeriesCard(series),
     seasons: series.number_of_seasons,
@@ -60,6 +80,7 @@ function toSeriesDetail(series: TmdbTvDetail): SeriesDetail {
     airStatus: series.status || null,
     trailerKey: trailer?.key ?? null,
     watchProviders,
+    seasonList,
     voteCount: series.vote_count,
   };
 }
@@ -105,10 +126,32 @@ export async function fetchSeriesById(id: number): Promise<SeriesDetail> {
   return toSeriesDetail(data);
 }
 
+export async function fetchSeasonById(seriesId: number, seasonNumber: number): Promise<SeasonDetail> {
+  const data = await queryTmdb<TmdbSeasonDetail>(`/tv/${seriesId}/season/${seasonNumber}`, {});
+  return {
+    seasonNumber: data.season_number,
+    name: data.name,
+    overview: data.overview || null,
+    poster: buildImage(data.poster_path, POSTER_SIZE),
+    airDate: data.air_date || null,
+    episodeCount: data.episodes?.length ?? 0,
+    episodes: (data.episodes ?? []).map((e) => ({
+      episodeNumber: e.episode_number,
+      name: e.name,
+      overview: e.overview || null,
+      airDate: e.air_date || null,
+      runtime: e.runtime,
+      still: buildImage(e.still_path, STILL_SIZE),
+      voteAverage: e.vote_average,
+    })),
+  };
+}
+
 export interface SeriesSyncResult {
   episodes: number | null;
   airStatus: string | null;
   nextAiringEpisode: { episode: number; airingAt: number } | null;
+  seasonList: SeasonMeta[];
 }
 
 export async function fetchSeriesSyncData(id: number): Promise<SeriesSyncResult> {
@@ -122,5 +165,6 @@ export async function fetchSeriesSyncData(id: number): Promise<SeriesSyncResult>
     episodes: data.number_of_episodes,
     airStatus: data.status,
     nextAiringEpisode,
+    seasonList: toSeasonList(data),
   };
 }

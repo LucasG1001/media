@@ -1,5 +1,5 @@
 import { api } from "./api";
-import type { SeriesListResponse, SeriesDetail } from "../types/series";
+import type { SeriesListResponse, SeriesDetail, SeasonDetail } from "../types/series";
 
 export async function fetchPopular(year?: number, month?: number, page = 1, signal?: AbortSignal): Promise<SeriesListResponse> {
   const params: Record<string, number> = { page };
@@ -16,5 +16,10 @@ export async function searchSeries(query: string, page = 1, signal?: AbortSignal
 
 export async function fetchSeriesById(id: number): Promise<SeriesDetail> {
   const response = await api.get<SeriesDetail>(`/api/series/${id}`);
+  return response.data;
+}
+
+export async function fetchSeasonById(seriesId: number, seasonNumber: number): Promise<SeasonDetail> {
+  const response = await api.get<SeasonDetail>(`/api/series/${seriesId}/season/${seasonNumber}`);
   return response.data;
 }

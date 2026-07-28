@@ -4,6 +4,7 @@ import type { SeriesCard } from "../types/series";
 import type { BookCard } from "../types/book";
 import type { GameCard } from "../types/game";
 import type { YoutubeCard } from "../types/youtubeLibrary";
+import type { SeasonMember } from "../utils/seasonGroups";
 import type { MediaCardConfig } from "../components/MediaCard/MediaCard";
 import { StoreGlyph } from "../components/MediaCard/StoreIcons";
 import { formatDuration } from "../utils/formatDuration";
@@ -108,6 +109,29 @@ export const seriesCardConfig: MediaCardConfig<SeriesCard> = {
   renderMeta: (s) => (
     <div className={cardStyles.meta}>
       <span className={cardStyles.year}>{s.firstAirDate ? s.firstAirDate.slice(0, 4) : "—"}</span>
+    </div>
+  ),
+};
+
+// Card da "coleção de temporadas": serve tanto a capa (série) quanto cada
+// temporada — ambos são SeasonMember com poster/title/score.
+export const seasonCardConfig: MediaCardConfig<SeasonMember> = {
+  getTitle: (m) => m.title,
+  getImage: (m) => m.poster,
+  placeholderEmoji: "📺",
+  getScore: (m) => m.score || null,
+  formatScore: (s) => s.toFixed(1),
+  scoreColor: scoreColorFn(7.5, 5),
+  libraryStatusColor: catalogStatusColor,
+  // A capa da coleção não tem botão de status — só a média, e o clique expande
+  // as temporadas. Série sem temporadas (card simples) mantém o botão, senão
+  // ficaria impossível editar/remover pela biblioteca.
+  hideAddButton: (m) => m.kind === "series" && m.hasSeasons === true,
+  renderMeta: (m) => (
+    <div className={cardStyles.meta}>
+      <span className={cardStyles.year}>
+        {m.episodeCount != null ? `${m.episodeCount} ep${m.episodeCount === 1 ? "" : "s"}` : m.airDate ? m.airDate.slice(0, 4) : "—"}
+      </span>
     </div>
   ),
 };

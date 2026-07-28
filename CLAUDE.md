@@ -9,7 +9,8 @@ acompanhar coleções de mídia. Seis domínios de mídia, cada um com catálogo
 e biblioteca pessoal (CRUD em PostgreSQL):
 
 - **Anime** — AniList (GraphQL); descoberta de franquia (sequências/OVAs/filmes).
-- **Filmes** e **Séries** — TMDB; filmes têm coleções (ex.: trilogias).
+- **Filmes** e **Séries** — TMDB; filmes têm coleções (ex.: trilogias); séries têm nota por
+  temporada (coleção de temporadas; nota da série = média).
 - **Jogos** — IGDB (auth via Twitch OAuth); coleções/sagas; filtro por modos de jogo (`game_modes`).
 - **Livros** — Google Books.
 - **YouTube** — vídeos curtidos/salvos (YouTube Data API); modelo à parte (status `liked`/`removed`).
@@ -83,7 +84,10 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 - **Jobs (agendados em `server.ts`):** `refreshStaleEntries`+séries a cada 30 min; **collection
   sync** diário (04:00); **notificação de lançamentos** diária (09:00). No boot roda também
   `backfillGameModes` (one-shot): preenche `game_modes` dos jogos com a coluna NULL via
-  `fetchGameModes` (IGDB) — idempotente (`NULL` = nunca buscado; `[]` = sem modo conhecido).
+  `fetchGameModes` (IGDB) — idempotente (`NULL` = nunca buscado; `[]` = sem modo conhecido). E
+  `backfillSeriesSeasons` (one-shot): preenche `season_list` das séries com a coluna NULL via
+  `fetchSeriesById` (TMDB). O refresh de séries (30 min) também atualiza `season_list` (pega novas
+  temporadas), sem tocar em `season_scores`.
 
 ### Frontend (`frontend/src/`)
 
@@ -114,8 +118,28 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     `score>0` (`sortGroupsByAvgScore`); **YouTube: visualizações** = **soma** (`sortGroupsBySumViews`),
     **alfabética** (`sortGroupsByName`, padrão) e **data**. Exceção: Livros "Leitura" usa a data de
     leitura **mais recente** (`agg:"latest"`). Avulsos contam como coleção de 1.
-  - Padrões: anime/filmes/jogos = Lançamento(desc)+Nota; séries idem (mas séries **não** tem coleção,
-    lista inline); livros = Publicação(desc)+Leitura+Nota; YouTube = Alfabética(asc)+Data+Visualizações.
+  - Padrões: anime/filmes/jogos = Lançamento(desc)+Nota; séries idem; livros =
+    Publicação(desc)+Leitura+Nota; YouTube = Alfabética(asc)+Data+Visualizações.
+  - **Séries = coleção de temporadas** (`utils/seasonGroups.ts`, `buildSeasonGroups`): a coleção
+    NÃO vem de linhas do banco — cada série é **1 linha** e os membros (temporadas) são sintetizados
+    do JSONB `season_list` (metadado) + `season_states` (estado do usuário por temporada:
+    `{status,score,isRewatching}`). **Cada temporada se comporta como um filme da coleção**: card com
+    botão de status colorido + nota própria. Representante = a série (nome + capa: pôster da temporada
+    `cover_season`, senão da série); a **capa não tem botão de status** (`MediaCardConfig.hideAddButton`),
+    só mostra a **média**, e **não abre drawer**: clicar nela expande/recolhe as temporadas
+    (`FranchiseGrid`/`FranchiseCard` prop opt-in `coverTogglesExpansion` — só séries usam). Nos
+    membros: clique na **imagem** → `SeasonDrawer`, que traz **os dados da série** (banner, trailer,
+    gêneros, onde assistir, grade de 5 infos — corpo compartilhado `SeriesDrawer/SeriesDetailBody.tsx`,
+    com overrides de pôster/tagline/sinopse da temporada) **+ a lista de episódios** (`GET
+    /api/series/:id/season/:n`); clique no **botão de status** →
+    `SeasonLibraryModal` (`LibraryModalBase`, status/nota/reassistindo + "Definir como capa", **sem
+    remover**) → `saveSeason` (`PUT /:id/seasons/:n`, `setSeasonState` recalcula `score` da série =
+    média das notas > 0) e `setCoverSeason` (`PUT /:id/cover-season/:n`). Filtro de status age **por
+    temporada** (member-level, como filmes; esconde só séries 100% dropadas quando sem filtro); sem
+    seleção/bulk. Remover a série = lixeira do `FranchiseCard`. Séries sem `season_list` caem em
+    fallback de 1 membro: card simples que **mantém** o botão de status (→ `SeriesLibraryModal`, com
+    remover) e abre o `SeriesDrawer` no clique da imagem. `store.mutate` = primitivo de update otimista
+    com endpoint custom (usado por `saveSeason`/`setCoverSeason`).
   - `hooks/useDismiss.ts` centraliza Escape + scroll-lock (mobile) dos painéis.
 - **`hooks/useMediaList.ts`** — estado de catálogo com paginação, cache por chave, `AbortController`
   (cancela busca anterior) e `reset()`. Um `useLibrary`-like por mídia para o CRUD com estado local
@@ -130,6 +154,10 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 `youtube_library`. Colunas em `TEXT`/`JSONB`, sem CHECK de enum (migração de status = `UPDATE`).
 Convenções comuns: `is_cover` (capa da coleção), `is_rewatching`, timestamp de conclusão
 (`watched_at`/`finished_at`/`read_at`), coluna de coleção (`franchise_id`/`collection_id`).
+`series_library` tem ainda `season_list` (JSONB, metadado das temporadas do TMDB), `season_states`
+(JSONB, estado por temporada `{ "1": {status,score,isRewatching} }`; `score` da série = média das notas)
+e `cover_season` (INTEGER, temporada usada como capa da coleção). `game_library` tem `game_modes`
+(`TEXT[]`). Colunas JSONB são escritas com `JSON.stringify` explícito (ver `seriesLibraryModel`).
 
 **Status da biblioteca:** `plan_to_*` (planejo) → concluído (`watched`/`beaten`/`read`) →
 `dropped`. Não existe status "em progresso". YouTube usa `liked`/`removed`.

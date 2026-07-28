@@ -26,6 +26,9 @@ interface FranchiseCardProps<
   cardConfig: MediaCardConfig<T>;
   entryToCard: (entry: E) => T;
   expandTitle: string;
+  // Quando true, clicar na capa expande/recolhe a coleção em vez de abrir o
+  // detalhe do representante (séries: o detalhe fica nos membros).
+  coverTogglesExpansion?: boolean;
   selectionMode?: boolean;
   selected?: boolean;
   onLongPress?: () => void;
@@ -50,6 +53,7 @@ export function FranchiseCard<
   cardConfig,
   entryToCard,
   expandTitle,
+  coverTogglesExpansion,
   selectionMode,
   selected,
   onLongPress,
@@ -62,7 +66,7 @@ export function FranchiseCard<
   // Nota exibida = média da coleção (mesmo critério da ordenação por nota),
   // não a nota do representante.
   const displayEntry = libraryEntry
-    ? { ...libraryEntry, score: averageScore(group.members) }
+    ? { ...libraryEntry, score: averageScore(group.members) || libraryEntry.score }
     : libraryEntry;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(collectionName ?? "");
@@ -137,7 +141,7 @@ export function FranchiseCard<
         item={card}
         config={config}
         libraryEntry={displayEntry}
-        onClick={() => onCardClick(card)}
+        onClick={coverTogglesExpansion ? onToggle : () => onCardClick(card)}
         onAdd={() => onAddToLibrary(card)}
         isLibraryView
         index={index}

@@ -16,6 +16,9 @@ export interface MediaCardConfig<T> {
   libraryStatusColor: (status: string | undefined) => string;
   renderMeta: (item: T) => ReactNode;
   renderBelow?: (item: T) => ReactNode;
+  // Quando retorna true, esconde o botão de status/adicionar (ex.: capa da
+  // coleção de temporadas, que só exibe a média e abre o drawer).
+  hideAddButton?: (item: T) => boolean;
 }
 
 const TONE_CLASS: Record<StatusTone, string> = {
@@ -111,25 +114,27 @@ export function MediaCard<T, E extends { status: string; score: number; isRewatc
         )}
 
         <div className={styles.topBadges}>
-          <button
-            type="button"
-            className={`${styles.addButton} ${libraryEntry ? styles.inLibrary : ""}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAdd(e);
-            }}
-            title={libraryEntry ? "Na biblioteca" : "Adicionar à biblioteca"}
-            aria-label={libraryEntry ? "Na biblioteca" : "Adicionar à biblioteca"}
-          >
-            {libraryEntry ? (
-              <span
-                className={styles.statusDot}
-                style={{ backgroundColor: config.libraryStatusColor(libraryEntry.status) }}
-              />
-            ) : (
-              "+"
-            )}
-          </button>
+          {!config.hideAddButton?.(item) && (
+            <button
+              type="button"
+              className={`${styles.addButton} ${libraryEntry ? styles.inLibrary : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAdd(e);
+              }}
+              title={libraryEntry ? "Na biblioteca" : "Adicionar à biblioteca"}
+              aria-label={libraryEntry ? "Na biblioteca" : "Adicionar à biblioteca"}
+            >
+              {libraryEntry ? (
+                <span
+                  className={styles.statusDot}
+                  style={{ backgroundColor: config.libraryStatusColor(libraryEntry.status) }}
+                />
+              ) : (
+                "+"
+              )}
+            </button>
+          )}
           {badge && (
             <span className={`${styles.statusBadge} ${TONE_CLASS[badge.tone]}`}>{badge.label}</span>
           )}

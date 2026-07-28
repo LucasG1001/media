@@ -17,6 +17,7 @@ interface LibraryModalBaseProps {
   hasEntry: boolean;
   canSetCover?: boolean;
   isCover?: boolean;
+  hideScore?: boolean;
   rewatch?: RewatchConfig;
   onSetCover?: () => void;
   onClose: () => void;
@@ -34,6 +35,7 @@ export function LibraryModalBase({
   hasEntry,
   canSetCover = false,
   isCover = false,
+  hideScore = false,
   rewatch,
   onSetCover,
   onClose,
@@ -86,18 +88,20 @@ export function LibraryModalBase({
             </select>
           </div>
 
-          <div className={styles.controlRow}>
-            <span className={styles.controlLabel}>Nota</span>
-            <input
-              className={styles.controlInput}
-              type="number"
-              min={0}
-              max={10}
-              step={0.5}
-              value={score}
-              onChange={(e) => setScore(Math.min(10, Math.max(0, parseFloat(e.target.value) || 0)))}
-            />
-          </div>
+          {!hideScore && (
+            <div className={styles.controlRow}>
+              <span className={styles.controlLabel}>Nota</span>
+              <input
+                className={styles.controlInput}
+                type="number"
+                min={0}
+                max={10}
+                step={0.5}
+                value={score}
+                onChange={(e) => setScore(Math.min(10, Math.max(0, parseFloat(e.target.value) || 0)))}
+              />
+            </div>
+          )}
 
           {showRewatch && (
             <button

@@ -28,3 +28,17 @@ export async function updateManyStatus(ids: string[], status: string): Promise<S
   const response = await api.post<{ entries: SeriesLibraryEntry[] }>("/api/series-library/bulk-update-status", { ids, status });
   return response.data.entries;
 }
+
+export async function saveSeason(
+  id: string,
+  seasonNumber: number,
+  data: { status: string; score: number; isRewatching: boolean }
+): Promise<SeriesLibraryEntry> {
+  const response = await api.put<SeriesLibraryEntry>(`/api/series-library/${id}/seasons/${seasonNumber}`, data);
+  return response.data;
+}
+
+export async function setCoverSeason(id: string, seasonNumber: number): Promise<SeriesLibraryEntry> {
+  const response = await api.put<SeriesLibraryEntry>(`/api/series-library/${id}/cover-season/${seasonNumber}`, {});
+  return response.data;
+}

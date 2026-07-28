@@ -44,6 +44,9 @@ export interface LibraryStore<TEntry, TCreate, TUpdate> {
   load: () => Promise<void>;
   add: (entry: TCreate) => Promise<TEntry | null>;
   update: (id: string, data: TUpdate) => Promise<TEntry | null>;
+  // Primitivo genérico de update otimista com chamada de servidor customizada
+  // (ex.: nota por temporada de séries, que bate num endpoint próprio).
+  mutate: (id: string, optimistic: Partial<TEntry>, serverCall: () => Promise<TEntry>) => Promise<TEntry | null>;
   updateMany: (ids: string[], status: string) => Promise<boolean>;
   setCover: (id: string) => Promise<TEntry | null>;
   remove: (id: string) => Promise<boolean>;
@@ -102,22 +105,32 @@ export function useLibraryStore<TEntry extends { id: string }, TCreate, TUpdate>
     }
   }, [media, service, setSlice]);
 
-  const update = useCallback(async (id: string, data: TUpdate): Promise<TEntry | null> => {
+  const mutate = useCallback(async (
+    id: string,
+    optimistic: Partial<TEntry>,
+    serverCall: () => Promise<TEntry>
+  ): Promise<TEntry | null> => {
     let previous: TEntry | undefined;
     setSlice(media, (p) => {
       const list = p.entries as TEntry[];
       previous = list.find((e) => e.id === id);
-      return { ...p, entries: list.map((e) => (e.id === id ? ({ ...e, ...data } as TEntry) : e)), error: null };
+      return { ...p, entries: list.map((e) => (e.id === id ? ({ ...e, ...optimistic } as TEntry) : e)), error: null };
     });
     try {
-      const updated = await service.updateLibraryEntry(id, data);
+      const updated = await serverCall();
       setSlice(media, (p) => ({ ...p, entries: (p.entries as TEntry[]).map((e) => (e.id === id ? updated : e)) }));
       return updated;
     } catch {
       setSlice(media, (p) => ({ ...p, entries: (p.entries as TEntry[]).map((e) => (e.id === id && previous ? previous : e)), error: "Erro ao atualizar item." }));
       return null;
     }
-  }, [media, service, setSlice]);
+  }, [media, setSlice]);
+
+  const update = useCallback(
+    (id: string, data: TUpdate): Promise<TEntry | null> =>
+      mutate(id, data as unknown as Partial<TEntry>, () => service.updateLibraryEntry(id, data)),
+    [mutate, service]
+  );
 
   const updateMany = useCallback(async (ids: string[], status: string): Promise<boolean> => {
     if (ids.length === 0) return true;
@@ -215,5 +228,5 @@ export function useLibraryStore<TEntry extends { id: string }, TCreate, TUpdate>
     [entries, getExternalId]
   );
 
-  return { entries, loading: slice.loading, error: slice.error, load, add, update, updateMany, setCover, remove, removeMany, findByExternalId };
+  return { entries, loading: slice.loading, error: slice.error, load, add, update, mutate, updateMany, setCover, remove, removeMany, findByExternalId };
 }

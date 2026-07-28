@@ -25,6 +25,26 @@ export interface SeriesDetail extends SeriesCard {
   voteCount: number | null;
 }
 
+export interface SeasonEpisode {
+  episodeNumber: number;
+  name: string | null;
+  overview: string | null;
+  airDate: string | null;
+  runtime: number | null;
+  still: string | null;
+  voteAverage: number | null;
+}
+
+export interface SeasonDetail {
+  seasonNumber: number;
+  name: string | null;
+  overview: string | null;
+  poster: string | null;
+  airDate: string | null;
+  episodeCount: number;
+  episodes: SeasonEpisode[];
+}
+
 export interface PageInfo {
   total: number;
   currentPage: number;

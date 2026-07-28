@@ -5,6 +5,20 @@ export interface SeriesNextAiringEpisode {
   airingAt: number;
 }
 
+export interface SeriesSeasonMeta {
+  number: number;
+  name: string | null;
+  poster: string | null;
+  episodeCount: number | null;
+  airDate: string | null;
+}
+
+export interface SeriesSeasonState {
+  status: SeriesLibraryStatus;
+  score: number;
+  isRewatching: boolean;
+}
+
 export interface SeriesLibraryEntry {
   id: string;
   tmdbId: number;
@@ -20,6 +34,9 @@ export interface SeriesLibraryEntry {
   syncedAt: string | null;
   lastNotifiedEpisode: number | null;
   isRewatching: boolean;
+  seasonList: SeriesSeasonMeta[] | null;
+  seasonStates: Record<string, SeriesSeasonState> | null;
+  coverSeason: number | null;
   watchedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -35,6 +52,7 @@ export interface CreateSeriesLibraryEntry {
   seasons?: number | null;
   episodes?: number | null;
   seriesStatus?: string;
+  seasonList?: SeriesSeasonMeta[] | null;
 }
 
 export interface UpdateSeriesLibraryEntry {
@@ -47,6 +65,7 @@ export interface UpdateSeriesLibraryEntry {
   episodes?: number | null;
   seriesStatus?: string;
   isRewatching?: boolean;
+  seasonList?: SeriesSeasonMeta[] | null;
 }
 
 export interface SeriesLibraryRow {
@@ -64,6 +83,9 @@ export interface SeriesLibraryRow {
   synced_at: string | null;
   last_notified_episode: number | null;
   is_rewatching: boolean;
+  season_list: SeriesSeasonMeta[] | null;
+  season_states: Record<string, SeriesSeasonState> | null;
+  cover_season: number | null;
   watched_at: string | null;
   created_at: string;
   updated_at: string;
