@@ -160,6 +160,8 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     leitura **mais recente** (`agg:"latest"`). Avulsos contam como coleção de 1.
   - Padrões: anime/filmes/jogos = Lançamento(desc)+Nota; séries idem; livros =
     Publicação(desc)+Leitura+Nota; YouTube = Alfabética(asc)+Data+Visualizações.
+  - **YouTube: vídeo avulso vem antes de coleção**, em qualquer ordenação — a página parte a lista em
+    dois blocos depois de ordenar, e a ordenação escolhida segue valendo dentro de cada bloco.
   - **Tags do YouTube (só nessa mídia)**: cada vídeo tem **uma** tag (`tag`, `NULL` = nunca
     definida), exibida como chip colorido à direita da linha de duração/views (`TagChip`). A cor sai
     de hash do nome (`utils/tagColor.ts` → tokens `--color-tag-N`), então a mesma tag tem sempre a

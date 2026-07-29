@@ -169,6 +169,13 @@ export function YouTubePage() {
       ? sortGroupsByMemberDate(groups, videoDateOf, sort.dir)
       : sortGroupsByName(groups, nameOf, sort.dir);
 
+  // Avulsos antes das coleções, independente da ordenação escolhida (que segue
+  // valendo dentro de cada bloco — `filter` preserva a ordem).
+  groups = [
+    ...groups.filter((g) => g.representative.collectionId == null),
+    ...groups.filter((g) => g.representative.collectionId != null),
+  ];
+
   const gridKey = `${activeStatus}-${collectionFilter.join(",")}-${sort.field}-${sort.dir}-${search}`;
 
   const drawerEntry = drawerVideoId ? findByVideoId(drawerVideoId) : undefined;
