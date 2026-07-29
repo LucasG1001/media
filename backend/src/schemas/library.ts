@@ -4,6 +4,8 @@ const score = z.number().min(0).max(10).optional();
 const nullableString = z.string().nullish();
 const nullableNumber = z.number().nullish();
 const notes = z.string().max(20000).nullish();
+// Tag do vídeo: string não vazia ou null (null = sem tag). Só o YouTube usa.
+const tag = z.string().min(1).max(60).nullish();
 
 export const movieCreateSchema = z.object({
   tmdbId: z.number(),
@@ -94,6 +96,7 @@ export const youtubeCreateSchema = z.object({
   description: nullableString,
   status: youtubeStatus.optional(),
   score,
+  tag,
 });
 export const youtubeUpdateSchema = youtubeCreateSchema.partial().extend({ isRewatching: z.boolean().optional(), notes });
 
@@ -108,5 +111,9 @@ export const youtubeAddToGroupSchema = z.object({
 });
 export const youtubeRemoveFromGroupSchema = z.object({
   ids: z.array(z.string().min(1)).min(1),
+});
+export const youtubeSetTagSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1),
+  tag: z.string().min(1).max(60).nullable(),
 });
 export const youtubeRenameSchema = z.object({ name: z.string().min(1) });

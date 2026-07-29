@@ -116,10 +116,17 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   que é bottom-sheet no mobile e popover ancorado no desktop + chip de contagem; dirigido por config
   `filterGroups`/`sort`, cada página monta a config do seu estado. As opções de filtro ficam em
   **grade** (`.filterOptions`), não em `flex-wrap`: com rótulos de larguras diferentes o wrap
-  desalinhava as linhas; rótulo longo trunca com reticências e o texto inteiro vai no `title`),
+  desalinhava as linhas; rótulo longo trunca com reticências e o texto inteiro vai no `title`; o
+  grupo de opções em si é o `FilterCheckboxGroup`, compartilhado com o filtro de tag da coleção —
+  `layout="grid"` (default) alinha as colunas, `layout="wrap"` põe uma opção do lado da outra e
+  quebra a linha, para rótulos curtos como as tags),
   `NotesBlock` (bloco de anotação livre no fim do `content` dos drawers: textarea auto-grow com
   autosave por debounce de 1 s + flush no unmount, já que fechar o drawer desmonta antes do timer).
   Config visual por mídia em **`config/cards.tsx`**.
+- **`FranchiseGrid`** aceita `renderExpansion(group, renderMembers)` — inversão de controle da
+  expansão: quem passa decide o que vem antes dos cards e quais membros devolve ao `renderMembers`.
+  É como o filtro de tag do YouTube reduz só a expansão sem o grid ganhar estado. Como a expansão é
+  montada com `key` por grupo, o estado de quem vive lá dentro zera ao recolher/trocar de coleção.
 - **Anotações**: o drawer não conhece a biblioteca (recebe só o ID externo e busca na API externa),
   então `notes`/`onNotesChange` são props **opcionais** que a página passa só quando acha a entry —
   é isso que esconde o bloco no catálogo. Séries são a exceção: a anotação é da **temporada**
@@ -153,6 +160,21 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     leitura **mais recente** (`agg:"latest"`). Avulsos contam como coleção de 1.
   - Padrões: anime/filmes/jogos = Lançamento(desc)+Nota; séries idem; livros =
     Publicação(desc)+Leitura+Nota; YouTube = Alfabética(asc)+Data+Visualizações.
+  - **Tags do YouTube (só nessa mídia)**: cada vídeo tem **uma** tag (`tag`, `NULL` = nunca
+    definida), exibida como chip colorido à direita da linha de duração/views (`TagChip`). A cor sai
+    de hash do nome (`utils/tagColor.ts` → tokens `--color-tag-N`), então a mesma tag tem sempre a
+    mesma cor. Vocabulário = `DISTINCT` das tags **daquela coleção** (não existe tabela de tag): é o
+    que faz a tag parecer escopada, já que `collection_id` é escalar. Sem coleção não há vocabulário
+    — chip herdado aparece mas não é editável, e vídeo sem tag não mostra chip. **Sair/mudar de
+    coleção não apaga a tag.** Três invariantes: (1) o filtro de tag mora **dentro da expansão**
+    (`CollectionTagBar`) e reduz **só os cards mostrados** — de propósito não toca no badge
+    `mostrados/total` nem no representante/capa, porque a capa do YouTube é o card do representante e
+    a thumbnail trocaria embaixo do dedo do usuário; (2) a ordem dos membros da coleção é **fixa** —
+    sem tag primeiro, depois tag alfabética, e publicação desc dentro de cada tag — e não é opção de
+    ordenação; (3) `pickRepresentative` continua recebendo a lista em ordem de publicação asc, para a
+    capa não mudar. Atribuição: clique no chip (menu **em portal**, porque `MediaCard` tem
+    `overflow: hidden` e clipa menu absoluto) ou em lote pela `SelectionBar` quando os selecionados
+    estão numa única coleção (`POST /bulk-set-tag`).
   - **Capa é só coleção (anime/filmes/séries/jogos; prop `coverIsCollectionOnly` do
     `FranchiseGrid`/`FranchiseCard`, que livros e YouTube NÃO passam)**: em grupo com 2+ itens a capa
     exibe apenas a **média** e o clique **expande/recolhe** em vez de abrir o drawer do representante
@@ -212,7 +234,10 @@ anotação é por temporada, dentro de `season_states`.
 `series_library` tem ainda `season_list` (JSONB, metadado das temporadas do TMDB), `season_states`
 (JSONB, estado por temporada `{ "1": {status,score,isRewatching,notes} }`; `score` da série = média das notas)
 e `cover_season` (INTEGER, temporada usada como capa da coleção). `game_library` tem `game_modes`
-(`TEXT[]`). Colunas JSONB são escritas com `JSON.stringify` explícito (ver `seriesLibraryModel`).
+(`TEXT[]`). `youtube_library` tem `tag` (`TEXT`, `NULL` = nunca definida; não é apagada ao sair da
+coleção — ver invariantes de tag acima) e a coleção é uma entidade real, `youtube_collection`
+(renomeável, podada quando fica vazia). Colunas JSONB são escritas com `JSON.stringify` explícito
+(ver `seriesLibraryModel`).
 
 **Status vindos da API externa** (todos alimentados pelos jobs de refresh, nunca editáveis pelo
 usuário): `anime_status` (AniList: `RELEASING`/`FINISHED`/`NOT_YET_RELEASED`) e, em filmes/séries/

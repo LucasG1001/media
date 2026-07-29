@@ -1,9 +1,12 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { TabNav } from "../../components/TabNav/TabNav";
 import { FranchiseGrid } from "../../components/FranchiseGrid/FranchiseGrid";
 import { YoutubeDrawer } from "../../components/YoutubeDrawer/YoutubeDrawer";
 import { YoutubeLibraryModal } from "../../components/YoutubeLibraryModal/YoutubeLibraryModal";
 import { LibraryControls } from "../../components/LibraryControls/LibraryControls";
+import { CollectionTagBar } from "../../components/CollectionTagBar/CollectionTagBar";
+import { TagPickerModal } from "../../components/TagPickerModal/TagPickerModal";
+import { YoutubeTagContext } from "../../context/youtubeTagContext";
 import { youtubeCardConfig } from "../../config/cards";
 import { useYoutubeLibrary } from "../../hooks/useYoutubeLibrary";
 import { useYoutubeCollections } from "../../hooks/useYoutubeCollections";
@@ -45,6 +48,7 @@ export function YouTubePage() {
   const [addNotice, setAddNotice] = useState<string | null>(null);
   const [drawerVideoId, setDrawerVideoId] = useState<string | null>(null);
   const [modalVideoId, setModalVideoId] = useState<string | null>(null);
+  const [bulkTag, setBulkTag] = useState<{ ids: string[]; collectionId: number } | null>(null);
   const sort = useSingleSort("alpha", "asc");
 
   const {
@@ -61,9 +65,38 @@ export function YouTubePage() {
     formGroup,
     addToGroup,
     removeFromGroup,
+    setTagMany,
   } = useYoutubeLibrary();
 
   const collections = useYoutubeCollections();
+
+  // Vocabulário de tags: sai do DISTINCT dentro de cada coleção, não de tabela.
+  const tagsByCollection = useMemo(() => {
+    const map = new Map<number, Set<string>>();
+    for (const entry of entries) {
+      if (entry.collectionId == null || !entry.tag) continue;
+      const set = map.get(entry.collectionId) ?? new Set<string>();
+      set.add(entry.tag);
+      map.set(entry.collectionId, set);
+    }
+    return new Map(
+      [...map].map(([id, set]) => [
+        id,
+        [...set].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" })),
+      ])
+    );
+  }, [entries]);
+
+  const tagContext = useMemo(
+    () => ({
+      tagsOf: (collectionId: number | null) =>
+        collectionId == null ? [] : tagsByCollection.get(collectionId) ?? [],
+      setTag: (entryId: string, tag: string | null) => {
+        void updateEntry(entryId, { tag });
+      },
+    }),
+    [tagsByCollection, updateEntry]
+  );
 
   const handleAdd = useCallback(async () => {
     const url = urlInput.trim();
@@ -202,47 +235,53 @@ export function YouTubePage() {
         }}
       />
 
-      <FranchiseGrid
-        groups={groups}
-        loading={loading}
-        error={error}
-        cardConfig={youtubeCardConfig}
-        entryToCard={youtubeLibraryEntryToCard}
-        getExternalId={(e) => e.videoId}
-        getLibraryEntry={(id) => findByVideoId(id)}
-        onCardClick={handleCardClick}
-        onAddToLibrary={handleOpenModal}
-        onDeleteGroup={(group) => removeManyEntries(group.members.map((m) => m.id)).then(() => collections.reload())}
-        statusLabels={YOUTUBE_LIBRARY_STATUS_LABELS}
-        onBulkSetStatus={(ids, status) => updateManyEntries(ids, status)}
-        expandTitle="Ver vídeos da coleção"
-        animationKey={gridKey}
-        gridClassName={styles.youtubeGrid}
-        expansionClassName={styles.youtubeExpansion}
-        emptyMessage="Nada por aqui ainda."
-        emptyHint="Cole o link de um vídeo do YouTube para começar!"
-        getCollectionKey={(e) => e.collectionId}
-        onFormGroup={(ids, name) => formGroup(ids, name).then(() => collections.reload())}
-        onAddToGroup={(ids, collectionId) => addToGroup(ids, collectionId).then(() => collections.reload())}
-        onRemoveFromGroup={(ids) => removeFromGroup(ids).then(() => collections.reload())}
-        getCollectionName={(group) =>
-          group.representative.collectionId != null
-            ? collections.byId.get(group.representative.collectionId) ?? null
-            : null
-        }
-        onRenameCollection={(group, name) => {
-          if (group.representative.collectionId != null) collections.rename(group.representative.collectionId, name);
-        }}
-        getCollectionExtra={(group) => {
-          const totalDuration = group.members.reduce((sum, v) => sum + (v.durationSeconds ?? 0), 0);
-          const totalViews = group.members.reduce((sum, v) => sum + (v.viewCount ?? 0), 0);
-          return (
-            <div className={styles.collMeta}>
-              {formatDurationLong(totalDuration)} · {formatViews(totalViews)}
-            </div>
-          );
-        }}
-      />
+      <YoutubeTagContext.Provider value={tagContext}>
+        <FranchiseGrid
+          groups={groups}
+          loading={loading}
+          error={error}
+          cardConfig={youtubeCardConfig}
+          entryToCard={youtubeLibraryEntryToCard}
+          getExternalId={(e) => e.videoId}
+          getLibraryEntry={(id) => findByVideoId(id)}
+          onCardClick={handleCardClick}
+          onAddToLibrary={handleOpenModal}
+          onDeleteGroup={(group) => removeManyEntries(group.members.map((m) => m.id)).then(() => collections.reload())}
+          statusLabels={YOUTUBE_LIBRARY_STATUS_LABELS}
+          onBulkSetStatus={(ids, status) => updateManyEntries(ids, status)}
+          expandTitle="Ver vídeos da coleção"
+          animationKey={gridKey}
+          gridClassName={styles.youtubeGrid}
+          expansionClassName={styles.youtubeExpansion}
+          emptyMessage="Nada por aqui ainda."
+          emptyHint="Cole o link de um vídeo do YouTube para começar!"
+          getCollectionKey={(e) => e.collectionId}
+          onFormGroup={(ids, name) => formGroup(ids, name).then(() => collections.reload())}
+          onAddToGroup={(ids, collectionId) => addToGroup(ids, collectionId).then(() => collections.reload())}
+          onRemoveFromGroup={(ids) => removeFromGroup(ids).then(() => collections.reload())}
+          onSetTag={(ids, collectionId) => setBulkTag({ ids, collectionId })}
+          renderExpansion={(group, renderMembers) => (
+            <CollectionTagBar group={group} renderMembers={renderMembers} />
+          )}
+          getCollectionName={(group) =>
+            group.representative.collectionId != null
+              ? collections.byId.get(group.representative.collectionId) ?? null
+              : null
+          }
+          onRenameCollection={(group, name) => {
+            if (group.representative.collectionId != null) collections.rename(group.representative.collectionId, name);
+          }}
+          getCollectionExtra={(group) => {
+            const totalDuration = group.members.reduce((sum, v) => sum + (v.durationSeconds ?? 0), 0);
+            const totalViews = group.members.reduce((sum, v) => sum + (v.viewCount ?? 0), 0);
+            return (
+              <div className={styles.collMeta}>
+                {formatDurationLong(totalDuration)} · {formatViews(totalViews)}
+              </div>
+            );
+          }}
+        />
+      </YoutubeTagContext.Provider>
 
       {drawerEntry && (
         <YoutubeDrawer
@@ -262,6 +301,18 @@ export function YouTubePage() {
             setCoverEntry(id);
             setModalVideoId(null);
           }}
+        />
+      )}
+
+      {bulkTag && (
+        <TagPickerModal
+          count={bulkTag.ids.length}
+          tags={tagsByCollection.get(bulkTag.collectionId) ?? []}
+          onPick={(tag) => {
+            void setTagMany(bulkTag.ids, tag);
+            setBulkTag(null);
+          }}
+          onClose={() => setBulkTag(null)}
         />
       )}
     </div>

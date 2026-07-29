@@ -7,6 +7,7 @@ import type { YoutubeCard } from "../types/youtubeLibrary";
 import type { SeasonMember } from "../utils/seasonGroups";
 import type { MediaCardConfig } from "../components/MediaCard/MediaCard";
 import { StoreGlyph } from "../components/MediaCard/StoreIcons";
+import { TagChip } from "../components/TagChip/TagChip";
 import { formatDuration } from "../utils/formatDuration";
 import { formatViews } from "../utils/formatViews";
 import cardStyles from "../components/MediaCard/MediaCard.module.css";
@@ -174,7 +175,10 @@ export const youtubeCardConfig: MediaCardConfig<YoutubeCard> = {
         <div className={ytStyles.title} title={v.title}>{v.title}</div>
         {v.channelTitle && <div className={ytStyles.channel}>{v.channelTitle}</div>}
         <div className={ytStyles.stats}>
-          {formatDuration(v.durationSeconds)} · {formatViews(v.viewCount)}
+          <span className={ytStyles.statsText}>
+            {formatDuration(v.durationSeconds)} · {formatViews(v.viewCount)}
+          </span>
+          <TagChip entryId={v.entryId} collectionId={v.collectionId} tag={v.tag} />
         </div>
       </div>
     </div>

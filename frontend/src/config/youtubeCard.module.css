@@ -42,6 +42,17 @@
 }
 
 .stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xs);
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
+}
+
+.statsText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

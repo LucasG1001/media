@@ -51,5 +51,21 @@ export function useYoutubeLibrary() {
     [load]
   );
 
-  return { ...store, findByVideoId: store.findByExternalId, addFromUrl, formGroup, addToGroup, removeFromGroup };
+  const setTagMany = useCallback(
+    async (ids: string[], tag: string | null) => {
+      await youtubeLibraryService.setTagMany(ids, tag);
+      await load();
+    },
+    [load]
+  );
+
+  return {
+    ...store,
+    findByVideoId: store.findByExternalId,
+    addFromUrl,
+    formGroup,
+    addToGroup,
+    removeFromGroup,
+    setTagMany,
+  };
 }

@@ -50,6 +50,10 @@ export async function updateManyStatus(ids: string[], status: string): Promise<Y
   return response.data.entries;
 }
 
+export async function setTagMany(ids: string[], tag: string | null): Promise<void> {
+  await api.post("/api/youtube-library/bulk-set-tag", { ids, tag });
+}
+
 export async function listCollections(): Promise<YoutubeCollection[]> {
   const response = await api.get<YoutubeCollection[]>("/api/youtube-library/collections");
   return response.data;

@@ -30,6 +30,7 @@ export const youtubeLibraryModel = createLibraryModel<
     { column: "collection_id", field: "collectionId", default: null },
     { column: "is_cover", field: "isCover", default: false, readonly: true },
     { column: "notes", field: "notes", default: null },
+    { column: "tag", field: "tag", default: null },
   ],
   statusField: "status",
   completion: { column: "liked_at", field: "likedAt", whenStatus: "liked" },
@@ -108,6 +109,16 @@ export async function assignCollection(ids: string[], collectionId: number): Pro
   const result = await pool.query(
     `UPDATE youtube_library SET collection_id = $2, updated_at = NOW() WHERE id = ANY($1::uuid[])`,
     [ids, collectionId]
+  );
+  return result.rowCount ?? 0;
+}
+
+// A tag é do vídeo, não da coleção: sair da coleção não apaga.
+export async function assignTag(ids: string[], tag: string | null): Promise<number> {
+  if (ids.length === 0) return 0;
+  const result = await pool.query(
+    `UPDATE youtube_library SET tag = $2, updated_at = NOW() WHERE id = ANY($1::uuid[])`,
+    [ids, tag]
   );
   return result.rowCount ?? 0;
 }

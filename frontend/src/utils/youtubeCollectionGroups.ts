@@ -21,6 +21,18 @@ function byPublishedAsc(a: YoutubeLibraryEntry, b: YoutubeLibraryEntry): number 
   return diff !== 0 ? diff : a.videoId.localeCompare(b.videoId);
 }
 
+// Ordem fixa dos membros de uma coleção: sem tag primeiro, depois tag em ordem
+// alfabética e, dentro da mesma tag, publicação mais recente primeiro.
+function byTagThenPublishedDesc(a: YoutubeLibraryEntry, b: YoutubeLibraryEntry): number {
+  if (a.tag !== b.tag) {
+    if (!a.tag) return -1;
+    if (!b.tag) return 1;
+    const byTag = a.tag.localeCompare(b.tag, "pt-BR", { sensitivity: "base" });
+    if (byTag !== 0) return byTag;
+  }
+  return -byPublishedAsc(a, b);
+}
+
 export function buildYoutubeCollectionGroups(entries: YoutubeLibraryEntry[]): YoutubeGroup[] {
   return buildCollectionGroups(entries, {
     getKey: (e) => (e.collectionId != null ? `collection-${e.collectionId}` : `single-${e.videoId}`),
@@ -38,11 +50,14 @@ export function applyStatusView(groups: YoutubeGroup[], status: YoutubeLibrarySt
     if (isCollection) {
       const matched = g.members.filter((m) => m.status === status);
       if (matched.length === 0) continue;
+      // `pickRepresentative` continua recebendo a lista em ordem de publicação
+      // asc (capa = isCover, senão o mais antigo): a ordenação por tag é só dos
+      // membros, a capa não muda.
       const ordered = [...matched].sort(byPublishedAsc);
       result.push({
         key: g.key,
         representative: pickRepresentative(ordered),
-        members: [...ordered].reverse(),
+        members: [...matched].sort(byTagThenPublishedDesc),
         count: g.count,
         completedCount: ordered.length,
       });

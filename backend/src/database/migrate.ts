@@ -345,6 +345,10 @@ export async function migrate(): Promise<void> {
   await pool.query(`ALTER TABLE books_library   ADD COLUMN IF NOT EXISTS notes TEXT;`);
   await pool.query(`ALTER TABLE youtube_library ADD COLUMN IF NOT EXISTS notes TEXT;`);
 
+  // Tag do vídeo. NULL = nunca definida. Só o YouTube tem: o vocabulário sai do
+  // DISTINCT dentro da coleção, não de tabela própria.
+  await pool.query(`ALTER TABLE youtube_library ADD COLUMN IF NOT EXISTS tag TEXT;`);
+
   await pool.query(`UPDATE anime_library  SET status = 'plan_to_watch' WHERE status = 'watching';`);
   await pool.query(`UPDATE series_library SET status = 'plan_to_watch' WHERE status = 'watching';`);
   await pool.query(`UPDATE game_library   SET status = 'plan_to_play'  WHERE status = 'playing';`);

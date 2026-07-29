@@ -5,6 +5,7 @@ import {
   createCollection,
   renameCollection as renameCollectionModel,
   assignCollection,
+  assignTag,
   removeFromCollection,
   bulkUpsertVideos,
   listCollections as listCollectionsModel,
@@ -17,6 +18,7 @@ import {
   youtubeFormGroupSchema,
   youtubeAddToGroupSchema,
   youtubeRemoveFromGroupSchema,
+  youtubeSetTagSchema,
   youtubeRenameSchema,
 } from "../schemas/library.js";
 import { extractVideoId, extractPlaylistId, fetchVideo, fetchPlaylist, YoutubeServiceError } from "../services/youtubeService.js";
@@ -151,6 +153,22 @@ export async function removeFromGroup(req: Request, res: Response): Promise<void
   } catch (error) {
     void notifyError("API POST /api/youtube-library/collections/remove", error);
     res.status(500).json({ error: "Erro ao remover da coleção." });
+  }
+}
+
+export async function setTagMany(req: Request, res: Response): Promise<void> {
+  try {
+    const parsed = youtubeSetTagSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inválidos." });
+      return;
+    }
+    const { ids, tag } = parsed.data;
+    await assignTag(ids, tag);
+    res.json({ ok: true });
+  } catch (error) {
+    void notifyError("API POST /api/youtube-library/bulk-set-tag", error);
+    res.status(500).json({ error: "Erro ao definir tag." });
   }
 }
 

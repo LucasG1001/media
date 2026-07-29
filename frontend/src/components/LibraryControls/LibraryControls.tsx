@@ -1,15 +1,10 @@
 import { useState } from "react";
 import { SearchBar } from "../SearchBar/SearchBar";
 import { ControlPopover } from "./ControlPopover";
+import { FilterCheckboxGroup, type FilterGroupConfig } from "./FilterCheckboxGroup";
 import styles from "./LibraryControls.module.css";
 
-export interface FilterGroupConfig {
-  key: string;
-  title: string;
-  options: { value: string; label: string }[];
-  selected: string[];
-  onToggle: (value: string) => void;
-}
+export type { FilterGroupConfig };
 
 export interface SortConfig {
   active: string;
@@ -73,7 +68,7 @@ export function LibraryControls({
           </svg>
         }
         label="Filtros"
-        panelClassName={styles.filtersPanel}
+        panelWidth="wide"
         headerLeft={
           <button
             type="button"
@@ -86,21 +81,7 @@ export function LibraryControls({
         }
       >
         {filterGroups.map((group) => (
-          <div key={group.key} className={styles.filterGroup}>
-            <span className={styles.filterGroupTitle}>{group.title}</span>
-            <div className={styles.filterOptions}>
-              {group.options.map((opt) => (
-                <label key={opt.value} className={styles.checkbox} title={opt.label}>
-                  <input
-                    type="checkbox"
-                    checked={group.selected.includes(opt.value)}
-                    onChange={() => group.onToggle(opt.value)}
-                  />
-                  <span className={styles.checkboxLabel}>{opt.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+          <FilterCheckboxGroup key={group.key} group={group} />
         ))}
       </ControlPopover>
       )}

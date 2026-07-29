@@ -158,6 +158,7 @@ const TABLES: TableSpec[] = [
       { column: "is_rewatching", get: (e) => e.isRewatching ?? false },
       { column: "liked_at", get: (e) => e.likedAt ?? null },
       { column: "notes", get: (e) => e.notes ?? null },
+      { column: "tag", get: (e) => e.tag ?? null },
     ],
   },
 ];

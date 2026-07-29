@@ -42,6 +42,26 @@
   --color-status-finished: #3b82f6;
   --color-status-upcoming: #f59e0b;
 
+  /* Paleta das tags do YouTube: o índice sai de um hash do nome (utils/tagColor),
+     então a mesma tag tem sempre a mesma cor. Tons claros porque o chip é texto
+     colorido sobre fundo translúcido. */
+  --color-tag-1: #a78bfa;
+  --color-tag-1-subtle: rgba(167, 139, 250, 0.16);
+  --color-tag-2: #38bdf8;
+  --color-tag-2-subtle: rgba(56, 189, 248, 0.16);
+  --color-tag-3: #34d399;
+  --color-tag-3-subtle: rgba(52, 211, 153, 0.16);
+  --color-tag-4: #fbbf24;
+  --color-tag-4-subtle: rgba(251, 191, 36, 0.16);
+  --color-tag-5: #fb7185;
+  --color-tag-5-subtle: rgba(251, 113, 133, 0.16);
+  --color-tag-6: #e879f9;
+  --color-tag-6-subtle: rgba(232, 121, 249, 0.16);
+  --color-tag-7: #a3e635;
+  --color-tag-7-subtle: rgba(163, 230, 53, 0.16);
+  --color-tag-8: #fb923c;
+  --color-tag-8-subtle: rgba(251, 146, 60, 0.16);
+
   --color-media-anime: #8b5cf6;
   --color-media-movie: #3b82f6;
   --color-media-series: #f43f5e;

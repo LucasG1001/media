@@ -11,6 +11,7 @@ import {
   formGroup,
   addToGroup,
   removeFromGroup,
+  setTagMany,
   renameCollection,
   listCollections,
 } from "../controllers/youtubeLibraryController.js";
@@ -27,6 +28,7 @@ router.post("/collections/remove", removeFromGroup);
 router.put("/collections/:id", renameCollection);
 router.post("/bulk-delete", removeMany);
 router.post("/bulk-update-status", updateManyStatus);
+router.post("/bulk-set-tag", setTagMany);
 router.put("/:id/cover", setCover);
 router.put("/:id", update);
 router.delete("/:id", remove);

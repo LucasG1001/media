@@ -80,13 +80,22 @@
   display: flex;
 }
 
-/* Desktop: painel de filtros mais largo para os checkboxes ficarem lado a lado
-   (ainda quebrando). Largura explícita — o shrink-to-fit dentro de `.control`
-   (largura do botão) resolveria abaixo do min-width e ignoraria o max-width. */
+/* Desktop: painel mais largo para os checkboxes ficarem lado a lado (ainda
+   quebrando). Largura explícita — `width: auto` faria shrink-to-fit contra o
+   containing block, que é `.control` (largura do botão), resolvendo abaixo do
+   min-width e ignorando o max-width. */
 @media (min-width: 769px) {
-  .filtersPanel {
+  .widePanel {
     width: min(560px, calc(100vw - 2 * var(--spacing-lg)));
     max-width: none;
+  }
+
+  /* Cresce com o conteúdo (max-content ignora o containing block estreito) e só
+     quebra linha ao bater no teto: com uma tag só o painel não fica gigante. O
+     min-width do `.panel` continua valendo como piso. */
+  .fitPanel {
+    width: max-content;
+    max-width: min(560px, calc(100vw - 2 * var(--spacing-lg)));
   }
 }
 
@@ -155,6 +164,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-sm);
+}
+
+/* Em flex-wrap a opção se dimensiona pelo conteúdo: sem teto, um rótulo longo
+   estouraria o painel em vez de truncar. */
+.checkboxRow > .checkbox {
+  max-width: 100%;
 }
 
 /* Opções de filtro em grade, não em flex-wrap: os rótulos têm larguras muito

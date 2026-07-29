@@ -8,9 +8,11 @@ interface SelectionBarProps {
   onFormGroup?: () => void;
   onAddToGroup?: () => void;
   onRemoveFromGroup?: () => void;
+  onSetTag?: () => void;
   formGroupLabel?: string;
   addToGroupLabel?: string;
   removeFromGroupLabel?: string;
+  setTagLabel?: string;
 }
 
 export function SelectionBar({
@@ -21,9 +23,11 @@ export function SelectionBar({
   onFormGroup,
   onAddToGroup,
   onRemoveFromGroup,
+  onSetTag,
   formGroupLabel = "Formar grupo",
   addToGroupLabel = "Adicionar ao grupo",
   removeFromGroupLabel = "Remover do grupo",
+  setTagLabel = "Definir tag",
 }: SelectionBarProps) {
   if (count === 0) return null;
   return (
@@ -50,6 +54,11 @@ export function SelectionBar({
             {addToGroupLabel}
           </button>
         )}
+        {onSetTag && (
+          <button type="button" className={styles.groupButton} onClick={onSetTag}>
+            {setTagLabel}
+          </button>
+        )}
         {onRemoveFromGroup && (
           <button type="button" className={styles.groupButtonDanger} onClick={onRemoveFromGroup}>
             {removeFromGroupLabel}
@@ -63,6 +72,7 @@ export function SelectionBar({
           const v = e.target.value;
           if (v === "__form_group__") onFormGroup?.();
           else if (v === "__add_to_group__") onAddToGroup?.();
+          else if (v === "__set_tag__") onSetTag?.();
           else if (v === "__remove_from_group__") onRemoveFromGroup?.();
           else if (v) onApply(v);
         }}
@@ -74,6 +84,7 @@ export function SelectionBar({
         ))}
         {onFormGroup && <option value="__form_group__">{formGroupLabel}</option>}
         {onAddToGroup && <option value="__add_to_group__">{addToGroupLabel}</option>}
+        {onSetTag && <option value="__set_tag__">{setTagLabel}</option>}
         {onRemoveFromGroup && <option value="__remove_from_group__">{removeFromGroupLabel}</option>}
       </select>
     </div>

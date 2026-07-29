@@ -10,7 +10,9 @@ interface ControlPopoverProps {
   label: ReactNode;
   headerLeft?: ReactNode;
   title?: string;
-  panelClassName?: string;
+  // Largura do painel no desktop: "wide" = fixa no teto; "fit" = cresce com o
+  // conteúdo até o teto e só então quebra linha.
+  panelWidth?: "wide" | "fit";
   children: ReactNode;
 }
 
@@ -22,7 +24,7 @@ export function ControlPopover({
   label,
   headerLeft,
   title,
-  panelClassName,
+  panelWidth,
   children,
 }: ControlPopoverProps) {
   useDismiss(open, onClose);
@@ -34,7 +36,11 @@ export function ControlPopover({
         <span>{label}</span>
       </button>
       {open && <div className={styles.overlay} onClick={onClose} />}
-      <div className={`${styles.panel} ${panelClassName ?? ""} ${open ? styles.panelOpen : ""}`}>
+      <div
+        className={`${styles.panel} ${
+          panelWidth === "wide" ? styles.widePanel : panelWidth === "fit" ? styles.fitPanel : ""
+        } ${open ? styles.panelOpen : ""}`}
+      >
         <div className={styles.panelHeader}>
           {headerLeft ?? (title ? <span className={styles.panelTitle}>{title}</span> : <span />)}
           <button type="button" className={styles.close} onClick={onClose}>

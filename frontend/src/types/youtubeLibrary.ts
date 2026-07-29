@@ -19,6 +19,7 @@ export interface YoutubeLibraryEntry {
   collectionId: number | null;
   isCover: boolean;
   notes: string | null;
+  tag: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -42,6 +43,7 @@ export interface UpdateYoutubeLibraryEntry {
   score?: number;
   isRewatching?: boolean;
   notes?: string | null;
+  tag?: string | null;
 }
 
 export interface YoutubeCollection {
@@ -57,6 +59,10 @@ export interface YoutubeCard {
   channelThumbnail: string | null;
   durationSeconds: number | null;
   viewCount: number | null;
+  // O `id` do card é o videoId; a tag é escrita pelo id da entry (UUID).
+  entryId: string;
+  collectionId: number | null;
+  tag: string | null;
 }
 
 export const YOUTUBE_LIBRARY_STATUS_LABELS: Record<YoutubeLibraryStatus, string> = {
