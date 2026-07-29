@@ -2,12 +2,17 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { AnimeDetail } from "../../types/anime";
 import { fetchAnimeById } from "../../services/animeService";
 import { TrailerEmbed } from "../TrailerEmbed/TrailerEmbed";
+import { NotesBlock } from "../NotesBlock/NotesBlock";
 import styles from "./AnimeDrawer.module.css";
 
+// notes/onNotesChange só vêm quando o item está na biblioteca — no catálogo o
+// bloco de anotação não aparece.
 interface AnimeDrawerProps {
   animeId: number;
   onClose: () => void;
   onAnimeLoad?: (anime: AnimeDetail) => void;
+  notes?: string | null;
+  onNotesChange?: (notes: string) => void;
 }
 
 function getStatusLabel(status: string): string {
@@ -29,7 +34,7 @@ function formatDate(timestamp: number): string {
   });
 }
 
-export function AnimeDrawer({ animeId, onClose, onAnimeLoad }: AnimeDrawerProps) {
+export function AnimeDrawer({ animeId, onClose, onAnimeLoad, notes, onNotesChange }: AnimeDrawerProps) {
   const [anime, setAnime] = useState<AnimeDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -207,6 +212,7 @@ export function AnimeDrawer({ animeId, onClose, onAnimeLoad }: AnimeDrawerProps)
                 </div>
               )}
 
+              {onNotesChange && <NotesBlock value={notes ?? null} onSave={onNotesChange} />}
             </div>
           </>
         ) : (

@@ -15,6 +15,7 @@ export interface GameLibraryEntry {
   isRewatching: boolean;
   gameModes: string[] | null;
   syncedAt: string | null;
+  notes: string | null;
   finishedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -42,6 +43,7 @@ export interface UpdateGameLibraryEntry {
   metacritic?: number | null;
   gameStatus?: string;
   isRewatching?: boolean;
+  notes?: string | null;
 }
 
 export interface GameSyncData {
@@ -67,6 +69,7 @@ export interface GameLibraryRow {
   is_rewatching: boolean;
   game_modes: string[] | null;
   synced_at: string | null;
+  notes: string | null;
   finished_at: string | null;
   created_at: string;
   updated_at: string;

@@ -17,6 +17,8 @@ export interface SeasonMember {
   isRewatching: boolean;
   airDate: string | null;
   episodeCount: number | null;
+  // Anotação do usuário. Só nos membros temporada — a série não tem anotação.
+  notes: string | null;
   // Nos membros temporada: indica se é a capa da coleção.
   isCover?: boolean;
   // Só no representante: indica se há temporadas reais.
@@ -54,12 +56,13 @@ function seriesRepresentative(
     isRewatching: false,
     airDate: entry.firstAirDate,
     episodeCount: entry.episodes,
+    notes: null,
     hasSeasons,
   };
 }
 
 // Estado padrão de uma temporada ainda não avaliada.
-const DEFAULT_STATE = { status: "plan_to_watch", score: 0, isRewatching: false };
+const DEFAULT_STATE = { status: "plan_to_watch", score: 0, isRewatching: false, notes: null };
 
 // Uma coleção por série: representante = a série (capa + nome), membros = as
 // temporadas (cada uma com status/nota/reassistindo próprios). Só é coleção com
@@ -98,6 +101,7 @@ export function buildSeasonGroups(
         isRewatching: st.isRewatching,
         airDate: s.airDate,
         episodeCount: s.episodeCount,
+        notes: st.notes ?? null,
         isCover: entry.coverSeason === s.number,
       };
     });

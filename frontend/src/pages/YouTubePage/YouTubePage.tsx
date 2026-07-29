@@ -244,7 +244,13 @@ export function YouTubePage() {
         }}
       />
 
-      {drawerEntry && <YoutubeDrawer entry={drawerEntry} onClose={() => setDrawerVideoId(null)} />}
+      {drawerEntry && (
+        <YoutubeDrawer
+          entry={drawerEntry}
+          onClose={() => setDrawerVideoId(null)}
+          onNotesChange={(notes) => { void updateEntry(drawerEntry.id, { notes }); }}
+        />
+      )}
 
       {modalEntry && (
         <YoutubeLibraryModal

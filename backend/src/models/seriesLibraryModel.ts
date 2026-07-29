@@ -182,7 +182,9 @@ export async function setSeasonState(
   if (!row) return null;
 
   const states: Record<string, SeriesSeasonState> = { ...(row.season_states ?? {}) };
-  states[String(seasonNumber)] = state;
+  // Merge, não substituição: o modal só manda status/nota/reassistindo e não pode
+  // apagar a anotação da temporada, que é gravada por outro caminho.
+  states[String(seasonNumber)] = { ...states[String(seasonNumber)], ...state };
 
   const nextScore = averageOfStates(states);
 
@@ -194,6 +196,31 @@ export async function setSeasonState(
      WHERE id = $1
      RETURNING *`,
     [id, JSON.stringify(states), nextScore]
+  );
+  return result.rows[0] ? toSeriesEntry(result.rows[0]) : null;
+}
+
+// Estado padrão de temporada ainda não avaliada — o mesmo que o frontend já
+// exibe, para que anotar não mude nada visível na temporada.
+const DEFAULT_SEASON_STATE: SeriesSeasonState = { status: "plan_to_watch", score: 0, isRewatching: false };
+
+// Não recalcula `score`: anotação não é nota.
+export async function setSeasonNotes(
+  id: string,
+  seasonNumber: number,
+  notes: string | null
+): Promise<SeriesLibraryEntry | null> {
+  const current = await pool.query<SeriesLibraryRow>(`SELECT * FROM series_library WHERE id = $1`, [id]);
+  const row = current.rows[0];
+  if (!row) return null;
+
+  const states: Record<string, SeriesSeasonState> = { ...(row.season_states ?? {}) };
+  const key = String(seasonNumber);
+  states[key] = { ...DEFAULT_SEASON_STATE, ...states[key], notes };
+
+  const result = await pool.query<SeriesLibraryRow>(
+    `UPDATE series_library SET season_states = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
+    [id, JSON.stringify(states)]
   );
   return result.rows[0] ? toSeriesEntry(result.rows[0]) : null;
 }

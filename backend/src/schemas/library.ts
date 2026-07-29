@@ -3,6 +3,7 @@ import { z } from "zod";
 const score = z.number().min(0).max(10).optional();
 const nullableString = z.string().nullish();
 const nullableNumber = z.number().nullish();
+const notes = z.string().max(20000).nullish();
 
 export const movieCreateSchema = z.object({
   tmdbId: z.number(),
@@ -14,7 +15,7 @@ export const movieCreateSchema = z.object({
   runtime: nullableNumber,
   movieStatus: z.string().optional(),
 });
-export const movieUpdateSchema = movieCreateSchema.partial().extend({ isRewatching: z.boolean().optional() });
+export const movieUpdateSchema = movieCreateSchema.partial().extend({ isRewatching: z.boolean().optional(), notes });
 
 export const seriesCreateSchema = z.object({
   tmdbId: z.number(),
@@ -40,7 +41,7 @@ export const gameCreateSchema = z.object({
   gameStatus: z.string().optional(),
   gameModes: z.array(z.string()).optional(),
 });
-export const gameUpdateSchema = gameCreateSchema.partial().extend({ isRewatching: z.boolean().optional() });
+export const gameUpdateSchema = gameCreateSchema.partial().extend({ isRewatching: z.boolean().optional(), notes });
 
 export const bookCreateSchema = z.object({
   googleBooksId: z.string().min(1),
@@ -52,7 +53,7 @@ export const bookCreateSchema = z.object({
   publishedDate: nullableString,
   pageCount: nullableNumber,
 });
-export const bookUpdateSchema = bookCreateSchema.partial();
+export const bookUpdateSchema = bookCreateSchema.partial().extend({ notes });
 
 export const animeCreateSchema = z.object({
   anilistId: z.number(),
@@ -75,6 +76,7 @@ export const animeUpdateSchema = z.object({
   totalEpisodes: nullableNumber,
   animeStatus: z.string().optional(),
   isRewatching: z.boolean().optional(),
+  notes,
 });
 
 const youtubeStatus = z.enum(["liked", "removed"]);
@@ -93,7 +95,7 @@ export const youtubeCreateSchema = z.object({
   status: youtubeStatus.optional(),
   score,
 });
-export const youtubeUpdateSchema = youtubeCreateSchema.partial().extend({ isRewatching: z.boolean().optional() });
+export const youtubeUpdateSchema = youtubeCreateSchema.partial().extend({ isRewatching: z.boolean().optional(), notes });
 
 export const youtubeFromUrlSchema = z.object({ url: z.string().min(1) });
 export const youtubeFormGroupSchema = z.object({

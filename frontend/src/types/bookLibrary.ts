@@ -11,6 +11,7 @@ export interface BookLibraryEntry {
   publishedDate: string | null;
   pageCount: number | null;
   isCover: boolean;
+  notes: string | null;
   readAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -35,6 +36,7 @@ export interface UpdateBookLibraryEntry {
   score?: number;
   publishedDate?: string | null;
   pageCount?: number | null;
+  notes?: string | null;
 }
 
 export const BOOK_LIBRARY_STATUS_LABELS: Record<BookLibraryStatus, string> = {

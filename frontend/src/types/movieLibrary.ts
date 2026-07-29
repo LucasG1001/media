@@ -14,6 +14,7 @@ export interface MovieLibraryEntry {
   isCover: boolean;
   isRewatching: boolean;
   syncedAt: string | null;
+  notes: string | null;
   watchedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -39,6 +40,7 @@ export interface UpdateMovieLibraryEntry {
   runtime?: number | null;
   movieStatus?: string;
   isRewatching?: boolean;
+  notes?: string | null;
 }
 
 export const MOVIE_LIBRARY_STATUS_LABELS: Record<MovieLibraryStatus, string> = {

@@ -178,6 +178,8 @@ export function MoviesPage() {
       ? `popular-${selectedYear}-${selectedMonth}`
       : activeTab;
 
+  const drawerEntry = selectedMovieId !== null ? findByTmdbId(selectedMovieId) : undefined;
+
   return (
     <div className={styles.page}>
       <h1 className={styles.srOnly}>Filmes</h1>
@@ -308,6 +310,10 @@ export function MoviesPage() {
           movieId={selectedMovieId}
           onClose={() => setSelectedMovieId(null)}
           onMovieLoad={handleMovieLoad}
+          notes={drawerEntry?.notes}
+          onNotesChange={
+            drawerEntry ? (notes) => { void updateEntry(drawerEntry.id, { notes }); } : undefined
+          }
         />
       )}
 

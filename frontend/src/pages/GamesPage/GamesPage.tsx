@@ -189,6 +189,8 @@ export function GamesPage() {
       ? `popular-${selectedYear}-${selectedMonth}`
       : activeTab;
 
+  const drawerEntry = selectedGameId !== null ? findByIgdbId(selectedGameId) : undefined;
+
   return (
     <div className={styles.page}>
       <h1 className={styles.srOnly}>Jogos</h1>
@@ -327,6 +329,10 @@ export function GamesPage() {
           gameId={selectedGameId}
           onClose={() => setSelectedGameId(null)}
           onGameLoad={handleGameLoad}
+          notes={drawerEntry?.notes}
+          onNotesChange={
+            drawerEntry ? (notes) => { void updateEntry(drawerEntry.id, { notes }); } : undefined
+          }
         />
       )}
 

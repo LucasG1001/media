@@ -2,18 +2,30 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { SeasonDetail, SeriesDetail } from "../../types/series";
 import { fetchSeasonById, fetchSeriesById } from "../../services/seriesService";
 import { SeriesDetailBody } from "../SeriesDrawer/SeriesDetailBody";
+import { NotesBlock } from "../NotesBlock/NotesBlock";
 import { formatAirDate } from "../../utils/seriesFormat";
 import drawer from "../SeriesDrawer/SeriesDrawer.module.css";
 import styles from "./SeasonDrawer.module.css";
 
+// notes/onNotesChange só vêm quando a série está na biblioteca — a anotação é da
+// temporada, não da série.
 interface SeasonDrawerProps {
   seriesId: number;
   seasonNumber: number;
   onClose: () => void;
   onSeriesLoad?: (series: SeriesDetail) => void;
+  notes?: string | null;
+  onNotesChange?: (notes: string) => void;
 }
 
-export function SeasonDrawer({ seriesId, seasonNumber, onClose, onSeriesLoad }: SeasonDrawerProps) {
+export function SeasonDrawer({
+  seriesId,
+  seasonNumber,
+  onClose,
+  onSeriesLoad,
+  notes,
+  onNotesChange,
+}: SeasonDrawerProps) {
   const [data, setData] = useState<{ series: SeriesDetail; season: SeasonDetail } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -96,6 +108,8 @@ export function SeasonDrawer({ seriesId, seasonNumber, onClose, onSeriesLoad }: 
                 </div>
               </div>
             )}
+
+            {onNotesChange && <NotesBlock value={notes ?? null} onSave={onNotesChange} />}
           </SeriesDetailBody>
         ) : (
           <div className={drawer.loading}>{error ? "Erro ao carregar detalhes." : ""}</div>

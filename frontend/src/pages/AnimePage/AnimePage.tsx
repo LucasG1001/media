@@ -180,6 +180,8 @@ export function AnimePage() {
       ? `popular-${selectedPopularYear}`
       : activeTab;
 
+  const drawerEntry = selectedAnimeId !== null ? findByAnilistId(selectedAnimeId) : undefined;
+
   return (
     <div className={styles.page}>
       <h1 className={styles.srOnly}>Anime</h1>
@@ -313,6 +315,10 @@ export function AnimePage() {
           animeId={selectedAnimeId}
           onClose={() => setSelectedAnimeId(null)}
           onAnimeLoad={handleAnimeLoad}
+          notes={drawerEntry?.notes}
+          onNotesChange={
+            drawerEntry ? (notes) => { void updateEntry(drawerEntry.id, { notes }); } : undefined
+          }
         />
       )}
 

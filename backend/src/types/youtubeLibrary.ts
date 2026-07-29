@@ -18,6 +18,7 @@ export interface YoutubeLibraryEntry {
   isRewatching: boolean;
   collectionId: number | null;
   isCover: boolean;
+  notes: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,6 +49,7 @@ export interface UpdateYoutubeLibraryEntry {
   status?: YoutubeLibraryStatus;
   score?: number;
   isRewatching?: boolean;
+  notes?: string | null;
 }
 
 export interface YoutubeCollection {

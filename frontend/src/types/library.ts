@@ -19,6 +19,7 @@ export interface LibraryEntry {
   nextAiringEpisode: AnimeNextAiringEpisode | null;
   streamingLinks: AnimeExternalLink[];
   syncedAt: string | null;
+  notes: string | null;
   watchedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -45,6 +46,7 @@ export interface UpdateLibraryEntry {
   totalEpisodes?: number | null;
   animeStatus?: string;
   isRewatching?: boolean;
+  notes?: string | null;
 }
 
 export const LIBRARY_STATUS_LABELS: Record<LibraryStatus, string> = {

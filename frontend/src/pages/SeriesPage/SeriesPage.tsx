@@ -58,6 +58,7 @@ export function SeriesPage() {
     update: updateEntry,
     remove: removeEntry,
     saveSeason,
+    saveSeasonNotes,
     setCoverSeason,
     findByTmdbId,
   } = useSeriesLibrary();
@@ -206,6 +207,9 @@ export function SeriesPage() {
       ? `search-${debouncedSearch}`
       : `popular-${selectedYear}-${selectedMonth}`;
 
+  const seasonDrawerEntry = selectedSeason ? findByTmdbId(selectedSeason.tmdbId) : undefined;
+  const seasonDrawerNumber = selectedSeason?.seasonNumber ?? null;
+
   return (
     <div className={styles.page}>
       <h1 className={styles.srOnly}>Séries</h1>
@@ -350,12 +354,18 @@ export function SeriesPage() {
         />
       )}
 
-      {selectedSeason !== null && selectedSeason.seasonNumber != null && (
+      {selectedSeason !== null && seasonDrawerNumber != null && (
         <SeasonDrawer
           seriesId={selectedSeason.tmdbId}
-          seasonNumber={selectedSeason.seasonNumber}
+          seasonNumber={seasonDrawerNumber}
           onClose={() => setSelectedSeason(null)}
           onSeriesLoad={handleSeriesLoad}
+          notes={selectedSeason.notes}
+          onNotesChange={
+            seasonDrawerEntry
+              ? (notes) => { void saveSeasonNotes(seasonDrawerEntry.id, seasonDrawerNumber, notes); }
+              : undefined
+          }
         />
       )}
 

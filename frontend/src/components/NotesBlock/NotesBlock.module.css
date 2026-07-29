@@ -1,0 +1,41 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.statusSaved {
+  color: var(--color-success);
+}
+
+.textarea {
+  display: block;
+  width: 100%;
+  min-height: 7rem;
+  max-height: 24rem;
+  overflow-y: auto;
+  resize: none;
+  padding: var(--spacing-md);
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  line-height: 1.6;
+}
+
+.textarea::placeholder {
+  color: var(--color-text-tertiary);
+}

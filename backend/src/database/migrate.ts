@@ -337,6 +337,14 @@ export async function migrate(): Promise<void> {
     ALTER TABLE youtube_library ALTER COLUMN status SET DEFAULT 'liked';
   `);
 
+  // Anotação livre do usuário. NULL = nunca anotado. Séries não têm coluna: a
+  // anotação é por temporada e mora dentro de season_states.
+  await pool.query(`ALTER TABLE anime_library   ADD COLUMN IF NOT EXISTS notes TEXT;`);
+  await pool.query(`ALTER TABLE movie_library   ADD COLUMN IF NOT EXISTS notes TEXT;`);
+  await pool.query(`ALTER TABLE game_library    ADD COLUMN IF NOT EXISTS notes TEXT;`);
+  await pool.query(`ALTER TABLE books_library   ADD COLUMN IF NOT EXISTS notes TEXT;`);
+  await pool.query(`ALTER TABLE youtube_library ADD COLUMN IF NOT EXISTS notes TEXT;`);
+
   await pool.query(`UPDATE anime_library  SET status = 'plan_to_watch' WHERE status = 'watching';`);
   await pool.query(`UPDATE series_library SET status = 'plan_to_watch' WHERE status = 'watching';`);
   await pool.query(`UPDATE game_library   SET status = 'plan_to_play'  WHERE status = 'playing';`);

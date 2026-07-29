@@ -17,6 +17,7 @@ export interface SeriesSeasonState {
   status: SeriesLibraryStatus;
   score: number;
   isRewatching: boolean;
+  notes?: string | null;
 }
 
 export interface SeriesLibraryEntry {

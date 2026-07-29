@@ -2,12 +2,17 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { GameDetail } from "../../types/game";
 import { fetchGameById } from "../../services/gameService";
 import { TrailerEmbed } from "../TrailerEmbed/TrailerEmbed";
+import { NotesBlock } from "../NotesBlock/NotesBlock";
 import styles from "./GameDrawer.module.css";
 
+// notes/onNotesChange só vêm quando o item está na biblioteca — no catálogo o
+// bloco de anotação não aparece.
 interface GameDrawerProps {
   gameId: number;
   onClose: () => void;
   onGameLoad?: (game: GameDetail) => void;
+  notes?: string | null;
+  onNotesChange?: (notes: string) => void;
 }
 
 function getStatusLabel(status: string): string {
@@ -27,7 +32,7 @@ function formatReleased(date: string | null): string {
   });
 }
 
-export function GameDrawer({ gameId, onClose, onGameLoad }: GameDrawerProps) {
+export function GameDrawer({ gameId, onClose, onGameLoad, notes, onNotesChange }: GameDrawerProps) {
   const [game, setGame] = useState<GameDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -172,6 +177,8 @@ export function GameDrawer({ gameId, onClose, onGameLoad }: GameDrawerProps) {
                   </div>
                 </div>
               )}
+
+              {onNotesChange && <NotesBlock value={notes ?? null} onSave={onNotesChange} />}
             </div>
           </>
         ) : (

@@ -116,8 +116,15 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   que é bottom-sheet no mobile e popover ancorado no desktop + chip de contagem; dirigido por config
   `filterGroups`/`sort`, cada página monta a config do seu estado. As opções de filtro ficam em
   **grade** (`.filterOptions`), não em `flex-wrap`: com rótulos de larguras diferentes o wrap
-  desalinhava as linhas; rótulo longo trunca com reticências e o texto inteiro vai no `title`).
+  desalinhava as linhas; rótulo longo trunca com reticências e o texto inteiro vai no `title`),
+  `NotesBlock` (bloco de anotação livre no fim do `content` dos drawers: textarea auto-grow com
+  autosave por debounce de 1 s + flush no unmount, já que fechar o drawer desmonta antes do timer).
   Config visual por mídia em **`config/cards.tsx`**.
+- **Anotações**: o drawer não conhece a biblioteca (recebe só o ID externo e busca na API externa),
+  então `notes`/`onNotesChange` são props **opcionais** que a página passa só quando acha a entry —
+  é isso que esconde o bloco no catálogo. Séries são a exceção: a anotação é da **temporada**
+  (`SeasonDrawer` → `saveSeasonNotes` → `PUT /:id/seasons/:n/notes`, endpoint separado do
+  `saveSeason`, que exige status/nota válidos); o `SeriesDrawer` não tem bloco.
 - **Filtros/ordenação da biblioteca — lógica com base em coleções (invariantes):**
   - **Agrupamento**: `buildCollectionGroups` agrupa por franquia/coleção/autor; cada grupo tem
     `representative` (capa: `isCover` senão o mais antigo), `members`, `count`, `completedCount`. Os
@@ -160,7 +167,7 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   - **Séries = coleção de temporadas** (`utils/seasonGroups.ts`, `buildSeasonGroups`): a coleção
     NÃO vem de linhas do banco — cada série é **1 linha** e os membros (temporadas) são sintetizados
     do JSONB `season_list` (metadado) + `season_states` (estado do usuário por temporada:
-    `{status,score,isRewatching}`). **Cada temporada se comporta como um filme da coleção**: card com
+    `{status,score,isRewatching,notes}`). **Cada temporada se comporta como um filme da coleção**: card com
     botão de status colorido + nota própria. Representante = a série (nome + capa: pôster da temporada
     `cover_season`, senão da série), sujeito à regra `coverIsCollectionOnly` acima. Nos
     membros: clique na **imagem** → `SeasonDrawer`, que traz **os dados da série** (banner, trailer,
@@ -170,7 +177,9 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     `SeasonLibraryModal` (`LibraryModalBase`, status/nota/reassistindo + "Definir como capa"; `onSetCover`
     e `onRemove` são opcionais — temporada de coleção não se remove sozinha) → `saveSeason`
     (`PUT /:id/seasons/:n`, `setSeasonState` recalcula `score` da série =
-    média das notas > 0) e `setCoverSeason` (`PUT /:id/cover-season/:n`). A coluna `score` de
+    média das notas > 0) e `setCoverSeason` (`PUT /:id/cover-season/:n`). `setSeasonState` **mescla**
+    no estado atual da temporada em vez de substituí-lo: o modal não manda a anotação e não pode
+    apagá-la. A coluna `score` de
     `series_library` é **sempre** a média das temporadas — nunca uma nota própria: antes das
     temporadas o modal da série tinha campo Nota, e essas notas legadas viravam "nota fantasma" em
     série sem temporada avaliada. Por isso a nota exibida vem de `seasonGroups` + `averageScore`
@@ -197,9 +206,11 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 `anime_library`, `movie_library`, `series_library`, `game_library`, `books_library` (plural),
 `youtube_library`. Colunas em `TEXT`/`JSONB`, sem CHECK de enum (migração de status = `UPDATE`).
 Convenções comuns: `is_cover` (capa da coleção), `is_rewatching`, timestamp de conclusão
-(`watched_at`/`finished_at`/`read_at`), coluna de coleção (`franchise_id`/`collection_id`).
+(`watched_at`/`finished_at`/`read_at`), coluna de coleção (`franchise_id`/`collection_id`) e `notes`
+(`TEXT`, anotação livre do usuário; `NULL` = nunca anotado) — **menos em `series_library`**, onde a
+anotação é por temporada, dentro de `season_states`.
 `series_library` tem ainda `season_list` (JSONB, metadado das temporadas do TMDB), `season_states`
-(JSONB, estado por temporada `{ "1": {status,score,isRewatching} }`; `score` da série = média das notas)
+(JSONB, estado por temporada `{ "1": {status,score,isRewatching,notes} }`; `score` da série = média das notas)
 e `cover_season` (INTEGER, temporada usada como capa da coleção). `game_library` tem `game_modes`
 (`TEXT[]`). Colunas JSONB são escritas com `JSON.stringify` explícito (ver `seriesLibraryModel`).
 

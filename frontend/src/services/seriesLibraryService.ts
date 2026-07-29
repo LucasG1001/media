@@ -38,6 +38,18 @@ export async function saveSeason(
   return response.data;
 }
 
+export async function saveSeasonNotes(
+  id: string,
+  seasonNumber: number,
+  notes: string
+): Promise<SeriesLibraryEntry> {
+  const response = await api.put<SeriesLibraryEntry>(
+    `/api/series-library/${id}/seasons/${seasonNumber}/notes`,
+    { notes }
+  );
+  return response.data;
+}
+
 export async function setCoverSeason(id: string, seasonNumber: number): Promise<SeriesLibraryEntry> {
   const response = await api.put<SeriesLibraryEntry>(`/api/series-library/${id}/cover-season/${seasonNumber}`, {});
   return response.data;

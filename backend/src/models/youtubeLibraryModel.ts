@@ -29,6 +29,7 @@ export const youtubeLibraryModel = createLibraryModel<
     { column: "score", field: "score", default: 0, numeric: true },
     { column: "collection_id", field: "collectionId", default: null },
     { column: "is_cover", field: "isCover", default: false, readonly: true },
+    { column: "notes", field: "notes", default: null },
   ],
   statusField: "status",
   completion: { column: "liked_at", field: "likedAt", whenStatus: "liked" },

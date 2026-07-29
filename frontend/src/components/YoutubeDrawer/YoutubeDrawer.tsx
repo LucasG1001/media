@@ -2,6 +2,7 @@ import { useEffect, useCallback } from "react";
 import type { YoutubeLibraryEntry } from "../../types/youtubeLibrary";
 import { YOUTUBE_LIBRARY_STATUS_LABELS } from "../../types/youtubeLibrary";
 import { TrailerEmbed } from "../TrailerEmbed/TrailerEmbed";
+import { NotesBlock } from "../NotesBlock/NotesBlock";
 import { formatDuration } from "../../utils/formatDuration";
 import { formatViews } from "../../utils/formatViews";
 import styles from "./YoutubeDrawer.module.css";
@@ -9,6 +10,7 @@ import styles from "./YoutubeDrawer.module.css";
 interface YoutubeDrawerProps {
   entry: YoutubeLibraryEntry;
   onClose: () => void;
+  onNotesChange?: (notes: string) => void;
 }
 
 function formatPublished(date: string | null): string {
@@ -18,7 +20,7 @@ function formatPublished(date: string | null): string {
   return parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export function YoutubeDrawer({ entry, onClose }: YoutubeDrawerProps) {
+export function YoutubeDrawer({ entry, onClose, onNotesChange }: YoutubeDrawerProps) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -89,6 +91,8 @@ export function YoutubeDrawer({ entry, onClose }: YoutubeDrawerProps) {
           )}
 
           {entry.description && <div className={styles.description}>{entry.description}</div>}
+
+          {onNotesChange && <NotesBlock value={entry.notes} onSave={onNotesChange} />}
         </div>
       </div>
     </>

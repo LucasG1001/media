@@ -27,7 +27,8 @@ export function useSeriesLibrary() {
       const entry = entries.find((e) => e.id === id);
       if (!entry) return Promise.resolve(null);
       const states = { ...(entry.seasonStates ?? {}) };
-      states[String(seasonNumber)] = data;
+      // Merge, espelhando o backend: o modal não manda a anotação da temporada.
+      states[String(seasonNumber)] = { ...states[String(seasonNumber)], ...data };
       const values = Object.values(states).map((s) => s.score).filter((v) => v > 0);
       const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
       const optimistic: Partial<SeriesLibraryEntry> = {
@@ -39,11 +40,33 @@ export function useSeriesLibrary() {
     [mutate, entries]
   );
 
+  // Anotação da temporada: não mexe no score (anotação não é nota) e materializa
+  // o estado padrão quando a temporada ainda não tem nenhum.
+  const saveSeasonNotes = useCallback(
+    (id: string, seasonNumber: number, notes: string): Promise<SeriesLibraryEntry | null> => {
+      const entry = entries.find((e) => e.id === id);
+      if (!entry) return Promise.resolve(null);
+      const states = { ...(entry.seasonStates ?? {}) };
+      const key = String(seasonNumber);
+      const previous = states[key];
+      states[key] = {
+        status: previous?.status ?? "plan_to_watch",
+        score: previous?.score ?? 0,
+        isRewatching: previous?.isRewatching ?? false,
+        notes,
+      };
+      return mutate(id, { seasonStates: states }, () =>
+        seriesLibraryService.saveSeasonNotes(id, seasonNumber, notes)
+      );
+    },
+    [mutate, entries]
+  );
+
   const setCoverSeason = useCallback(
     (id: string, seasonNumber: number): Promise<SeriesLibraryEntry | null> =>
       mutate(id, { coverSeason: seasonNumber }, () => seriesLibraryService.setCoverSeason(id, seasonNumber)),
     [mutate]
   );
 
-  return { ...store, findByTmdbId: store.findByExternalId, saveSeason, setCoverSeason };
+  return { ...store, findByTmdbId: store.findByExternalId, saveSeason, saveSeasonNotes, setCoverSeason };
 }

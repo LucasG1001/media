@@ -155,6 +155,8 @@ export function BooksPage() {
       ? `search-${debouncedSearch}`
       : `discover-${selectedGenre}`;
 
+  const drawerEntry = selectedBookId !== null ? findByGoogleBooksId(selectedBookId) : undefined;
+
   return (
     <div className={styles.page}>
       <h1 className={styles.srOnly}>Livros</h1>
@@ -263,6 +265,10 @@ export function BooksPage() {
           bookId={selectedBookId}
           onClose={() => setSelectedBookId(null)}
           onBookLoad={handleBookLoad}
+          notes={drawerEntry?.notes}
+          onNotesChange={
+            drawerEntry ? (notes) => { void updateEntry(drawerEntry.id, { notes }); } : undefined
+          }
         />
       )}
 

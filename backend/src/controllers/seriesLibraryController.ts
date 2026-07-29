@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { createLibraryController } from "../lib/createLibraryController.js";
-import { seriesLibraryModel, setSeasonState, setSeasonList, setCoverSeason } from "../models/seriesLibraryModel.js";
+import { seriesLibraryModel, setSeasonState, setSeasonNotes, setSeasonList, setCoverSeason } from "../models/seriesLibraryModel.js";
 import { fetchSeriesById } from "../services/tmdbSeriesService.js";
 import { seriesCreateSchema, seriesUpdateSchema } from "../schemas/library.js";
 import type { CreateSeriesLibraryEntry } from "../types/seriesLibrary.js";
@@ -94,6 +94,35 @@ export async function saveSeason(req: Request, res: Response): Promise<void> {
   } catch (error) {
     void notifyError("API PUT /api/series-library/:id/seasons/:seasonNumber", error);
     res.status(500).json({ error: "Erro ao salvar temporada." });
+  }
+}
+
+// Endpoint próprio, separado do saveSeason: o autosave da anotação não deve
+// carregar status/nota, que o saveSeason exige válidos.
+export async function saveSeasonNotes(req: Request, res: Response): Promise<void> {
+  try {
+    const id = String(req.params.id);
+    const seasonNumber = Number(req.params.seasonNumber);
+    const { notes } = req.body as { notes?: unknown };
+
+    if (!Number.isInteger(seasonNumber) || seasonNumber < 0) {
+      res.status(400).json({ error: "Temporada inválida." });
+      return;
+    }
+    if (notes != null && (typeof notes !== "string" || notes.length > 20000)) {
+      res.status(400).json({ error: "Anotação inválida." });
+      return;
+    }
+
+    const entry = await setSeasonNotes(id, seasonNumber, (notes as string | null | undefined) ?? null);
+    if (!entry) {
+      res.status(404).json({ error: "Série não encontrada na biblioteca." });
+      return;
+    }
+    res.json(entry);
+  } catch (error) {
+    void notifyError("API PUT /api/series-library/:id/seasons/:seasonNumber/notes", error);
+    res.status(500).json({ error: "Erro ao salvar anotação da temporada." });
   }
 }
 

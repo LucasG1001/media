@@ -50,11 +50,11 @@ function contextLine(inProgress: number | null, backlog: number): string {
 }
 
 export function DashboardPage() {
-  const { entries: animes } = useLibrary();
-  const { entries: movies } = useMovieLibrary();
+  const { entries: animes, update: updateAnime, findByAnilistId } = useLibrary();
+  const { entries: movies, update: updateMovie, findByTmdbId: findMovieByTmdbId } = useMovieLibrary();
   const { entries: series } = useSeriesLibrary();
-  const { entries: books } = useBookLibrary();
-  const { entries: games } = useGameLibrary();
+  const { entries: books, update: updateBook, findByGoogleBooksId } = useBookLibrary();
+  const { entries: games, update: updateGame, findByIgdbId } = useGameLibrary();
 
   const [selectedAnimeId, setSelectedAnimeId] = useState<number | null>(null);
   const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
@@ -142,6 +142,11 @@ export function DashboardPage() {
       </div>
     ));
 
+  const animeDrawerEntry = selectedAnimeId !== null ? findByAnilistId(selectedAnimeId) : undefined;
+  const movieDrawerEntry = selectedMovieId !== null ? findMovieByTmdbId(selectedMovieId) : undefined;
+  const gameDrawerEntry = selectedGameId !== null ? findByIgdbId(selectedGameId) : undefined;
+  const bookDrawerEntry = selectedBookId !== null ? findByGoogleBooksId(selectedBookId) : undefined;
+
   return (
     <div className={styles.page}>
       <section className={styles.counters}>
@@ -187,19 +192,47 @@ export function DashboardPage() {
       </section>
 
       {selectedAnimeId !== null && (
-        <AnimeDrawer animeId={selectedAnimeId} onClose={() => setSelectedAnimeId(null)} />
+        <AnimeDrawer
+          animeId={selectedAnimeId}
+          onClose={() => setSelectedAnimeId(null)}
+          notes={animeDrawerEntry?.notes}
+          onNotesChange={
+            animeDrawerEntry ? (notes) => { void updateAnime(animeDrawerEntry.id, { notes }); } : undefined
+          }
+        />
       )}
       {selectedMovieId !== null && (
-        <MovieDrawer movieId={selectedMovieId} onClose={() => setSelectedMovieId(null)} />
+        <MovieDrawer
+          movieId={selectedMovieId}
+          onClose={() => setSelectedMovieId(null)}
+          notes={movieDrawerEntry?.notes}
+          onNotesChange={
+            movieDrawerEntry ? (notes) => { void updateMovie(movieDrawerEntry.id, { notes }); } : undefined
+          }
+        />
       )}
       {selectedSeriesId !== null && (
         <SeriesDrawer seriesId={selectedSeriesId} onClose={() => setSelectedSeriesId(null)} />
       )}
       {selectedGameId !== null && (
-        <GameDrawer gameId={selectedGameId} onClose={() => setSelectedGameId(null)} />
+        <GameDrawer
+          gameId={selectedGameId}
+          onClose={() => setSelectedGameId(null)}
+          notes={gameDrawerEntry?.notes}
+          onNotesChange={
+            gameDrawerEntry ? (notes) => { void updateGame(gameDrawerEntry.id, { notes }); } : undefined
+          }
+        />
       )}
       {selectedBookId !== null && (
-        <BookDrawer bookId={selectedBookId} onClose={() => setSelectedBookId(null)} />
+        <BookDrawer
+          bookId={selectedBookId}
+          onClose={() => setSelectedBookId(null)}
+          notes={bookDrawerEntry?.notes}
+          onNotesChange={
+            bookDrawerEntry ? (notes) => { void updateBook(bookDrawerEntry.id, { notes }); } : undefined
+          }
+        />
       )}
     </div>
   );

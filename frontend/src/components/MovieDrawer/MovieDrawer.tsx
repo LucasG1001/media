@@ -2,12 +2,17 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { MovieDetail } from "../../types/movie";
 import { fetchMovieById } from "../../services/movieService";
 import { TrailerEmbed } from "../TrailerEmbed/TrailerEmbed";
+import { NotesBlock } from "../NotesBlock/NotesBlock";
 import styles from "./MovieDrawer.module.css";
 
+// notes/onNotesChange só vêm quando o item está na biblioteca — no catálogo o
+// bloco de anotação não aparece.
 interface MovieDrawerProps {
   movieId: number;
   onClose: () => void;
   onMovieLoad?: (movie: MovieDetail) => void;
+  notes?: string | null;
+  onNotesChange?: (notes: string) => void;
 }
 
 function getStatusLabel(status: string): string {
@@ -35,7 +40,7 @@ function formatReleaseDate(date: string | null): string {
   });
 }
 
-export function MovieDrawer({ movieId, onClose, onMovieLoad }: MovieDrawerProps) {
+export function MovieDrawer({ movieId, onClose, onMovieLoad, notes, onNotesChange }: MovieDrawerProps) {
   const [movie, setMovie] = useState<MovieDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -160,6 +165,8 @@ export function MovieDrawer({ movieId, onClose, onMovieLoad }: MovieDrawerProps)
                   </div>
                 </div>
               )}
+
+              {onNotesChange && <NotesBlock value={notes ?? null} onSave={onNotesChange} />}
             </div>
           </>
         ) : (

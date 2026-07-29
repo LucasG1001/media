@@ -1,12 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { BookDetail } from "../../types/book";
 import { fetchBookById } from "../../services/bookService";
+import { NotesBlock } from "../NotesBlock/NotesBlock";
 import styles from "./BookDrawer.module.css";
 
+// notes/onNotesChange só vêm quando o item está na biblioteca — no catálogo o
+// bloco de anotação não aparece.
 interface BookDrawerProps {
   bookId: string;
   onClose: () => void;
   onBookLoad?: (book: BookDetail) => void;
+  notes?: string | null;
+  onNotesChange?: (notes: string) => void;
 }
 
 function stripHtml(text: string | null): string | null {
@@ -22,7 +27,7 @@ function formatPublishedDate(date: string | null): string {
   return parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export function BookDrawer({ bookId, onClose, onBookLoad }: BookDrawerProps) {
+export function BookDrawer({ bookId, onClose, onBookLoad, notes, onNotesChange }: BookDrawerProps) {
   const [book, setBook] = useState<BookDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -141,6 +146,8 @@ export function BookDrawer({ bookId, onClose, onBookLoad }: BookDrawerProps) {
                   </div>
                 </div>
               )}
+
+              {onNotesChange && <NotesBlock value={notes ?? null} onSave={onNotesChange} />}
             </div>
           </>
         ) : (
