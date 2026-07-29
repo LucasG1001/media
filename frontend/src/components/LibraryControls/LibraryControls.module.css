@@ -211,6 +211,36 @@
   white-space: nowrap;
 }
 
+.checkboxCount {
+  flex: none;
+  margin-left: auto;
+  padding-left: var(--spacing-xs);
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.filterSearch {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-base);
+}
+
+/* Grupo com muitas opções rola dentro de si em vez de esticar o painel. */
+.scrollable {
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.filterEmpty {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+}
+
 .sortOptionActive {
   border-color: var(--color-accent);
   color: var(--color-accent);

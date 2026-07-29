@@ -7,10 +7,9 @@ interface YoutubeLibraryModalProps {
   onClose: () => void;
   onSave: (id: string, data: { status: YoutubeLibraryStatus; score: number; isRewatching: boolean }) => void;
   onRemove: (id: string) => void;
-  onSetCover: (id: string) => void;
 }
 
-export function YoutubeLibraryModal({ entry, onClose, onSave, onRemove, onSetCover }: YoutubeLibraryModalProps) {
+export function YoutubeLibraryModal({ entry, onClose, onSave, onRemove }: YoutubeLibraryModalProps) {
   return (
     <LibraryModalBase
       title={entry.title}
@@ -20,9 +19,6 @@ export function YoutubeLibraryModal({ entry, onClose, onSave, onRemove, onSetCov
       initialStatus={entry.status}
       initialScore={entry.score}
       hasEntry
-      canSetCover={entry.collectionId != null}
-      isCover={entry.isCover}
-      onSetCover={() => onSetCover(entry.id)}
       onClose={onClose}
       onSave={(data) =>
         onSave(entry.id, {

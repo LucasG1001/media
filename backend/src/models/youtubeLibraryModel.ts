@@ -5,7 +5,6 @@ import type {
   YoutubeLibraryEntry,
   CreateYoutubeLibraryEntry,
   UpdateYoutubeLibraryEntry,
-  YoutubeCollection,
 } from "../types/youtubeLibrary.js";
 
 export const youtubeLibraryModel = createLibraryModel<
@@ -27,20 +26,19 @@ export const youtubeLibraryModel = createLibraryModel<
     { column: "description", field: "description", default: null },
     { column: "status", field: "status", default: "liked" },
     { column: "score", field: "score", default: 0, numeric: true },
-    { column: "collection_id", field: "collectionId", default: null },
-    { column: "is_cover", field: "isCover", default: false, readonly: true },
     { column: "notes", field: "notes", default: null },
-    { column: "tag", field: "tag", default: null },
+    // `text[]` vai como array JS direto (igual game_modes), sem JSON.stringify.
+    { column: "tags", field: "tags", default: [] },
   ],
   statusField: "status",
   completion: { column: "liked_at", field: "likedAt", whenStatus: "liked" },
-  collectionColumn: "collection_id",
   rewatch: { column: "is_rewatching", field: "isRewatching" },
 });
 
+// Playlist importada entra com o nome dela como primeira tag dos vídeos.
 export async function bulkUpsertVideos(
   videos: CreateYoutubeLibraryEntry[],
-  collectionId: number
+  tag: string
 ): Promise<number> {
   if (videos.length === 0) return 0;
 
@@ -67,18 +65,23 @@ export async function bulkUpsertVideos(
         v.viewCount ?? 0,
         v.publishedAt ?? null,
         v.description ?? null,
-        collectionId
+        [tag]
       );
       i += 11;
     }
 
+    // Vídeo que já existe só ganha a tag da playlist se ainda não tiver nenhuma:
+    // reimportar não atropela o que foi ajustado à mão.
     const result = await pool.query(
       `INSERT INTO youtube_library
          (video_id, title, channel_id, channel_title, channel_thumbnail, thumbnail,
-          duration_seconds, view_count, published_at, description, status, score, collection_id, liked_at)
+          duration_seconds, view_count, published_at, description, status, score, tags, liked_at)
        VALUES ${rows.join(", ")}
        ON CONFLICT (video_id) DO UPDATE SET
-         collection_id = COALESCE(youtube_library.collection_id, EXCLUDED.collection_id),
+         tags = CASE
+           WHEN cardinality(youtube_library.tags) = 0 THEN EXCLUDED.tags
+           ELSE youtube_library.tags
+         END,
          updated_at = NOW()`,
       values
     );
@@ -88,64 +91,25 @@ export async function bulkUpsertVideos(
   return count;
 }
 
-export async function createCollection(name: string): Promise<YoutubeCollection> {
-  const result = await pool.query<YoutubeCollection>(
-    `INSERT INTO youtube_collection (name) VALUES ($1) RETURNING id, name`,
-    [name]
-  );
-  return result.rows[0];
-}
-
-export async function renameCollection(id: number, name: string): Promise<YoutubeCollection | null> {
-  const result = await pool.query<YoutubeCollection>(
-    `UPDATE youtube_collection SET name = $2, updated_at = NOW() WHERE id = $1 RETURNING id, name`,
-    [id, name]
-  );
-  return result.rows[0] ?? null;
-}
-
-export async function assignCollection(ids: string[], collectionId: number): Promise<number> {
+// O WHERE é o que evita tag duplicada no array.
+export async function addTagMany(ids: string[], tag: string): Promise<number> {
   if (ids.length === 0) return 0;
   const result = await pool.query(
-    `UPDATE youtube_library SET collection_id = $2, updated_at = NOW() WHERE id = ANY($1::uuid[])`,
-    [ids, collectionId]
-  );
-  return result.rowCount ?? 0;
-}
-
-// A tag é do vídeo, não da coleção: sair da coleção não apaga.
-export async function assignTag(ids: string[], tag: string | null): Promise<number> {
-  if (ids.length === 0) return 0;
-  const result = await pool.query(
-    `UPDATE youtube_library SET tag = $2, updated_at = NOW() WHERE id = ANY($1::uuid[])`,
+    `UPDATE youtube_library
+        SET tags = array_append(tags, $2), updated_at = NOW()
+      WHERE id = ANY($1::uuid[]) AND NOT (tags @> ARRAY[$2]::text[])`,
     [ids, tag]
   );
   return result.rowCount ?? 0;
 }
 
-export async function removeFromCollection(ids: string[]): Promise<number> {
+export async function removeTagMany(ids: string[], tag: string): Promise<number> {
   if (ids.length === 0) return 0;
   const result = await pool.query(
-    `UPDATE youtube_library SET collection_id = NULL, is_cover = FALSE, updated_at = NOW() WHERE id = ANY($1::uuid[])`,
-    [ids]
+    `UPDATE youtube_library
+        SET tags = array_remove(tags, $2), updated_at = NOW()
+      WHERE id = ANY($1::uuid[]) AND tags @> ARRAY[$2]::text[]`,
+    [ids, tag]
   );
   return result.rowCount ?? 0;
-}
-
-export async function listCollections(): Promise<YoutubeCollection[]> {
-  const result = await pool.query<YoutubeCollection>(
-    `SELECT c.id, c.name
-       FROM youtube_collection c
-       JOIN youtube_library l ON l.collection_id = c.id
-      GROUP BY c.id, c.name
-      ORDER BY c.name ASC`
-  );
-  return result.rows;
-}
-
-export async function pruneEmptyCollections(): Promise<void> {
-  await pool.query(
-    `DELETE FROM youtube_collection c
-      WHERE NOT EXISTS (SELECT 1 FROM youtube_library l WHERE l.collection_id = c.id)`
-  );
 }

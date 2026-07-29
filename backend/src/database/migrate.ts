@@ -287,15 +287,6 @@ export async function migrate(): Promise<void> {
   `);
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS youtube_collection (
-      id          SERIAL PRIMARY KEY,
-      name        TEXT NOT NULL,
-      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-  `);
-
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS youtube_library (
       id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       video_id          TEXT NOT NULL UNIQUE,
@@ -310,15 +301,9 @@ export async function migrate(): Promise<void> {
       score             NUMERIC(3,1) DEFAULT 0,
       liked_at          TIMESTAMPTZ,
       is_rewatching     BOOLEAN NOT NULL DEFAULT FALSE,
-      collection_id     INTEGER REFERENCES youtube_collection(id) ON DELETE SET NULL,
-      is_cover          BOOLEAN NOT NULL DEFAULT FALSE,
       created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-  `);
-
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS idx_youtube_library_collection_id ON youtube_library (collection_id);
   `);
 
   await pool.query(`
@@ -345,9 +330,33 @@ export async function migrate(): Promise<void> {
   await pool.query(`ALTER TABLE books_library   ADD COLUMN IF NOT EXISTS notes TEXT;`);
   await pool.query(`ALTER TABLE youtube_library ADD COLUMN IF NOT EXISTS notes TEXT;`);
 
-  // Tag do vídeo. NULL = nunca definida. Só o YouTube tem: o vocabulário sai do
-  // DISTINCT dentro da coleção, não de tabela própria.
-  await pool.query(`ALTER TABLE youtube_library ADD COLUMN IF NOT EXISTS tag TEXT;`);
+  // Tags do vídeo (só o YouTube): N por vídeo, `{}` = sem tag — sem dualidade
+  // NULL/vazio. O vocabulário sai do DISTINCT dos próprios dados, não de tabela.
+  await pool.query(`
+    ALTER TABLE youtube_library ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
+  `);
+
+  // Modelos anteriores do YouTube (coleção, tag única escopada à coleção e o par
+  // categoria/subcategoria) foram todos substituídos pelas tags.
+  // A coluna sai antes da tabela: a FK impediria o DROP TABLE.
+  await pool.query(`
+    ALTER TABLE youtube_library
+    DROP COLUMN IF EXISTS collection_id,
+    DROP COLUMN IF EXISTS is_cover,
+    DROP COLUMN IF EXISTS tag,
+    DROP COLUMN IF EXISTS category,
+    DROP COLUMN IF EXISTS subcategory;
+  `);
+  await pool.query(`DROP TABLE IF EXISTS youtube_collection;`);
+
+  // Configuração genérica de UI persistida (hoje: os buckets de filtro do YouTube).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS app_setting (
+      key        TEXT PRIMARY KEY,
+      value      JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
 
   await pool.query(`UPDATE anime_library  SET status = 'plan_to_watch' WHERE status = 'watching';`);
   await pool.query(`UPDATE series_library SET status = 'plan_to_watch' WHERE status = 'watching';`);

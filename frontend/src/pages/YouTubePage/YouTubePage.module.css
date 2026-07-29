@@ -2,37 +2,20 @@
   padding: var(--spacing-2xl);
 }
 
-.collMeta {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
-  line-height: 1.35;
-}
-
 /* Cards do YouTube: thumbnail 16:9 inteira, então colunas mais largas
    (dobramos a classe para vencer a especificidade do .grid base). */
 .youtubeGrid.youtubeGrid {
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
 }
 
-.youtubeExpansion.youtubeExpansion {
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-}
-
 @media (max-width: 768px) {
   .youtubeGrid.youtubeGrid {
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   }
-  .youtubeExpansion.youtubeExpansion {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  }
 }
 
 @media (max-width: 480px) {
-  .youtubeGrid.youtubeGrid,
-  .youtubeExpansion.youtubeExpansion {
+  .youtubeGrid.youtubeGrid {
     grid-template-columns: 1fr;
   }
 }

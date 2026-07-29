@@ -1,55 +1,56 @@
 import { useState, useCallback, useMemo } from "react";
 import { TabNav } from "../../components/TabNav/TabNav";
-import { FranchiseGrid } from "../../components/FranchiseGrid/FranchiseGrid";
+import { MediaGrid } from "../../components/MediaGrid/MediaGrid";
 import { YoutubeDrawer } from "../../components/YoutubeDrawer/YoutubeDrawer";
 import { YoutubeLibraryModal } from "../../components/YoutubeLibraryModal/YoutubeLibraryModal";
-import { LibraryControls } from "../../components/LibraryControls/LibraryControls";
-import { CollectionTagBar } from "../../components/CollectionTagBar/CollectionTagBar";
-import { TagPickerModal } from "../../components/TagPickerModal/TagPickerModal";
+import { LibraryControls, type FilterGroupConfig } from "../../components/LibraryControls/LibraryControls";
+import { TagBulkModal, type TagBulkMode } from "../../components/TagBulkModal/TagBulkModal";
 import { YoutubeTagContext } from "../../context/youtubeTagContext";
 import { youtubeCardConfig } from "../../config/cards";
 import { useYoutubeLibrary } from "../../hooks/useYoutubeLibrary";
-import { useYoutubeCollections } from "../../hooks/useYoutubeCollections";
+import { useAppSetting } from "../../hooks/useAppSetting";
 import { useSingleSort } from "../../hooks/useSingleSort";
-import type { YoutubeCard, YoutubeLibraryStatus } from "../../types/youtubeLibrary";
-import { YOUTUBE_LIBRARY_STATUS_LABELS } from "../../types/youtubeLibrary";
+import type { YoutubeCard, YoutubeLibraryEntry, YoutubeLibraryStatus, TagBucket } from "../../types/youtubeLibrary";
 import {
-  buildYoutubeCollectionGroups,
-  applyStatusView,
-  videoDateOf,
-  viewsOf,
-  type YoutubeGroup,
-} from "../../utils/youtubeCollectionGroups";
-import { sortGroupsByName, sortGroupsByMemberDate, sortGroupsBySumViews } from "../../utils/sortGroups";
+  YOUTUBE_LIBRARY_STATUS_LABELS,
+  DEFAULT_TAG_BUCKETS,
+  TAG_BUCKETS_KEY,
+} from "../../types/youtubeLibrary";
 import { youtubeLibraryEntryToCard } from "../../utils/youtubeLibraryEntryToCard";
-import { formatDurationLong } from "../../utils/formatDuration";
-import { formatViews } from "../../utils/formatViews";
 import styles from "./YouTubePage.module.css";
 
 const STATUS_TABS = (Object.entries(YOUTUBE_LIBRARY_STATUS_LABELS) as [YoutubeLibraryStatus, string][]).map(
   ([id, label]) => ({ id, label })
 );
 
-function matchesSearch(group: YoutubeGroup, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  return group.members.some(
-    (m) => m.title.toLowerCase().includes(q) || (m.channelTitle ?? "").toLowerCase().includes(q)
-  );
+// Sentinela da opção "sem canal".
+const NONE = "none";
+
+const COLLATOR_OPTS = { sensitivity: "base" } as const;
+
+function byName(a: string, b: string): number {
+  return a.localeCompare(b, "pt-BR", COLLATOR_OPTS);
+}
+
+function publishedTime(entry: YoutubeLibraryEntry): number {
+  return entry.publishedAt ? new Date(entry.publishedAt).getTime() : 0;
 }
 
 export function YouTubePage() {
   const [activeStatus, setActiveStatus] = useState<YoutubeLibraryStatus>("liked");
   const [search, setSearch] = useState("");
-  const [collectionFilter, setCollectionFilter] = useState<(number | "none")[]>([]);
+  const [channelFilter, setChannelFilter] = useState<string[]>([]);
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [urlInput, setUrlInput] = useState("");
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [addNotice, setAddNotice] = useState<string | null>(null);
   const [drawerVideoId, setDrawerVideoId] = useState<string | null>(null);
   const [modalVideoId, setModalVideoId] = useState<string | null>(null);
-  const [bulkTag, setBulkTag] = useState<{ ids: string[]; collectionId: number } | null>(null);
+  const [bulk, setBulk] = useState<{ mode: TagBulkMode; ids: string[] } | null>(null);
   const sort = useSingleSort("alpha", "asc");
+
+  const { value: buckets } = useAppSetting<TagBucket[]>(TAG_BUCKETS_KEY, DEFAULT_TAG_BUCKETS);
 
   const {
     entries,
@@ -57,46 +58,12 @@ export function YouTubePage() {
     error,
     update: updateEntry,
     updateMany: updateManyEntries,
-    setCover: setCoverEntry,
     remove: removeEntry,
-    removeMany: removeManyEntries,
     findByVideoId,
     addFromUrl,
-    formGroup,
-    addToGroup,
-    removeFromGroup,
-    setTagMany,
+    addTagMany,
+    removeTagMany,
   } = useYoutubeLibrary();
-
-  const collections = useYoutubeCollections();
-
-  // Vocabulário de tags: sai do DISTINCT dentro de cada coleção, não de tabela.
-  const tagsByCollection = useMemo(() => {
-    const map = new Map<number, Set<string>>();
-    for (const entry of entries) {
-      if (entry.collectionId == null || !entry.tag) continue;
-      const set = map.get(entry.collectionId) ?? new Set<string>();
-      set.add(entry.tag);
-      map.set(entry.collectionId, set);
-    }
-    return new Map(
-      [...map].map(([id, set]) => [
-        id,
-        [...set].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" })),
-      ])
-    );
-  }, [entries]);
-
-  const tagContext = useMemo(
-    () => ({
-      tagsOf: (collectionId: number | null) =>
-        collectionId == null ? [] : tagsByCollection.get(collectionId) ?? [],
-      setTag: (entryId: string, tag: string | null) => {
-        void updateEntry(entryId, { tag });
-      },
-    }),
-    [tagsByCollection, updateEntry]
-  );
 
   const handleAdd = useCallback(async () => {
     const url = urlInput.trim();
@@ -108,8 +75,9 @@ export function YouTubePage() {
       const result = await addFromUrl(url);
       setUrlInput("");
       if (result && "playlist" in result) {
-        setAddNotice(`Playlist "${result.playlist.name}" adicionada — ${result.playlist.imported} vídeos`);
-        collections.reload();
+        setAddNotice(
+          `Playlist "${result.playlist.name}" adicionada — ${result.playlist.imported} vídeos com a tag "${result.playlist.name}"`
+        );
       }
     } catch (e) {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
@@ -117,7 +85,7 @@ export function YouTubePage() {
     } finally {
       setAdding(false);
     }
-  }, [urlInput, adding, addFromUrl, collections]);
+  }, [urlInput, adding, addFromUrl]);
 
   const handleCardClick = useCallback((card: YoutubeCard) => {
     setDrawerVideoId(card.id);
@@ -127,59 +95,176 @@ export function YouTubePage() {
     setModalVideoId(card.id);
   }, []);
 
-  const handleModalSave = useCallback(
-    (id: string, data: { status: YoutubeLibraryStatus; score: number; isRewatching: boolean }) => {
-      updateEntry(id, data);
-      setModalVideoId(null);
-    },
-    [updateEntry]
-  );
+  // Lista do menu em ordem alfabética: com muitas tags é o que dá para varrer.
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    for (const entry of entries) for (const tag of entry.tags) set.add(tag);
+    return [...set].sort(byName);
+  }, [entries]);
 
-  const handleModalRemove = useCallback(
-    (id: string) => {
-      removeEntry(id).then(() => collections.reload());
-      setModalVideoId(null);
-    },
-    [removeEntry, collections]
-  );
+  // Aba de status é a base de tudo.
+  const inTab = useMemo(() => entries.filter((e) => e.status === activeStatus), [entries, activeStatus]);
 
-  const toggleCollectionFilter = (value: number | "none") =>
-    setCollectionFilter((prev) =>
-      prev.includes(value) ? prev.filter((c) => c !== value) : [...prev, value]
+  const searched = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return inTab;
+    return inTab.filter(
+      (e) => e.title.toLowerCase().includes(q) || (e.channelTitle ?? "").toLowerCase().includes(q)
     );
+  }, [inTab, search]);
 
-  let groups = buildYoutubeCollectionGroups(entries);
-  if (collectionFilter.length > 0) {
-    groups = groups.filter((g) => {
-      const cid = g.representative.collectionId;
-      return collectionFilter.some((f) => (f === "none" ? cid == null : cid === f));
-    });
-  }
-  groups = applyStatusView(groups, activeStatus);
-  groups = groups.filter((g) => matchesSearch(g, search));
+  // Ranking de popularidade: sai da aba inteira, sem sofrer com busca nem com
+  // filtro marcado, e desempata alfabeticamente. É isso que mantém cada tag no
+  // mesmo bucket enquanto se filtra — ela só sai de vista, nunca muda de grupo.
+  // O mesmo ranking ordena os chips dentro do card.
+  const ranking = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const entry of inTab) for (const tag of entry.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || byName(a[0], b[0]))
+      .map(([tag]) => tag);
+  }, [inTab]);
 
-  const nameOf = (g: YoutubeGroup) => {
-    const cid = g.representative.collectionId;
-    return cid != null ? collections.byId.get(cid) ?? "" : g.representative.title;
-  };
-  groups =
-    sort.field === "views"
-      ? sortGroupsBySumViews(groups, viewsOf, sort.dir)
-      : sort.field === "date"
-      ? sortGroupsByMemberDate(groups, videoDateOf, sort.dir)
-      : sortGroupsByName(groups, nameOf, sort.dir);
+  const tagRank = useMemo(() => new Map(ranking.map((tag, i) => [tag, i])), [ranking]);
 
-  // Avulsos antes das coleções, independente da ordenação escolhida (que segue
-  // valendo dentro de cada bloco — `filter` preserva a ordem).
-  groups = [
-    ...groups.filter((g) => g.representative.collectionId == null),
-    ...groups.filter((g) => g.representative.collectionId != null),
+  const tagContext = useMemo(
+    () => ({
+      allTags,
+      tagRank,
+      setTags: (entryId: string, tags: string[]) => {
+        void updateEntry(entryId, { tags });
+      },
+    }),
+    [allTags, tagRank, updateEntry]
+  );
+
+  // Filtro: canal em OU dentro do grupo, tags em E (vídeo precisa ter todas).
+  const hitsChannel = useCallback(
+    (e: YoutubeLibraryEntry) =>
+      channelFilter.length === 0 || channelFilter.includes(e.channelTitle ?? NONE),
+    [channelFilter]
+  );
+  const hitsTags = useCallback(
+    (e: YoutubeLibraryEntry) => tagFilter.every((t) => e.tags.includes(t)),
+    [tagFilter]
+  );
+
+  const visible = useMemo(
+    () => searched.filter((e) => hitsChannel(e) && hitsTags(e)),
+    [searched, hitsChannel, hitsTags]
+  );
+
+  // Canal cruza com as tags: as opções saem do conjunto já filtrado por tag.
+  const channelOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const e of searched.filter(hitsTags)) {
+      const key = e.channelTitle ?? NONE;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    for (const value of channelFilter) if (!counts.has(value)) counts.set(value, 0);
+    const named = [...counts.entries()]
+      .filter(([v]) => v !== NONE)
+      .sort((a, b) => byName(a[0], b[0]))
+      .map(([value, count]) => ({ value, label: value, count }));
+    const none = counts.get(NONE);
+    return none != null ? [{ value: NONE, label: "Sem canal", count: none }, ...named] : named;
+  }, [searched, hitsTags, channelFilter]);
+
+  // Contagem da tag = "quantos resultados se eu marcar isso": conta sobre o
+  // conjunto já filtrado. Com E isso é o que mostra o beco sem saída antes do
+  // clique. Opção com 0 é escondida — menos se estiver marcada, senão a seleção
+  // ficaria invisível filtrando tudo, sem como desfazer.
+  const tagCounts = useMemo(() => {
+    const base = searched.filter((e) => hitsChannel(e) && hitsTags(e));
+    const counts = new Map<string, number>();
+    for (const e of base) for (const tag of e.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    return counts;
+  }, [searched, hitsChannel, hitsTags]);
+
+  // Fatiamento: o bucket i pega o ranking em (topAnterior, top]; top null = resto.
+  // Faixa vazia (depois de esconder as opções irrelevantes) não vira grupo.
+  const tagGroups = useMemo(() => {
+    const groups: FilterGroupConfig[] = [];
+    let start = 0;
+    for (const bucket of buckets) {
+      if (!bucket.label.trim()) continue;
+      const end = bucket.top == null ? ranking.length : Math.min(bucket.top, ranking.length);
+      if (end <= start) {
+        if (bucket.top != null) start = Math.max(start, end);
+        continue;
+      }
+      const options = ranking
+        .slice(start, end)
+        .map((tag) => ({ value: tag, label: tag, count: tagCounts.get(tag) ?? 0 }))
+        .filter((opt) => opt.count > 0 || tagFilter.includes(opt.value));
+      start = end;
+      if (options.length === 0) continue;
+      groups.push({
+        key: `bucket-${bucket.label}`,
+        title: bucket.label,
+        options,
+        selected: tagFilter,
+        onToggle: (v: string) =>
+          setTagFilter((prev) => (prev.includes(v) ? prev.filter((t) => t !== v) : [...prev, v])),
+      });
+    }
+    return groups;
+  }, [buckets, ranking, tagCounts, tagFilter]);
+
+  const filterGroups: FilterGroupConfig[] = [
+    ...(channelOptions.length > 0
+      ? [
+          {
+            key: "channel",
+            title: "Canal",
+            options: channelOptions,
+            selected: channelFilter,
+            onToggle: (v: string) =>
+              setChannelFilter((prev) => (prev.includes(v) ? prev.filter((c) => c !== v) : [...prev, v])),
+          },
+        ]
+      : []),
+    ...tagGroups,
   ];
 
-  const gridKey = `${activeStatus}-${collectionFilter.join(",")}-${sort.field}-${sort.dir}-${search}`;
+  const videos = useMemo(() => {
+    const dir = sort.dir === "asc" ? 1 : -1;
+    const compare = (a: YoutubeLibraryEntry, b: YoutubeLibraryEntry) => {
+      if (sort.field === "views") return ((a.viewCount ?? 0) - (b.viewCount ?? 0)) * dir;
+      if (sort.field === "date") return (publishedTime(a) - publishedTime(b)) * dir;
+      return byName(a.title, b.title) * dir;
+    };
+    return [...visible].sort(compare).map(youtubeLibraryEntryToCard);
+  }, [visible, sort.field, sort.dir]);
+
+  const filtering = search.trim() !== "" || channelFilter.length > 0 || tagFilter.length > 0;
+
+  const clearFilters = () => {
+    setChannelFilter([]);
+    setTagFilter([]);
+  };
+
+  const gridKey = [
+    activeStatus,
+    search,
+    channelFilter.join(","),
+    tagFilter.join(","),
+    sort.field,
+    sort.dir,
+  ].join("-");
 
   const drawerEntry = drawerVideoId ? findByVideoId(drawerVideoId) : undefined;
   const modalEntry = modalVideoId ? findByVideoId(modalVideoId) : undefined;
+
+  // No modo remover, só faz sentido oferecer tag que os selecionados têm.
+  const bulkTags = useMemo(() => {
+    if (!bulk) return [];
+    if (bulk.mode === "add") return allTags;
+    const ids = new Set(bulk.ids);
+    const set = new Set<string>();
+    for (const e of entries) if (ids.has(e.id)) for (const tag of e.tags) set.add(tag);
+    return [...set].sort(byName);
+  }, [bulk, allTags, entries]);
 
   return (
     <div className={styles.page}>
@@ -212,24 +297,10 @@ export function YouTubePage() {
         searchValue={search}
         onSearchChange={setSearch}
         searchPlaceholder="Buscar por título ou canal..."
-        count={groups.length}
-        filterGroups={
-          collections.collections.length > 0
-            ? [
-                {
-                  key: "collection",
-                  title: "Coleção",
-                  options: [
-                    { value: "none", label: "Sem coleção" },
-                    ...collections.collections.map((c) => ({ value: String(c.id), label: c.name })),
-                  ],
-                  selected: collectionFilter.map(String),
-                  onToggle: (v) => toggleCollectionFilter(v === "none" ? "none" : Number(v)),
-                },
-              ]
-            : []
-        }
-        onClearFilters={() => setCollectionFilter([])}
+        count={videos.length}
+        filterGroups={filterGroups}
+        filterSearchPlaceholder="Buscar tag ou canal..."
+        onClearFilters={clearFilters}
         sort={{
           active: sort.field,
           dir: sort.dir,
@@ -243,50 +314,31 @@ export function YouTubePage() {
       />
 
       <YoutubeTagContext.Provider value={tagContext}>
-        <FranchiseGrid
-          groups={groups}
+        <MediaGrid
+          items={videos}
+          config={youtubeCardConfig}
           loading={loading}
           error={error}
-          cardConfig={youtubeCardConfig}
-          entryToCard={youtubeLibraryEntryToCard}
-          getExternalId={(e) => e.videoId}
-          getLibraryEntry={(id) => findByVideoId(id)}
+          hasNextPage={false}
+          onLoadMore={() => undefined}
           onCardClick={handleCardClick}
           onAddToLibrary={handleOpenModal}
-          onDeleteGroup={(group) => removeManyEntries(group.members.map((m) => m.id)).then(() => collections.reload())}
+          getLibraryEntry={(id) => findByVideoId(id)}
           statusLabels={YOUTUBE_LIBRARY_STATUS_LABELS}
           onBulkSetStatus={(ids, status) => updateManyEntries(ids, status)}
-          expandTitle="Ver vídeos da coleção"
+          extraActions={[
+            { label: "Adicionar tag", onClick: (ids) => setBulk({ mode: "add", ids }) },
+            { label: "Remover tag", onClick: (ids) => setBulk({ mode: "remove", ids }) },
+          ]}
+          isLibraryView
           animationKey={gridKey}
           gridClassName={styles.youtubeGrid}
-          expansionClassName={styles.youtubeExpansion}
-          emptyMessage="Nada por aqui ainda."
-          emptyHint="Cole o link de um vídeo do YouTube para começar!"
-          getCollectionKey={(e) => e.collectionId}
-          onFormGroup={(ids, name) => formGroup(ids, name).then(() => collections.reload())}
-          onAddToGroup={(ids, collectionId) => addToGroup(ids, collectionId).then(() => collections.reload())}
-          onRemoveFromGroup={(ids) => removeFromGroup(ids).then(() => collections.reload())}
-          onSetTag={(ids, collectionId) => setBulkTag({ ids, collectionId })}
-          renderExpansion={(group, renderMembers) => (
-            <CollectionTagBar group={group} renderMembers={renderMembers} />
-          )}
-          getCollectionName={(group) =>
-            group.representative.collectionId != null
-              ? collections.byId.get(group.representative.collectionId) ?? null
-              : null
+          emptyMessage={filtering ? "Nenhum vídeo com esses filtros." : "Nada por aqui ainda."}
+          emptyHint={
+            filtering
+              ? "Troque a seleção ou use \"Limpar tudo\" no painel de filtros."
+              : "Cole o link de um vídeo do YouTube para começar!"
           }
-          onRenameCollection={(group, name) => {
-            if (group.representative.collectionId != null) collections.rename(group.representative.collectionId, name);
-          }}
-          getCollectionExtra={(group) => {
-            const totalDuration = group.members.reduce((sum, v) => sum + (v.durationSeconds ?? 0), 0);
-            const totalViews = group.members.reduce((sum, v) => sum + (v.viewCount ?? 0), 0);
-            return (
-              <div className={styles.collMeta}>
-                {formatDurationLong(totalDuration)} · {formatViews(totalViews)}
-              </div>
-            );
-          }}
         />
       </YoutubeTagContext.Provider>
 
@@ -302,24 +354,27 @@ export function YouTubePage() {
         <YoutubeLibraryModal
           entry={modalEntry}
           onClose={() => setModalVideoId(null)}
-          onSave={handleModalSave}
-          onRemove={handleModalRemove}
-          onSetCover={(id) => {
-            setCoverEntry(id);
+          onSave={(id, data) => {
+            void updateEntry(id, data);
+            setModalVideoId(null);
+          }}
+          onRemove={(id) => {
+            void removeEntry(id);
             setModalVideoId(null);
           }}
         />
       )}
 
-      {bulkTag && (
-        <TagPickerModal
-          count={bulkTag.ids.length}
-          tags={tagsByCollection.get(bulkTag.collectionId) ?? []}
+      {bulk && (
+        <TagBulkModal
+          mode={bulk.mode}
+          count={bulk.ids.length}
+          allTags={bulkTags}
           onPick={(tag) => {
-            void setTagMany(bulkTag.ids, tag);
-            setBulkTag(null);
+            void (bulk.mode === "add" ? addTagMany(bulk.ids, tag) : removeTagMany(bulk.ids, tag));
+            setBulk(null);
           }}
-          onClose={() => setBulkTag(null)}
+          onClose={() => setBulk(null)}
         />
       )}
     </div>

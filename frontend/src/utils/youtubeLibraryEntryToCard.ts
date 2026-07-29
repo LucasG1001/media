@@ -10,7 +10,6 @@ export function youtubeLibraryEntryToCard(entry: YoutubeLibraryEntry): YoutubeCa
     durationSeconds: entry.durationSeconds,
     viewCount: entry.viewCount,
     entryId: entry.id,
-    collectionId: entry.collectionId,
-    tag: entry.tag,
+    tags: entry.tags,
   };
 }

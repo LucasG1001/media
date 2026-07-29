@@ -2,24 +2,15 @@ import type { Request, Response } from "express";
 import { createLibraryController } from "../lib/createLibraryController.js";
 import {
   youtubeLibraryModel,
-  createCollection,
-  renameCollection as renameCollectionModel,
-  assignCollection,
-  assignTag,
-  removeFromCollection,
+  addTagMany,
+  removeTagMany,
   bulkUpsertVideos,
-  listCollections as listCollectionsModel,
-  pruneEmptyCollections,
 } from "../models/youtubeLibraryModel.js";
 import {
   youtubeCreateSchema,
   youtubeUpdateSchema,
   youtubeFromUrlSchema,
-  youtubeFormGroupSchema,
-  youtubeAddToGroupSchema,
-  youtubeRemoveFromGroupSchema,
-  youtubeSetTagSchema,
-  youtubeRenameSchema,
+  youtubeBulkTagSchema,
 } from "../schemas/library.js";
 import { extractVideoId, extractPlaylistId, fetchVideo, fetchPlaylist, YoutubeServiceError } from "../services/youtubeService.js";
 import { notifyError } from "../services/notifyService.js";
@@ -41,17 +32,7 @@ const base = createLibraryController({
   },
 });
 
-export const { getAll, create, update, updateManyStatus, setCover } = base;
-
-export async function remove(req: Request, res: Response): Promise<void> {
-  await base.remove(req, res);
-  if (res.statusCode === 204) await pruneEmptyCollections().catch(() => undefined);
-}
-
-export async function removeMany(req: Request, res: Response): Promise<void> {
-  await base.removeMany(req, res);
-  await pruneEmptyCollections().catch(() => undefined);
-}
+export const { getAll, create, update, updateManyStatus, remove, removeMany } = base;
 
 export async function createFromUrl(req: Request, res: Response): Promise<void> {
   try {
@@ -82,9 +63,9 @@ export async function createFromUrl(req: Request, res: Response): Promise<void> 
         res.status(404).json({ error: "Playlist vazia ou indisponível." });
         return;
       }
-      const collection = await createCollection(title);
-      await bulkUpsertVideos(videos, collection.id);
-      res.status(201).json({ playlist: { name: title, imported: videos.length, collectionId: collection.id } });
+      // Sem coleção: o nome da playlist entra como tag dos vídeos.
+      await bulkUpsertVideos(videos, title);
+      res.status(201).json({ playlist: { name: title, imported: videos.length } });
       return;
     }
 
@@ -105,102 +86,35 @@ export async function createFromUrl(req: Request, res: Response): Promise<void> 
   }
 }
 
-export async function formGroup(req: Request, res: Response): Promise<void> {
-  try {
-    const parsed = youtubeFormGroupSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Dados inválidos." });
-      return;
+function bulkTagHandler(
+  apply: (ids: string[], tag: string) => Promise<number>,
+  context: string,
+  errorMessage: string
+) {
+  return async (req: Request, res: Response): Promise<void> => {
+    try {
+      const parsed = youtubeBulkTagSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "Dados inválidos." });
+        return;
+      }
+      await apply(parsed.data.ids, parsed.data.tag.trim());
+      res.json({ ok: true });
+    } catch (error) {
+      void notifyError(context, error);
+      res.status(500).json({ error: errorMessage });
     }
-    const { ids, name } = parsed.data;
-    const collection = await createCollection(name.trim());
-    await assignCollection(ids, collection.id);
-    await pruneEmptyCollections().catch(() => undefined);
-    res.status(201).json({ collection });
-  } catch (error) {
-    void notifyError("API POST /api/youtube-library/collections", error);
-    res.status(500).json({ error: "Erro ao criar coleção." });
-  }
+  };
 }
 
-export async function addToGroup(req: Request, res: Response): Promise<void> {
-  try {
-    const parsed = youtubeAddToGroupSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Dados inválidos." });
-      return;
-    }
-    const { ids, collectionId } = parsed.data;
-    await assignCollection(ids, collectionId);
-    await pruneEmptyCollections().catch(() => undefined);
-    res.json({ ok: true });
-  } catch (error) {
-    void notifyError("API POST /api/youtube-library/collections/add", error);
-    res.status(500).json({ error: "Erro ao adicionar à coleção." });
-  }
-}
+export const addTag = bulkTagHandler(
+  addTagMany,
+  "API POST /api/youtube-library/bulk-add-tag",
+  "Erro ao adicionar tag."
+);
 
-export async function removeFromGroup(req: Request, res: Response): Promise<void> {
-  try {
-    const parsed = youtubeRemoveFromGroupSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Dados inválidos." });
-      return;
-    }
-    await removeFromCollection(parsed.data.ids);
-    await pruneEmptyCollections().catch(() => undefined);
-    res.json({ ok: true });
-  } catch (error) {
-    void notifyError("API POST /api/youtube-library/collections/remove", error);
-    res.status(500).json({ error: "Erro ao remover da coleção." });
-  }
-}
-
-export async function setTagMany(req: Request, res: Response): Promise<void> {
-  try {
-    const parsed = youtubeSetTagSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Dados inválidos." });
-      return;
-    }
-    const { ids, tag } = parsed.data;
-    await assignTag(ids, tag);
-    res.json({ ok: true });
-  } catch (error) {
-    void notifyError("API POST /api/youtube-library/bulk-set-tag", error);
-    res.status(500).json({ error: "Erro ao definir tag." });
-  }
-}
-
-export async function renameCollection(req: Request, res: Response): Promise<void> {
-  try {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Coleção inválida." });
-      return;
-    }
-    const parsed = youtubeRenameSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Informe o nome da coleção." });
-      return;
-    }
-    const collection = await renameCollectionModel(id, parsed.data.name.trim());
-    if (!collection) {
-      res.status(404).json({ error: "Coleção não encontrada." });
-      return;
-    }
-    res.json({ collection });
-  } catch (error) {
-    void notifyError("API PUT /api/youtube-library/collections/:id", error);
-    res.status(500).json({ error: "Erro ao renomear coleção." });
-  }
-}
-
-export async function listCollections(_req: Request, res: Response): Promise<void> {
-  try {
-    res.json(await listCollectionsModel());
-  } catch (error) {
-    void notifyError("API GET /api/youtube-library/collections", error);
-    res.status(500).json({ error: "Erro ao buscar coleções." });
-  }
-}
+export const removeTag = bulkTagHandler(
+  removeTagMany,
+  "API POST /api/youtube-library/bulk-remove-tag",
+  "Erro ao remover tag."
+);

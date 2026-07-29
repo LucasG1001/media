@@ -11,8 +11,7 @@ export function useYoutubeLibrary() {
   const store = useLibraryStore<YoutubeLibraryEntry, CreateYoutubeLibraryEntry, UpdateYoutubeLibraryEntry>(
     "youtube",
     youtubeLibraryService,
-    (entry) => entry.videoId,
-    (entry) => entry.collectionId
+    (entry) => entry.videoId
   );
 
   const { load } = store;
@@ -26,34 +25,17 @@ export function useYoutubeLibrary() {
     [load]
   );
 
-  const formGroup = useCallback(
-    async (ids: string[], name: string) => {
-      const collection = await youtubeLibraryService.formGroup(ids, name);
-      await load();
-      return collection;
-    },
-    [load]
-  );
-
-  const addToGroup = useCallback(
-    async (ids: string[], collectionId: number) => {
-      await youtubeLibraryService.addToGroup(ids, collectionId);
+  const addTagMany = useCallback(
+    async (ids: string[], tag: string) => {
+      await youtubeLibraryService.addTagMany(ids, tag);
       await load();
     },
     [load]
   );
 
-  const removeFromGroup = useCallback(
-    async (ids: string[]) => {
-      await youtubeLibraryService.removeFromGroup(ids);
-      await load();
-    },
-    [load]
-  );
-
-  const setTagMany = useCallback(
-    async (ids: string[], tag: string | null) => {
-      await youtubeLibraryService.setTagMany(ids, tag);
+  const removeTagMany = useCallback(
+    async (ids: string[], tag: string) => {
+      await youtubeLibraryService.removeTagMany(ids, tag);
       await load();
     },
     [load]
@@ -63,9 +45,7 @@ export function useYoutubeLibrary() {
     ...store,
     findByVideoId: store.findByExternalId,
     addFromUrl,
-    formGroup,
-    addToGroup,
-    removeFromGroup,
-    setTagMany,
+    addTagMany,
+    removeTagMany,
   };
 }

@@ -19,6 +19,9 @@ interface LibraryControlsProps {
   searchPlaceholder?: string;
   count: number;
   filterGroups: FilterGroupConfig[];
+  // Busca única das opções do painel: aparece quando há mais de 10 opções somando
+  // todos os grupos. O texto muda por mídia (no YouTube são tags e canais).
+  filterSearchPlaceholder?: string;
   onClearFilters: () => void;
   sort?: SortConfig;
 }
@@ -39,14 +42,23 @@ export function LibraryControls({
   searchPlaceholder = "Buscar na biblioteca...",
   count,
   filterGroups,
+  filterSearchPlaceholder = "Buscar filtro...",
   onClearFilters,
   sort,
 }: LibraryControlsProps) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  const [optionQuery, setOptionQuery] = useState("");
 
   const nothingSelected = filterGroups.every((g) => g.selected.length === 0);
   const activeSortLabel = sort?.options.find((o) => o.field === sort.active)?.label ?? "";
+
+  // Busca única do painel, valendo para as opções de todos os grupos (canal, tag,
+  // status...). Só aparece quando há opção o bastante para valer a pena procurar.
+  const totalOptions = filterGroups.reduce((sum, g) => sum + g.options.length, 0);
+  const q = optionQuery.trim().toLowerCase();
+  const nothingMatches =
+    q !== "" && !filterGroups.some((g) => g.options.some((o) => o.label.toLowerCase().includes(q)));
 
   return (
     <div className={styles.bar}>
@@ -61,7 +73,10 @@ export function LibraryControls({
           setSortOpen(false);
           setFiltersOpen(true);
         }}
-        onClose={() => setFiltersOpen(false)}
+        onClose={() => {
+          setFiltersOpen(false);
+          setOptionQuery("");
+        }}
         icon={
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 6h16M7 12h10M10 18h4" />
@@ -80,9 +95,19 @@ export function LibraryControls({
           </button>
         }
       >
+        {totalOptions > 10 && (
+          <input
+            className={styles.filterSearch}
+            type="text"
+            value={optionQuery}
+            placeholder={filterSearchPlaceholder}
+            onChange={(e) => setOptionQuery(e.target.value)}
+          />
+        )}
         {filterGroups.map((group) => (
-          <FilterCheckboxGroup key={group.key} group={group} />
+          <FilterCheckboxGroup key={group.key} group={group} query={optionQuery} />
         ))}
+        {nothingMatches && <span className={styles.filterEmpty}>Nada encontrado.</span>}
       </ControlPopover>
       )}
 

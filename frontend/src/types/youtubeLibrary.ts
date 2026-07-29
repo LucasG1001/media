@@ -16,10 +16,9 @@ export interface YoutubeLibraryEntry {
   score: number;
   likedAt: string | null;
   isRewatching: boolean;
-  collectionId: number | null;
-  isCover: boolean;
   notes: string | null;
-  tag: string | null;
+  // N tags por vídeo; `[]` = sem tag.
+  tags: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -43,12 +42,7 @@ export interface UpdateYoutubeLibraryEntry {
   score?: number;
   isRewatching?: boolean;
   notes?: string | null;
-  tag?: string | null;
-}
-
-export interface YoutubeCollection {
-  id: number;
-  name: string;
+  tags?: string[];
 }
 
 export interface YoutubeCard {
@@ -59,13 +53,28 @@ export interface YoutubeCard {
   channelThumbnail: string | null;
   durationSeconds: number | null;
   viewCount: number | null;
-  // O `id` do card é o videoId; a tag é escrita pelo id da entry (UUID).
+  // O `id` do card é o videoId; as tags são escritas pelo id da entry (UUID).
   entryId: string;
-  collectionId: number | null;
-  tag: string | null;
+  tags: string[];
 }
 
 export const YOUTUBE_LIBRARY_STATUS_LABELS: Record<YoutubeLibraryStatus, string> = {
   liked: "Gostei",
   removed: "Removido",
 };
+
+// Filtros de tag: cada bucket pega a faixa seguinte do ranking de popularidade.
+// `top` é o corte acumulado; `null` = o restante das tags.
+export interface TagBucket {
+  label: string;
+  top: number | null;
+}
+
+export const TAG_BUCKETS_KEY = "youtube-tag-buckets";
+
+export const DEFAULT_TAG_BUCKETS: TagBucket[] = [
+  { label: "TOP 5", top: 5 },
+  { label: "TOP 10", top: 10 },
+  { label: "TOP 20", top: 20 },
+  { label: "RESTANTE", top: null },
+];

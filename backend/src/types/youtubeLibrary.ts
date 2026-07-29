@@ -16,10 +16,9 @@ export interface YoutubeLibraryEntry {
   score: number;
   likedAt: string | null;
   isRewatching: boolean;
-  collectionId: number | null;
-  isCover: boolean;
   notes: string | null;
-  tag: string | null;
+  // N tags por vídeo; `[]` = sem tag.
+  tags: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -37,7 +36,7 @@ export interface CreateYoutubeLibraryEntry {
   description?: string | null;
   status?: YoutubeLibraryStatus;
   score?: number;
-  tag?: string | null;
+  tags?: string[];
 }
 
 export interface UpdateYoutubeLibraryEntry {
@@ -52,10 +51,5 @@ export interface UpdateYoutubeLibraryEntry {
   score?: number;
   isRewatching?: boolean;
   notes?: string | null;
-  tag?: string | null;
-}
-
-export interface YoutubeCollection {
-  id: number;
-  name: string;
+  tags?: string[];
 }

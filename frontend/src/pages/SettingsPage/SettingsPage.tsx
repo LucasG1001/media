@@ -5,6 +5,7 @@ import { useMovieLibrary } from "../../hooks/useMovieLibrary";
 import { useSeriesLibrary } from "../../hooks/useSeriesLibrary";
 import { useBookLibrary } from "../../hooks/useBookLibrary";
 import { useGameLibrary } from "../../hooks/useGameLibrary";
+import { TagBucketsCard } from "./TagBucketsCard";
 import styles from "./SettingsPage.module.css";
 
 type Feedback = { type: "success" | "error"; message: string } | null;
@@ -120,6 +121,8 @@ export function SettingsPage() {
           <div className={feedback.type === "success" ? styles.success : styles.error}>{feedback.message}</div>
         )}
       </section>
+
+      <TagBucketsCard />
     </div>
   );
 }

@@ -1,0 +1,67 @@
+/* Corte determinístico em 2 linhas: o chip tem altura fixa, então a altura da
+   linha é 2 chips + o gap. Tag que não cabe fica escondida (o menu mostra todas) e
+   o card nunca cresce. */
+.row {
+  --chip-height: 1.375rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: var(--spacing-xs);
+  height: calc(2 * var(--chip-height) + var(--spacing-xs));
+  overflow: hidden;
+  margin-top: 3px;
+  cursor: pointer;
+}
+
+.chip {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  height: var(--chip-height);
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: calc(var(--chip-height) - 2px);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row:hover .chip {
+  filter: brightness(1.2);
+}
+
+/* Sem tag: chip fantasma. É a afordância de "clique para taguear". */
+.ghost {
+  border: 1px dashed var(--color-border);
+  background: none;
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-medium);
+}
+
+.row:hover .ghost {
+  filter: none;
+  border-color: var(--color-accent);
+  color: var(--color-text-secondary);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+}
+
+.menu {
+  position: fixed;
+  z-index: 301;
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-sm);
+  background: var(--color-bg-drawer);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}

@@ -14,6 +14,7 @@ e biblioteca pessoal (CRUD em PostgreSQL):
 - **Jogos** — IGDB (auth via Twitch OAuth); coleções/sagas; filtro por modos de jogo (`game_modes`).
 - **Livros** — Google Books.
 - **YouTube** — vídeos curtidos/salvos (YouTube Data API); modelo à parte (status `liked`/`removed`).
+  **Sem coleção**: grade plana, organizada por **tags** (N por vídeo) + filtro de canal.
 
 Recursos transversais: **Dashboard** agregado, **sync de coleções** (descobre e adiciona novos
 lançamentos de franquias já concluídas), **notificações no Telegram** (novos episódios, itens de
@@ -110,23 +111,26 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 
 - **`App.tsx`** — BrowserRouter + Sidebar; páginas `Dashboard`, `Anime`, `Movies`, `Series`,
   `Games`, `Books`, `YouTube`, `Settings`.
-- **Componentes compartilhados**: `MediaCard`/`MediaGrid` (catálogo), `FranchiseGrid` (biblioteca
-  agrupada por franquia/coleção), `LibraryModalBase` (seletor de status derivado do mapa de labels
+- **Componentes compartilhados**: `MediaCard`/`MediaGrid` (catálogo — e a **biblioteca do YouTube**,
+  que não tem coleção: aceita `gridClassName` e `extraActions`, ações extra repassadas à
+  `SelectionBar` com os ids selecionados), `FranchiseGrid` (biblioteca agrupada por
+  franquia/coleção), `LibraryModalBase` (seletor de status derivado do mapa de labels
   de cada mídia), `LibraryControls` (barra de biblioteca: busca + botões Filtros/Ordenação com painel
   que é bottom-sheet no mobile e popover ancorado no desktop + chip de contagem; dirigido por config
   `filterGroups`/`sort`, cada página monta a config do seu estado. As opções de filtro ficam em
   **grade** (`.filterOptions`), não em `flex-wrap`: com rótulos de larguras diferentes o wrap
   desalinhava as linhas; rótulo longo trunca com reticências e o texto inteiro vai no `title`; o
-  grupo de opções em si é o `FilterCheckboxGroup`, compartilhado com o filtro de tag da coleção —
-  `layout="grid"` (default) alinha as colunas, `layout="wrap"` põe uma opção do lado da outra e
-  quebra a linha, para rótulos curtos como as tags),
+  grupo de opções em si é o `FilterCheckboxGroup` — `layout="grid"` (default) alinha as colunas,
+  `layout="wrap"` põe uma opção do lado da outra e quebra a linha, para rótulos curtos; `count` por
+  opção; grupo com mais de 12 opções rola dentro de si, porque o painel não tem teto de altura. Uma
+  **única busca de opções** fica no topo do painel, abaixo do "Limpar tudo", e filtra **todos** os
+  grupos de uma vez (aparece a partir de 10 opções somando os grupos; grupo sem casamento sai inteiro).
+  O painel tem `panelWidth`: `"wide"` fixa no teto de 560 px, `"fit"`
+  cresce com o conteúdo até esse teto — `max-content`, porque o painel é absoluto dentro do botão e o
+  shrink-to-fit resolveria pela largura dele),
   `NotesBlock` (bloco de anotação livre no fim do `content` dos drawers: textarea auto-grow com
   autosave por debounce de 1 s + flush no unmount, já que fechar o drawer desmonta antes do timer).
   Config visual por mídia em **`config/cards.tsx`**.
-- **`FranchiseGrid`** aceita `renderExpansion(group, renderMembers)` — inversão de controle da
-  expansão: quem passa decide o que vem antes dos cards e quais membros devolve ao `renderMembers`.
-  É como o filtro de tag do YouTube reduz só a expansão sem o grid ganhar estado. Como a expansão é
-  montada com `key` por grupo, o estado de quem vive lá dentro zera ao recolher/trocar de coleção.
 - **Anotações**: o drawer não conhece a biblioteca (recebe só o ID externo e busca na API externa),
   então `notes`/`onNotesChange` são props **opcionais** que a página passa só quando acha a entry —
   é isso que esconde o bloco no catálogo. Séries são a exceção: a anotação é da **temporada**
@@ -148,37 +152,20 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   - **Grupos de filtro por mídia** (todos member-level e combinados em **E** entre si, **OU** dentro
     de cada um): anime = Status + **Exibição** (`animeStatus`, 3 estados); filmes = Status +
     **Lançamento** (`movieStatus`); jogos = Status + **Lançamento** (`gameStatus`) + Modos de jogo;
-    livros/YouTube não têm o de lançamento. **Séries é a exceção**: o de Exibição é da série, não da
+    livros não têm o de lançamento (YouTube não usa esse pipeline — ver abaixo).
+    **Séries é a exceção**: o de Exibição é da série, não da
     temporada (o TMDB não dá status de exibição por temporada), então recorta a lista de entries
     **antes** do `buildSeasonGroups`, enquanto o de Status segue member-level. O mapeamento
     `air_status` cru → `on_air`/`finished`/`upcoming` fica em `utils/seriesFormat.ts`.
   - **Ordenação (de seleção única, `hooks/useSingleSort.ts`; sempre uma ativa)** opera sobre o grupo
     **já reduzido**, via `utils/sortGroups.ts`: **data** = item **mais antigo** da coleção
     (`sortGroupsByMemberDate`, `agg:"oldest"`); **nota** = **média** das notas dos membros com
-    `score>0` (`sortGroupsByAvgScore`); **YouTube: visualizações** = **soma** (`sortGroupsBySumViews`),
-    **alfabética** (`sortGroupsByName`, padrão) e **data**. Exceção: Livros "Leitura" usa a data de
+    `score>0` (`sortGroupsByAvgScore`). Exceção: Livros "Leitura" usa a data de
     leitura **mais recente** (`agg:"latest"`). Avulsos contam como coleção de 1.
   - Padrões: anime/filmes/jogos = Lançamento(desc)+Nota; séries idem; livros =
-    Publicação(desc)+Leitura+Nota; YouTube = Alfabética(asc)+Data+Visualizações.
-  - **YouTube: vídeo avulso vem antes de coleção**, em qualquer ordenação — a página parte a lista em
-    dois blocos depois de ordenar, e a ordenação escolhida segue valendo dentro de cada bloco.
-  - **Tags do YouTube (só nessa mídia)**: cada vídeo tem **uma** tag (`tag`, `NULL` = nunca
-    definida), exibida como chip colorido à direita da linha de duração/views (`TagChip`). A cor sai
-    de hash do nome (`utils/tagColor.ts` → tokens `--color-tag-N`), então a mesma tag tem sempre a
-    mesma cor. Vocabulário = `DISTINCT` das tags **daquela coleção** (não existe tabela de tag): é o
-    que faz a tag parecer escopada, já que `collection_id` é escalar. Sem coleção não há vocabulário
-    — chip herdado aparece mas não é editável, e vídeo sem tag não mostra chip. **Sair/mudar de
-    coleção não apaga a tag.** Três invariantes: (1) o filtro de tag mora **dentro da expansão**
-    (`CollectionTagBar`) e reduz **só os cards mostrados** — de propósito não toca no badge
-    `mostrados/total` nem no representante/capa, porque a capa do YouTube é o card do representante e
-    a thumbnail trocaria embaixo do dedo do usuário; (2) a ordem dos membros da coleção é **fixa** —
-    sem tag primeiro, depois tag alfabética, e publicação desc dentro de cada tag — e não é opção de
-    ordenação; (3) `pickRepresentative` continua recebendo a lista em ordem de publicação asc, para a
-    capa não mudar. Atribuição: clique no chip (menu **em portal**, porque `MediaCard` tem
-    `overflow: hidden` e clipa menu absoluto) ou em lote pela `SelectionBar` quando os selecionados
-    estão numa única coleção (`POST /bulk-set-tag`).
+    Publicação(desc)+Leitura+Nota.
   - **Capa é só coleção (anime/filmes/séries/jogos; prop `coverIsCollectionOnly` do
-    `FranchiseGrid`/`FranchiseCard`, que livros e YouTube NÃO passam)**: em grupo com 2+ itens a capa
+    `FranchiseGrid`/`FranchiseCard`, que livros NÃO passa)**: em grupo com 2+ itens a capa
     exibe apenas a **média** e o clique **expande/recolhe** em vez de abrir o drawer do representante
     (que segue acessível como membro da expansão, já que `buildCollectionGroups` inclui o
     representante em `members`). O `MediaCard` recebe `isCollectionCover` e some com **tudo que é
@@ -218,6 +205,55 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     `store.mutate` = primitivo de update otimista
     com endpoint custom (usado por `saveSeason`/`setCoverSeason`).
   - `hooks/useDismiss.ts` centraliza Escape + scroll-lock (mobile) dos painéis.
+- **YouTube é a exceção: não tem coleção.** A biblioteca é uma **grade plana** (`MediaGrid`) e toda a
+  organização é **tag**. Nada de `buildCollectionGroups`/`sortGroups`/capa/expansão nessa página; o
+  pipeline é `useMemo` sobre as entries: aba de status → busca (título/canal) → filtros → comparador
+  plano.
+  - **Tags**: `tags TEXT[]` (`[]` = sem tag), **N por vídeo**. Vocabulário derivado dos próprios dados,
+    sem tabela. Mais o `channelTitle`, que já vinha da API.
+  - **Filtro**: **CANAL** (multi-seleção em **OU**, sentinela `"none"` = sem canal) + até **4 grupos de
+    tag configuráveis**. As tags entre si combinam em **E**: o vídeo precisa ter **todas** as marcadas.
+  - **Buckets de tag por popularidade**: as tags são ranqueadas por quantos vídeos as usam e cada
+    bucket pega a **faixa seguinte** do ranking (`top` é o corte acumulado; `null` = o resto). Com
+    `5/10/20/resto`: 1–5, 6–10, 11–20, resto. Faixa vazia → grupo não renderizado. A config
+    (nome + quantidade) fica em **Configurações**, persistida em `app_setting` sob a chave
+    `youtube-tag-buckets`; validação exige quantidades **crescentes**.
+  - **O ranking sai da aba de status inteira** — não da busca nem do filtro marcado — e **desempata
+    alfabeticamente**. É isso que mantém cada tag no mesmo bucket enquanto se filtra: ela só sai de
+    vista, nunca **muda** de grupo (com contagem no ranking, empate sem desempate faria tag pular).
+  - **Contagem por opção = "quantos resultados se eu marcar isso"**: conta sobre o conjunto já
+    filtrado. Com E é o que mostra o beco sem saída antes do clique. **Opção com contagem 0 é
+    escondida** — **menos se estiver marcada**, senão a seleção ficaria invisível filtrando tudo, sem
+    como desfazer. Canal e tags se cruzam nas duas direções. Estado vazio distingue "biblioteca vazia"
+    de "filtro sem resultado".
+  - **Ordenação** (`useSingleSort`, padrão Alfabética(asc)): Alfabética, Data e Visualizações.
+  - **Chips no card** (`TagChip/CardTags`): linha própria abaixo de duração/views, com **altura fixa de
+    2 linhas de chip e `overflow: hidden`** — tag que não cabe fica escondida e o card **nunca cresce**
+    (o corte é determinístico porque o chip tem altura fixa; o menu é onde se vê tudo). Ordenados pelo
+    **mesmo ranking de popularidade** dos buckets (`tagRank` no contexto), então o que o corte esconde é
+    sempre a tag menos relevante. Cor por hash do nome (`utils/chipColor.ts` → tokens `--color-chip-N`),
+    então a mesma tag tem sempre a mesma cor. **A linha inteira** abre o menu (um "+" no fim seria
+    justamente o que o corte esconde); sem tag, mostra um chip fantasma `+ tags`.
+  - **Menu de tag** (`TagPicker`, **em portal** — `MediaCard` tem `overflow: hidden` e clipa menu
+    absoluto): multi-seleção **em ordem alfabética** (é a lista para varrer; o ranking ordena o card,
+    não o menu) com **campo de busca que acumula os dois papéis**, filtrar e criar — "Criar «x»" só
+    aparece quando não há casamento exato. **Navegável por ↑/↓ com Enter escolhendo o item sob o
+    cursor** (o "Criar" é o primeiro da sequência; o hover move o cursor, para não haver dois
+    destaques); o cursor é **clampado em render**, já que a lista encurta enquanto se digita.
+    Reposiciona no scroll em vez de fechar (fechar matava a
+    rolagem da própria lista e o texto sendo digitado), e **barra a propagação de tecla, menos Escape**:
+    evento de portal sobe pela árvore React, então o Enter da busca chegava no `onKeyDown` do
+    `MediaCard` e abria o drawer; Escape tem que passar para o `useDismiss` fechar. Lê tudo do
+    `youtubeTagContext`, que evita arrastar callback até o `renderBelow` (ele só recebe o item).
+  - **Em lote** pelas `extraActions` da `SelectionBar` → `TagBulkModal` com dois modos:
+    **Adicionar tag** (`POST /bulk-add-tag`) e **Remover tag** (`POST /bulk-remove-tag`) — com N tags
+    "definir" não faria sentido. No modo remover só são oferecidas as tags que os selecionados têm.
+  - **Playlist importada** entra com o nome dela como tag; o `ON CONFLICT` só aplica em vídeo que ainda
+    não tem tag nenhuma, para reimportar não atropelar ajuste manual.
+  - Os modelos anteriores do YouTube (coleção com capa/expansão, tag única escopada à coleção, e o par
+    categoria/subcategoria) foram **removidos** — colunas, tabela `youtube_collection` e rotas
+    `/collections*` inclusive. O `migrate()` dropa o que sobrou; **a coluna sai antes da tabela**,
+    senão a FK barra o `DROP TABLE`.
 - **`hooks/useMediaList.ts`** — estado de catálogo com paginação, cache por chave, `AbortController`
   (cancela busca anterior) e `reset()`. Um `useLibrary`-like por mídia para o CRUD com estado local
   otimista.
@@ -229,17 +265,23 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 
 `anime_library`, `movie_library`, `series_library`, `game_library`, `books_library` (plural),
 `youtube_library`. Colunas em `TEXT`/`JSONB`, sem CHECK de enum (migração de status = `UPDATE`).
-Convenções comuns: `is_cover` (capa da coleção), `is_rewatching`, timestamp de conclusão
-(`watched_at`/`finished_at`/`read_at`), coluna de coleção (`franchise_id`/`collection_id`) e `notes`
-(`TEXT`, anotação livre do usuário; `NULL` = nunca anotado) — **menos em `series_library`**, onde a
-anotação é por temporada, dentro de `season_states`.
+Convenções comuns (todas **menos `youtube_library`**, que não tem coleção): `is_cover` (capa da
+coleção), `is_rewatching`, timestamp de conclusão (`watched_at`/`finished_at`/`read_at`), coluna de
+coleção (`franchise_id`/`collection_id`) e `notes`
+(`TEXT`, anotação livre do usuário; `NULL` = nunca anotado) — este **menos em `series_library`**, onde
+a anotação é por temporada, dentro de `season_states`.
 `series_library` tem ainda `season_list` (JSONB, metadado das temporadas do TMDB), `season_states`
 (JSONB, estado por temporada `{ "1": {status,score,isRewatching,notes} }`; `score` da série = média das notas)
 e `cover_season` (INTEGER, temporada usada como capa da coleção). `game_library` tem `game_modes`
-(`TEXT[]`). `youtube_library` tem `tag` (`TEXT`, `NULL` = nunca definida; não é apagada ao sair da
-coleção — ver invariantes de tag acima) e a coleção é uma entidade real, `youtube_collection`
-(renomeável, podada quando fica vazia). Colunas JSONB são escritas com `JSON.stringify` explícito
-(ver `seriesLibraryModel`).
+(`TEXT[]`). `youtube_library` tem `tags` (`TEXT[] NOT NULL DEFAULT '{}'`, N tags por vídeo, `[]` = sem
+tag — ver a exceção do YouTube acima) e **não tem coluna de coleção nem `is_cover`**. Colunas JSONB são
+escritas com `JSON.stringify` explícito (ver `seriesLibraryModel`); `TEXT[]` vai como **array JS
+direto** (ver `game_modes` e `tags`).
+
+Fora das mídias existe **`app_setting`** (`key TEXT PK`, `value JSONB`): preferência de UI persistida
+no banco, para valer em qualquer dispositivo. Lida/gravada por `GET`/`PUT /api/settings/:key` e, no
+front, pelo hook genérico `useAppSetting(key, fallback)` — chave inexistente responde 404 e o hook cai
+no fallback. Hoje guarda só `youtube-tag-buckets`.
 
 **Status vindos da API externa** (todos alimentados pelos jobs de refresh, nunca editáveis pelo
 usuário): `anime_status` (AniList: `RELEASING`/`FINISHED`/`NOT_YET_RELEASED`) e, em filmes/séries/

@@ -1,15 +1,19 @@
 import { useEffect, useCallback } from "react";
 import { TagPicker } from "../TagChip/TagPicker";
-import styles from "./TagPickerModal.module.css";
+import styles from "./TagBulkModal.module.css";
 
-interface TagPickerModalProps {
+export type TagBulkMode = "add" | "remove";
+
+interface TagBulkModalProps {
+  mode: TagBulkMode;
   count: number;
-  tags: string[];
-  onPick: (tag: string | null) => void;
+  // No modo remover, só as tags presentes nos selecionados.
+  allTags: string[];
+  onPick: (tag: string) => void;
   onClose: () => void;
 }
 
-export function TagPickerModal({ count, tags, onPick, onClose }: TagPickerModalProps) {
+export function TagBulkModal({ mode, count, allTags, onPick, onClose }: TagBulkModalProps) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -30,9 +34,15 @@ export function TagPickerModal({ count, tags, onPick, onClose }: TagPickerModalP
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.title}>
-          Definir tag em {count} {count === 1 ? "vídeo" : "vídeos"}
+          {mode === "add" ? "Adicionar tag em" : "Remover tag de"} {count}{" "}
+          {count === 1 ? "vídeo" : "vídeos"}
         </div>
-        <TagPicker tags={tags} onPick={onPick} />
+        <TagPicker
+          allTags={allTags}
+          selected={[]}
+          onToggle={onPick}
+          emptyLabel={mode === "add" ? "Nenhuma tag ainda — digite para criar." : "Os selecionados não têm tag."}
+        />
         <div className={styles.actions}>
           <button className={styles.cancelButton} onClick={onClose}>
             Cancelar
