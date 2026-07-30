@@ -5,7 +5,7 @@ import { useMovieLibrary } from "../../hooks/useMovieLibrary";
 import { useSeriesLibrary } from "../../hooks/useSeriesLibrary";
 import { useBookLibrary } from "../../hooks/useBookLibrary";
 import { useGameLibrary } from "../../hooks/useGameLibrary";
-import { TagBucketsCard } from "./TagBucketsCard";
+import { TagSuggestionCard } from "./TagSuggestionCard";
 import styles from "./SettingsPage.module.css";
 
 type Feedback = { type: "success" | "error"; message: string } | null;
@@ -122,7 +122,7 @@ export function SettingsPage() {
         )}
       </section>
 
-      <TagBucketsCard />
+      <TagSuggestionCard />
     </div>
   );
 }

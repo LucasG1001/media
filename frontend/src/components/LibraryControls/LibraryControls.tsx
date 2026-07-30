@@ -19,9 +19,6 @@ interface LibraryControlsProps {
   searchPlaceholder?: string;
   count: number;
   filterGroups: FilterGroupConfig[];
-  // Busca única das opções do painel: aparece quando há mais de 10 opções somando
-  // todos os grupos. O texto muda por mídia (no YouTube são tags e canais).
-  filterSearchPlaceholder?: string;
   onClearFilters: () => void;
   sort?: SortConfig;
 }
@@ -42,7 +39,6 @@ export function LibraryControls({
   searchPlaceholder = "Buscar na biblioteca...",
   count,
   filterGroups,
-  filterSearchPlaceholder = "Buscar filtro...",
   onClearFilters,
   sort,
 }: LibraryControlsProps) {
@@ -100,7 +96,7 @@ export function LibraryControls({
             className={styles.filterSearch}
             type="text"
             value={optionQuery}
-            placeholder={filterSearchPlaceholder}
+            placeholder="Buscar filtro..."
             onChange={(e) => setOptionQuery(e.target.value)}
           />
         )}

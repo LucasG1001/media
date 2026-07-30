@@ -211,27 +211,30 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   plano.
   - **Tags**: `tags TEXT[]` (`[]` = sem tag), **N por vídeo**. Vocabulário derivado dos próprios dados,
     sem tabela. Mais o `channelTitle`, que já vinha da API.
-  - **Filtro**: **CANAL** (multi-seleção em **OU**, sentinela `"none"` = sem canal) + até **4 grupos de
-    tag configuráveis**. As tags entre si combinam em **E**: o vídeo precisa ter **todas** as marcadas.
-  - **Buckets de tag por popularidade**: as tags são ranqueadas por quantos vídeos as usam e cada
-    bucket pega a **faixa seguinte** do ranking (`top` é o corte acumulado; `null` = o resto). Com
-    `5/10/20/resto`: 1–5, 6–10, 11–20, resto. Faixa vazia → grupo não renderizado. A config
-    (nome + quantidade) fica em **Configurações**, persistida em `app_setting` sob a chave
-    `youtube-tag-buckets`; validação exige quantidades **crescentes**.
-  - **O ranking sai da aba de status inteira** — não da busca nem do filtro marcado — e **desempata
-    alfabeticamente**. É isso que mantém cada tag no mesmo bucket enquanto se filtra: ela só sai de
-    vista, nunca **muda** de grupo (com contagem no ranking, empate sem desempate faria tag pular).
-  - **Contagem por opção = "quantos resultados se eu marcar isso"**: conta sobre o conjunto já
-    filtrado. Com E é o que mostra o beco sem saída antes do clique. **Opção com contagem 0 é
-    escondida** — **menos se estiver marcada**, senão a seleção ficaria invisível filtrando tudo, sem
-    como desfazer. Canal e tags se cruzam nas duas direções. Estado vazio distingue "biblioteca vazia"
-    de "filtro sem resultado".
+  - **O filtro é por sugestão progressiva de tag** (`TagFilterBar/`), **não** por painel: **não existe
+    o botão "Filtros"** nessa página (`filterGroups={[]}` faz o `LibraryControls` esconder só ele e
+    manter busca, Ordenação e contagem) e **não existe filtro de canal** — recortar por canal é pela
+    busca por texto, que já procura no nome dele.
+    - **`TagSuggestionRow` fica fixa acima da busca**: as N tags que mais acompanham as já filtradas.
+      Sem filtro, as mais usadas. Clique **adiciona** e a faixa se recalcula com a combinação nova.
+    - **`SelectedTagRow` fica abaixo da busca**: as tags filtradas, com **✕ no hover** (e **sempre
+      visível em `@media (hover: none)`** — no celular não há hover e não haveria como remover) + botão
+      **Limpar**. Cada linha some quando não tem conteúdo.
+    - Tags filtradas combinam em **E**: o vídeo precisa ter **todas**.
+    - A conta sai do **`tagCounts` sobre o conjunto visível** — ou seja "quantos resultados se eu
+      marcar essa tag", com a interseção já aplicada. Por isso **toda tag sugerida tem pelo menos um
+      resultado** (não há beco sem saída, e o chip não precisa mostrar contagem), e combinação que
+      esgotou as companheiras faz a faixa **desaparecer**. Ordem: contagem desc com **desempate
+      alfabético** (sem ele a faixa trocaria de ordem entre renders).
+    - Quantas sugerir fica em **Configurações** (`app_setting`, chave `youtube-tag-suggestions`,
+      padrão 10).
+    - Estado vazio distingue "biblioteca vazia" de "filtro sem resultado".
   - **Ordenação** (`useSingleSort`, padrão Alfabética(asc)): Alfabética, Data e Visualizações.
   - **Chips no card** (`TagChip/CardTags`): linha própria abaixo de duração/views, com **altura fixa de
     2 linhas de chip e `overflow: hidden`** — tag que não cabe fica escondida e o card **nunca cresce**
-    (o corte é determinístico porque o chip tem altura fixa; o menu é onde se vê tudo). Ordenados pelo
-    **mesmo ranking de popularidade** dos buckets (`tagRank` no contexto), então o que o corte esconde é
-    sempre a tag menos relevante. Cor por hash do nome (`utils/chipColor.ts` → tokens `--color-chip-N`),
+    (o corte é determinístico porque o chip tem altura fixa; o menu é onde se vê tudo). Ordenados por
+    **popularidade** (`tagRank` no contexto — ranking da aba de status, com desempate alfabético), então
+    o que o corte esconde é sempre a tag menos relevante. Cor por hash do nome (`utils/chipColor.ts` → tokens `--color-chip-N`),
     então a mesma tag tem sempre a mesma cor. **A linha inteira** abre o menu (um "+" no fim seria
     justamente o que o corte esconde); sem tag, mostra um chip fantasma `+ tags`.
   - **Menu de tag** (`TagPicker`, **em portal** — `MediaCard` tem `overflow: hidden` e clipa menu
@@ -292,7 +295,7 @@ direto** (ver `game_modes` e `tags`).
 Fora das mídias existe **`app_setting`** (`key TEXT PK`, `value JSONB`): preferência de UI persistida
 no banco, para valer em qualquer dispositivo. Lida/gravada por `GET`/`PUT /api/settings/:key` e, no
 front, pelo hook genérico `useAppSetting(key, fallback)` — chave inexistente responde 404 e o hook cai
-no fallback. Hoje guarda só `youtube-tag-buckets`.
+no fallback. Hoje guarda só `youtube-tag-suggestions` (quantas tags a faixa de filtro sugere).
 
 **Status vindos da API externa** (todos alimentados pelos jobs de refresh, nunca editáveis pelo
 usuário): `anime_status` (AniList: `RELEASING`/`FINISHED`/`NOT_YET_RELEASED`) e, em filmes/séries/

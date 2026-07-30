@@ -63,18 +63,7 @@ export const YOUTUBE_LIBRARY_STATUS_LABELS: Record<YoutubeLibraryStatus, string>
   removed: "Removido",
 };
 
-// Filtros de tag: cada bucket pega a faixa seguinte do ranking de popularidade.
-// `top` é o corte acumulado; `null` = o restante das tags.
-export interface TagBucket {
-  label: string;
-  top: number | null;
-}
+// Quantas tags a faixa de filtro sugere de uma vez (configurável em Configurações).
+export const TAG_SUGGESTIONS_KEY = "youtube-tag-suggestions";
 
-export const TAG_BUCKETS_KEY = "youtube-tag-buckets";
-
-export const DEFAULT_TAG_BUCKETS: TagBucket[] = [
-  { label: "TOP 5", top: 5 },
-  { label: "TOP 10", top: 10 },
-  { label: "TOP 20", top: 20 },
-  { label: "RESTANTE", top: null },
-];
+export const DEFAULT_TAG_SUGGESTIONS = 10;

@@ -22,32 +22,14 @@
   margin-top: var(--spacing-xl);
 }
 
-.bucketRows {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-lg);
-}
-
 .bucketRow {
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
 }
 
-.bucketLabel {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
 .bucketTop {
   flex: 0 0 6rem;
-}
-
-.bucketRest {
-  flex: 0 0 6rem;
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-sm);
 }
 
 .cardTitle {
