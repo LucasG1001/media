@@ -245,6 +245,17 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     evento de portal sobe pela árvore React, então o Enter da busca chegava no `onKeyDown` do
     `MediaCard` e abria o drawer; Escape tem que passar para o `useDismiss` fechar. Lê tudo do
     `youtubeTagContext`, que evita arrastar callback até o `renderBelow` (ele só recebe o item).
+  - **Sugestão de tag por coocorrência** (`TagSuggestions`, faixa acima do menu, só com ele aberto):
+    as **4 tags que mais aparecem nos vídeos que têm TODAS as tags atuais** do vídeo (interseção, não
+    união), por contagem desc com desempate alfabético — sem desempate a sugestão trocaria de lugar
+    entre renders. `recommendFor([])` **degenera na contagem global** (o `every` sobre lista vazia é
+    verdadeiro para todos), então vídeo sem tag sugere as mais usadas sem ramo próprio. Clicar adiciona
+    e a faixa **se recalcula** com a combinação nova; sem nada a sugerir (combinação que nenhum outro
+    vídeo tem) a faixa **desaparece**, em vez de cair para um fallback não relacionado. Escopo é a aba
+    de status, como o ranking. Contado em memória sobre o store — sem endpoint.
+  - **Posição do portal**: a pilha (faixa + menu) é ancorada por `top` abrindo para baixo e por
+    **`bottom`** quando não há espaço embaixo. Ancorar o rodapé é o que deixa a faixa crescer para cima
+    **sem medir a altura dela** — e tirou o palpite de altura que o cálculo de flip usava antes.
   - **Em lote** pelas `extraActions` da `SelectionBar` → `TagBulkModal` com dois modos:
     **Adicionar tag** (`POST /bulk-add-tag`) e **Remover tag** (`POST /bulk-remove-tag`) — com N tags
     "definir" não faria sentido. No modo remover só são oferecidas as tags que os selecionados têm.

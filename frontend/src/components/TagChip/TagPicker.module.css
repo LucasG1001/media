@@ -3,6 +3,8 @@
   flex-direction: column;
   gap: var(--spacing-xs);
   min-width: 0;
+  /* Deixa `.options` encolher e rolar dentro do teto de altura do menu. */
+  min-height: 0;
 }
 
 .search {

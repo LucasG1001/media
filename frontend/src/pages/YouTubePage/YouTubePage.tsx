@@ -28,6 +28,8 @@ const NONE = "none";
 
 const COLLATOR_OPTS = { sensitivity: "base" } as const;
 
+const SUGGESTION_LIMIT = 4;
+
 function byName(a: string, b: string): number {
   return a.localeCompare(b, "pt-BR", COLLATOR_OPTS);
 }
@@ -127,15 +129,37 @@ export function YouTubePage() {
 
   const tagRank = useMemo(() => new Map(ranking.map((tag, i) => [tag, i])), [ranking]);
 
+  // Coocorrência: as tags que mais aparecem nos vídeos que têm **todas** as tags
+  // atuais. Com lista vazia o `every` é verdadeiro para todos, então "vídeo sem
+  // tag" cai na contagem global sem precisar de ramo próprio. Desempate
+  // alfabético para a sugestão não trocar de lugar entre renders.
+  const recommendFor = useMemo(
+    () => (tags: string[]) => {
+      const counts = new Map<string, number>();
+      for (const entry of inTab) {
+        if (!tags.every((t) => entry.tags.includes(t))) continue;
+        for (const tag of entry.tags) {
+          if (!tags.includes(tag)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+        }
+      }
+      return [...counts.entries()]
+        .sort((a, b) => b[1] - a[1] || byName(a[0], b[0]))
+        .slice(0, SUGGESTION_LIMIT)
+        .map(([tag]) => tag);
+    },
+    [inTab]
+  );
+
   const tagContext = useMemo(
     () => ({
       allTags,
       tagRank,
+      recommendFor,
       setTags: (entryId: string, tags: string[]) => {
         void updateEntry(entryId, { tags });
       },
     }),
-    [allTags, tagRank, updateEntry]
+    [allTags, tagRank, recommendFor, updateEntry]
   );
 
   // Filtro: canal em OU dentro do grupo, tags em E (vídeo precisa ter todas).

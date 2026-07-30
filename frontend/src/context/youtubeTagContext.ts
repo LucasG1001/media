@@ -7,6 +7,9 @@ export interface YoutubeTagContextValue {
   // Posição da tag no ranking de popularidade (mais usada primeiro, empate em
   // ordem alfabética) — é o que ordena os chips dentro do card.
   tagRank: Map<string, number>;
+  // Coocorrência: as tags que mais acompanham **todas** as tags passadas. Lista
+  // vazia devolve as mais usadas da biblioteca.
+  recommendFor: (tags: string[]) => string[];
   setTags: (entryId: string, tags: string[]) => void;
 }
 

@@ -4,6 +4,7 @@ import { useYoutubeTags } from "../../context/youtubeTagContext";
 import { useDismiss } from "../../hooks/useDismiss";
 import { chipColorVars } from "../../utils/chipColor";
 import { TagPicker } from "./TagPicker";
+import { TagSuggestions } from "./TagSuggestions";
 import styles from "./CardTags.module.css";
 
 interface CardTagsProps {
@@ -14,25 +15,31 @@ interface CardTagsProps {
 const MENU_WIDTH = 240;
 const MENU_MAX_HEIGHT = 320;
 const MARGIN = 8;
+// Espaço mínimo embaixo para abrir para baixo: menu + faixa de sugestão.
+const STACK_MIN_HEIGHT = MENU_MAX_HEIGHT + 80;
 
 export function CardTags({ entryId, tags }: CardTagsProps) {
-  const { allTags, tagRank, setTags } = useYoutubeTags();
+  const { allTags, tagRank, recommendFor, setTags } = useYoutubeTags();
   const anchorRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [menu, setMenu] = useState<{ left: number; top: number } | null>(null);
+  const stackRef = useRef<HTMLDivElement>(null);
+  const [menu, setMenu] = useState<{ left: number; top?: number; bottom?: number } | null>(null);
   const open = menu !== null;
 
   const close = useCallback(() => setMenu(null), []);
   useDismiss(open, close);
 
-  // Posição vem do retângulo da âncora, em coordenada de viewport (menu é fixed).
+  // Posição vem do retângulo da âncora, em coordenada de viewport (a pilha é fixed).
+  // Sem espaço embaixo, ancora pelo **rodapé** acima da linha de chips: assim a
+  // faixa de sugestão cresce para cima sem precisar medir a altura dela.
   const place = useCallback(() => {
     const rect = anchorRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const below = window.innerHeight - rect.bottom;
+    const room = window.innerHeight - rect.bottom;
     setMenu({
       left: Math.max(MARGIN, Math.min(rect.left, window.innerWidth - MENU_WIDTH - MARGIN)),
-      top: below < MENU_MAX_HEIGHT + MARGIN ? Math.max(MARGIN, rect.top - MENU_MAX_HEIGHT - 4) : rect.bottom + 4,
+      ...(room < STACK_MIN_HEIGHT
+        ? { bottom: Math.max(MARGIN, window.innerHeight - rect.top + 4) }
+        : { top: rect.bottom + 4 }),
     });
   }, []);
 
@@ -42,7 +49,7 @@ export function CardTags({ entryId, tags }: CardTagsProps) {
     // lista do menu e o texto sendo digitado na busca.
     let frame = 0;
     const onScroll = (e: Event) => {
-      if (e.target instanceof Node && menuRef.current?.contains(e.target)) return;
+      if (e.target instanceof Node && stackRef.current?.contains(e.target)) return;
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
@@ -112,9 +119,9 @@ export function CardTags({ entryId, tags }: CardTagsProps) {
           <>
             <div className={styles.overlay} onClick={close} />
             <div
-              ref={menuRef}
-              className={styles.menu}
-              style={{ left: menu.left, top: menu.top, width: MENU_WIDTH, maxHeight: MENU_MAX_HEIGHT }}
+              ref={stackRef}
+              className={styles.stack}
+              style={{ left: menu.left, top: menu.top, bottom: menu.bottom, width: MENU_WIDTH }}
               onClick={(e) => e.stopPropagation()}
               // Evento de portal sobe pela árvore React: sem isso o Enter digitado
               // na busca chega no `onKeyDown` do MediaCard e abre o drawer. Escape
@@ -123,7 +130,10 @@ export function CardTags({ entryId, tags }: CardTagsProps) {
                 if (e.key !== "Escape") e.stopPropagation();
               }}
             >
-              <TagPicker allTags={allTags} selected={tags} onToggle={toggle} />
+              <TagSuggestions tags={recommendFor(tags)} onPick={toggle} />
+              <div className={styles.menu} style={{ maxHeight: MENU_MAX_HEIGHT }}>
+                <TagPicker allTags={allTags} selected={tags} onToggle={toggle} />
+              </div>
             </div>
           </>,
           document.body
