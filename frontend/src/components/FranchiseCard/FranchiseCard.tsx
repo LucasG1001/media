@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { MediaCard, type MediaCardConfig } from "../MediaCard/MediaCard";
 import { averageScore } from "../../utils/librarySort";
+import { latestAccess } from "../../utils/lastAccess";
 import styles from "./FranchiseCard.module.css";
 
 export interface MediaGroup<E> {
@@ -12,7 +13,7 @@ export interface MediaGroup<E> {
 }
 
 interface FranchiseCardProps<
-  E extends { status: string; score: number; title: string },
+  E extends { status: string; score: number; title: string; lastAccessAt?: string | null },
   T extends { id: number | string }
 > {
   group: MediaGroup<E>;
@@ -30,6 +31,7 @@ interface FranchiseCardProps<
   // expande/recolhe em vez de abrir o detalhe do representante (que segue
   // acessível como membro da expansão).
   coverIsCollectionOnly?: boolean;
+  showLastAccess?: boolean;
   selectionMode?: boolean;
   selected?: boolean;
   onLongPress?: () => void;
@@ -40,7 +42,7 @@ interface FranchiseCardProps<
 }
 
 export function FranchiseCard<
-  E extends { status: string; score: number; title: string },
+  E extends { status: string; score: number; title: string; lastAccessAt?: string | null },
   T extends { id: number | string }
 >({
   group,
@@ -55,6 +57,7 @@ export function FranchiseCard<
   entryToCard,
   expandTitle,
   coverIsCollectionOnly,
+  showLastAccess,
   selectionMode,
   selected,
   onLongPress,
@@ -65,9 +68,10 @@ export function FranchiseCard<
 }: FranchiseCardProps<E, T>) {
   const card = entryToCard(group.representative);
   // Nota exibida = média da coleção (mesmo critério da ordenação por nota), não a
-  // nota do representante: sem nenhum membro avaliado a capa não mostra nota.
+  // nota do representante: sem nenhum membro avaliado a capa não mostra nota. O
+  // último acesso segue a mesma ideia, agregando pelo mais recente.
   const displayEntry = libraryEntry
-    ? { ...libraryEntry, score: averageScore(group.members) }
+    ? { ...libraryEntry, score: averageScore(group.members), lastAccessAt: latestAccess(group.members) }
     : libraryEntry;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(collectionName ?? "");
@@ -146,6 +150,7 @@ export function FranchiseCard<
         onAdd={() => onAddToLibrary(card)}
         isLibraryView
         isCollectionCover={coverIsCollectionOnly}
+        showLastAccess={showLastAccess}
         index={index}
         selectionMode={selectionMode}
         selected={selected}

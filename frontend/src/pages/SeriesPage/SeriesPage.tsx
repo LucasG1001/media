@@ -22,6 +22,7 @@ import { buildSeasonGroups, seasonDateOf, type SeasonMember } from "../../utils/
 import { seriesLibraryEntryToCard } from "../../utils/seriesLibraryEntryToCard";
 import { SERIES_AIR_GROUP_LABELS, seriesAirGroup, type SeriesAirGroup } from "../../utils/seriesFormat";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
+import { lastAccessTimeOf } from "../../utils/lastAccess";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import styles from "./SeriesPage.module.css";
 
@@ -44,6 +45,7 @@ export function SeriesPage() {
   const [seasonModal, setSeasonModal] = useState<{ entry: SeriesLibraryEntry; member: SeasonMember } | null>(null);
   const [libraryFilter, setLibraryFilter] = useState<SeriesLibraryStatus[]>([]);
   const [airFilter, setAirFilter] = useState<SeriesAirGroup[]>([]);
+  const [showLastAccess, setShowLastAccess] = useState(false);
   const sort = useSingleSort("release");
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
   const [selectedMonth, setSelectedMonth] = useState(0);
@@ -189,7 +191,9 @@ export function SeriesPage() {
     if (!hasFilter) {
       result = result.filter((g) => g.members.some((m) => m.status !== "dropped"));
     }
-    result = sort.field === "score"
+    result = sort.field === "access"
+      ? sortGroupsByMemberDate(result, lastAccessTimeOf, sort.dir, "latest")
+      : sort.field === "score"
       ? sortGroupsByAvgScore(result, sort.dir)
       : sortGroupsByMemberDate(result, seasonDateOf, sort.dir);
     result = filterGroupsBySearch(result, librarySearch);
@@ -288,8 +292,15 @@ export function SeriesPage() {
             options: [
               { field: "release", label: "Lançamento" },
               { field: "score", label: "Nota" },
+              { field: "access", label: "Último acesso" },
             ],
             onSelect: sort.select,
+          }}
+          toggle={{
+            label: "Último acesso",
+            active: showLastAccess,
+            onToggle: () => setShowLastAccess((v) => !v),
+            title: "Mostrar quando foi o último acesso em cada card",
           }}
         />
       )}
@@ -311,6 +322,7 @@ export function SeriesPage() {
           }}
           expandTitle="Ver temporadas"
           coverIsCollectionOnly
+          showLastAccess={showLastAccess}
           animationKey={gridKey}
           emptyMessage="Sua biblioteca está vazia."
           emptyHint="Adicione séries para começar!"

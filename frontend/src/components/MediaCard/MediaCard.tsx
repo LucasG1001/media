@@ -1,5 +1,11 @@
 import { useRef, type ReactNode, type MouseEvent } from "react";
 import { useLongPress } from "../../hooks/useLongPress";
+import {
+  formatLastAccess,
+  formatLastAccessExact,
+  lastAccessTone,
+  type LastAccessTone,
+} from "../../utils/lastAccess";
 import styles from "./MediaCard.module.css";
 
 export type StatusTone = "green" | "blue" | "orange";
@@ -24,7 +30,31 @@ const TONE_CLASS: Record<StatusTone, string> = {
   orange: styles.statusOrange,
 };
 
-interface MediaCardProps<T, E extends { status: string; score: number }> {
+const ACCESS_TONE_CLASS: Record<LastAccessTone, string> = {
+  never: styles.accessNever,
+  recent: styles.accessRecent,
+  old: styles.accessOld,
+  ancient: styles.accessAncient,
+};
+
+// Só aparece com o botão "Último acesso" ligado — por padrão o card não carrega
+// esse texto. Na capa de coleção o valor é o mais recente entre os membros.
+function LastAccessPill({ at }: { at: string | null }) {
+  return (
+    <span
+      className={`${styles.accessPill} ${ACCESS_TONE_CLASS[lastAccessTone(at)]}`}
+      title={at ? formatLastAccessExact(at) : "Nunca acessado"}
+    >
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </svg>
+      {at ? formatLastAccess(at) : "nunca"}
+    </span>
+  );
+}
+
+interface MediaCardProps<T, E extends { status: string; score: number; lastAccessAt?: string | null }> {
   item: T;
   config: MediaCardConfig<T>;
   libraryEntry?: E;
@@ -35,6 +65,8 @@ interface MediaCardProps<T, E extends { status: string; score: number }> {
   // exibição/lançamento — esse estado é dos membros, não da coleção; o lugar
   // deles no topo fica para a contagem do FranchiseCard.
   isCollectionCover?: boolean;
+  // Botão "Último acesso" da barra da biblioteca: revela a data em todos os cards.
+  showLastAccess?: boolean;
   index?: number;
   selectionMode?: boolean;
   selected?: boolean;
@@ -42,7 +74,7 @@ interface MediaCardProps<T, E extends { status: string; score: number }> {
   onToggleSelect?: () => void;
 }
 
-export function MediaCard<T, E extends { status: string; score: number }>({
+export function MediaCard<T, E extends { status: string; score: number; lastAccessAt?: string | null }>({
   item,
   config,
   libraryEntry,
@@ -50,6 +82,7 @@ export function MediaCard<T, E extends { status: string; score: number }>({
   onAdd,
   isLibraryView,
   isCollectionCover = false,
+  showLastAccess = false,
   index = 0,
   selectionMode = false,
   selected = false,
@@ -60,6 +93,11 @@ export function MediaCard<T, E extends { status: string; score: number }>({
   const image = config.getImage(item);
   const badge = isCollectionCover ? null : config.getStatusBadge?.(item) ?? null;
   const score = config.getScore?.(item) ?? null;
+  // Só na biblioteca: no catálogo não existe entry e a data não faz sentido.
+  const accessPill =
+    showLastAccess && isLibraryView && libraryEntry ? (
+      <LastAccessPill at={libraryEntry.lastAccessAt ?? null} />
+    ) : null;
 
   const suppressClickRef = useRef(false);
   const longPress = useLongPress(onLongPress, suppressClickRef);
@@ -108,11 +146,17 @@ export function MediaCard<T, E extends { status: string; score: number }>({
           </span>
         )}
 
-        {!config.renderBelow && (
+        {/* Com overlay o pill entra no fluxo dele, acima do título (nada é coberto).
+            Sem overlay (YouTube, que descreve o vídeo abaixo da imagem) ele flutua
+            no canto de baixo, onde a imagem está livre. */}
+        {!config.renderBelow ? (
           <div className={styles.overlay}>
+            {accessPill}
             <div className={styles.title}>{title}</div>
             {config.renderMeta(item)}
           </div>
+        ) : (
+          accessPill && <div className={styles.accessFloat}>{accessPill}</div>
         )}
 
         <div className={styles.topBadges}>

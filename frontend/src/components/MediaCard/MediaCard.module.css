@@ -289,6 +289,57 @@
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
 }
 
+/* ---- último acesso (revelado pelo botão da barra) ---- */
+
+.accessPill {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: var(--spacing-xs);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.accessFloat {
+  position: absolute;
+  bottom: var(--spacing-sm);
+  left: var(--spacing-sm);
+  z-index: 2;
+}
+
+.accessFloat .accessPill {
+  margin-bottom: 0;
+}
+
+.accessRecent {
+  color: var(--color-success);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.accessOld {
+  color: var(--color-warning);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.accessAncient {
+  color: var(--color-error);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.accessNever {
+  color: var(--color-text-tertiary);
+  border: 1px solid var(--color-border);
+}
+
 .libraryScoreBadge {
   color: #fbbf24;
   background: rgba(0, 0, 0, 0.6);

@@ -20,6 +20,7 @@ import { buildGameCollectionGroups, releaseTimeOf } from "../../utils/gameCollec
 import { gameLibraryEntryToCard } from "../../utils/gameLibraryEntryToCard";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
+import { lastAccessTimeOf } from "../../utils/lastAccess";
 import styles from "./GamesPage.module.css";
 
 const TABS = [
@@ -46,6 +47,7 @@ export function GamesPage() {
   const [libraryFilter, setLibraryFilter] = useState<GameLibraryStatus[]>([]);
   const [modeFilter, setModeFilter] = useState<GameMode[]>([]);
   const [releaseFilter, setReleaseFilter] = useState<string[]>([]);
+  const [showLastAccess, setShowLastAccess] = useState(false);
   const sort = useSingleSort("release");
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
   const [selectedMonth, setSelectedMonth] = useState(0);
@@ -172,7 +174,9 @@ export function GamesPage() {
       groups = groups.filter((g) => g.members.some((m) => m.status !== "dropped"));
     }
     groups =
-      sort.field === "score"
+      sort.field === "access"
+        ? sortGroupsByMemberDate(groups, lastAccessTimeOf, sort.dir, "latest")
+        : sort.field === "score"
         ? sortGroupsByAvgScore(groups, sort.dir)
         : sortGroupsByMemberDate(groups, releaseTimeOf, sort.dir);
     return filterGroupsBySearch(groups, librarySearch);
@@ -275,8 +279,15 @@ export function GamesPage() {
             options: [
               { field: "release", label: "Lançamento" },
               { field: "score", label: "Nota" },
+              { field: "access", label: "Último acesso" },
             ],
             onSelect: sort.select,
+          }}
+          toggle={{
+            label: "Último acesso",
+            active: showLastAccess,
+            onToggle: () => setShowLastAccess((v) => !v),
+            title: "Mostrar quando foi o último acesso em cada card",
           }}
         />
       )}
@@ -297,6 +308,7 @@ export function GamesPage() {
           onBulkSetStatus={(ids, status) => updateManyEntries(ids, status)}
           expandTitle="Ver jogos da coleção"
           coverIsCollectionOnly
+          showLastAccess={showLastAccess}
           animationKey={gridKey}
           emptyMessage="Sua biblioteca está vazia."
           emptyHint="Adicione jogos para começar!"

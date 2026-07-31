@@ -13,6 +13,15 @@ export interface SortConfig {
   onSelect: (field: string) => void;
 }
 
+// Botão liga/desliga da barra, ao lado de Filtros/Ordenação (hoje: revelar o
+// último acesso nos cards). Não abre painel — só alterna.
+export interface ToggleConfig {
+  label: string;
+  active: boolean;
+  onToggle: () => void;
+  title?: string;
+}
+
 interface LibraryControlsProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
@@ -21,6 +30,7 @@ interface LibraryControlsProps {
   filterGroups: FilterGroupConfig[];
   onClearFilters: () => void;
   sort?: SortConfig;
+  toggle?: ToggleConfig;
 }
 
 function SortDirectionIcon({ asc }: { asc: boolean }) {
@@ -41,6 +51,7 @@ export function LibraryControls({
   filterGroups,
   onClearFilters,
   sort,
+  toggle,
 }: LibraryControlsProps) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -145,6 +156,25 @@ export function LibraryControls({
             </div>
           </div>
         </ControlPopover>
+      )}
+
+      {toggle && (
+        <button
+          type="button"
+          className={`${styles.toggle} ${styles.iconToggle} ${toggle.active ? styles.toggleOn : ""}`}
+          onClick={toggle.onToggle}
+          aria-pressed={toggle.active}
+          aria-label={toggle.label}
+          title={toggle.title ?? toggle.label}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3 2" />
+          </svg>
+          {/* No mobile fica só o ícone: o rótulo inteiro empurrava o botão para uma
+              linha só dele. O `aria-label`/`title` seguram o significado. */}
+          <span className={styles.toggleLabel}>{toggle.label}</span>
+        </button>
       )}
 
       {count > 0 && (

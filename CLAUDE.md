@@ -119,7 +119,8 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   de cada mídia + linha opcional `lastAccess` — "Última vez assistido/jogado" em data relativa,
   escondida quando nunca houve acesso), `LibraryControls` (barra de biblioteca: busca + botões Filtros/Ordenação com painel
   que é bottom-sheet no mobile e popover ancorado no desktop + chip de contagem; dirigido por config
-  `filterGroups`/`sort`, cada página monta a config do seu estado. As opções de filtro ficam em
+  `filterGroups`/`sort`/`toggle` (este último é um botão liga/desliga sem painel — hoje o "Último
+  acesso"), cada página monta a config do seu estado. As opções de filtro ficam em
   **grade** (`.filterOptions`), não em `flex-wrap`: com rótulos de larguras diferentes o wrap
   desalinhava as linhas; rótulo longo trunca com reticências e o texto inteiro vai no `title`; o
   grupo de opções em si é o `FilterCheckboxGroup` — `layout="grid"` (default) alinha as colunas,
@@ -165,6 +166,19 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     (`sortGroupsByMemberDate`, `agg:"oldest"`); **nota** = **média** das notas dos membros com
     `score>0` (`sortGroupsByAvgScore`). Exceção: Livros "Leitura" usa a data de
     leitura **mais recente** (`agg:"latest"`). Avulsos contam como coleção de 1.
+  - **Último acesso é derivado na coleção, nunca guardado**: o valor do grupo é o **mais recente**
+    entre os membros (`latestAccess` em `utils/lastAccess.ts`; ordenação "Último acesso" =
+    `sortGroupsByMemberDate(..., lastAccessTimeOf, agg:"latest")`, com nunca acessado valendo 0). É o
+    que faz item que entra numa coleção passar a compor o máximo dela e, ao sair, voltar a valer por
+    si — sem escrita nem sincronização. Mesmo espírito da nota, que é a média dos membros.
+    Livros ficam fora (não têm a coluna).
+  - **A data no card é opt-in**: o botão "Último acesso" da barra (`showLastAccess`, propagado até o
+    `MediaCard`) revela um chip em **todos** os cards — capa, membros da expansão e avulsos. Por
+    padrão nada aparece: o card já carrega título, ano, status e nota. O chip entra **dentro do
+    overlay**, acima do título (não cobre nada), e **flutua** no canto de baixo da imagem quando a
+    mídia não tem overlay (YouTube, que descreve o vídeo abaixo da imagem). Cor por faixa
+    (`lastAccessTone`): até 1 ano, 1–5 anos, 5+ anos e nunca — as mesmas faixas que o filtro por
+    tempo vai usar.
   - Padrões: anime/filmes/jogos = Lançamento(desc)+Nota; séries idem; livros =
     Publicação(desc)+Leitura+Nota.
   - **Capa é só coleção (anime/filmes/séries/jogos/youtube; prop `coverIsCollectionOnly` do

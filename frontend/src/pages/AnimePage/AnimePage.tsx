@@ -21,6 +21,7 @@ import { buildFranchiseGroups, seasonYearOf } from "../../utils/franchiseGroups"
 import { libraryEntryToCard } from "../../utils/libraryEntryToCard";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
+import { lastAccessTimeOf } from "../../utils/lastAccess";
 import styles from "./AnimePage.module.css";
 
 const TABS = [
@@ -46,6 +47,7 @@ export function AnimePage() {
   const [selectedAnimeForModal, setSelectedAnimeForModal] = useState<AnimeCard | null>(null);
   const [libraryFilter, setLibraryFilter] = useState<LibraryStatus[]>([]);
   const [airingFilter, setAiringFilter] = useState<string[]>([]);
+  const [showLastAccess, setShowLastAccess] = useState(false);
   const sort = useSingleSort("release");
   const [selectedSeasonObj, setSelectedSeasonObj] = useState(getCurrentRealSeason());
   const [selectedPopularYear, setSelectedPopularYear] = useState(0);
@@ -162,7 +164,9 @@ export function AnimePage() {
       groups = groups.filter((g) => g.members.some((m) => m.status !== "dropped"));
     }
     groups =
-      sort.field === "score"
+      sort.field === "access"
+        ? sortGroupsByMemberDate(groups, lastAccessTimeOf, sort.dir, "latest")
+        : sort.field === "score"
         ? sortGroupsByAvgScore(groups, sort.dir)
         : sortGroupsByMemberDate(groups, seasonYearOf, sort.dir);
     return filterGroupsBySearch(groups, librarySearch);
@@ -262,8 +266,15 @@ export function AnimePage() {
             options: [
               { field: "release", label: "Lançamento" },
               { field: "score", label: "Nota" },
+              { field: "access", label: "Último acesso" },
             ],
             onSelect: sort.select,
+          }}
+          toggle={{
+            label: "Último acesso",
+            active: showLastAccess,
+            onToggle: () => setShowLastAccess((v) => !v),
+            title: "Mostrar quando foi o último acesso em cada card",
           }}
         />
       )}
@@ -284,6 +295,7 @@ export function AnimePage() {
           onBulkSetStatus={(ids, status) => updateManyEntries(ids, status)}
           expandTitle="Ver temporadas, OVAs e filmes"
           coverIsCollectionOnly
+          showLastAccess={showLastAccess}
           animationKey={gridKey}
           emptyMessage="Sua biblioteca está vazia."
           emptyHint="Adicione animes para começar!"
