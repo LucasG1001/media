@@ -60,6 +60,7 @@ export function AnimePage() {
     update: updateEntry,
     updateMany: updateManyEntries,
     setCover: setCoverEntry,
+    registerAccess,
     remove: removeEntry,
     removeMany: removeManyEntries,
     findByAnilistId,
@@ -92,10 +93,10 @@ export function AnimePage() {
     setSelectedAnimeForModal(anime);
   }, []);
 
-  const handleModalSave = useCallback((anime: AnimeCard, data: { status: LibraryStatus; score: number; isRewatching: boolean }) => {
+  const handleModalSave = useCallback((anime: AnimeCard, data: { status: LibraryStatus; score: number }) => {
     const existing = findByAnilistId(anime.id);
     if (existing) {
-      updateEntry(existing.id, { status: data.status, score: data.score, isRewatching: data.isRewatching, animeStatus: anime.status });
+      updateEntry(existing.id, { status: data.status, score: data.score, animeStatus: anime.status });
     } else {
       addEntry({
         anilistId: anime.id,
@@ -153,9 +154,7 @@ export function AnimePage() {
     const hasFilter = libraryFilter.length > 0 || airingFilter.length > 0;
     const memberFilter = hasFilter
       ? (m: LibraryEntry) =>
-          (libraryFilter.length === 0 ||
-            libraryFilter.includes(m.status as LibraryStatus) ||
-            (libraryFilter.includes("plan_to_watch") && m.isRewatching)) &&
+          (libraryFilter.length === 0 || libraryFilter.includes(m.status as LibraryStatus)) &&
           (airingFilter.length === 0 || (m.animeStatus != null && airingFilter.includes(m.animeStatus)))
       : undefined;
     let groups = buildFranchiseGroups(libraryEntries, memberFilter);
@@ -333,6 +332,7 @@ export function AnimePage() {
             setCoverEntry(id);
             setSelectedAnimeForModal(null);
           }}
+          onAccessAgain={(id) => { void registerAccess(id); }}
         />
       )}
     </div>

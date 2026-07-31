@@ -16,8 +16,9 @@ export interface SeriesSeasonMeta {
 export interface SeriesSeasonState {
   status: SeriesLibraryStatus;
   score: number;
-  isRewatching: boolean;
   notes?: string | null;
+  // Última vez assistida. Em séries o último acesso é da temporada, não da série.
+  lastAccessAt?: string | null;
 }
 
 export interface SeriesLibraryEntry {
@@ -36,11 +37,11 @@ export interface SeriesLibraryEntry {
   nextAiringEpisode: SeriesNextAiringEpisode | null;
   syncedAt: string | null;
   lastNotifiedEpisode: number | null;
-  isRewatching: boolean;
   seasonList: SeriesSeasonMeta[] | null;
   seasonStates: Record<string, SeriesSeasonState> | null;
   coverSeason: number | null;
   watchedAt: string | null;
+  lastAccessAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -67,7 +68,6 @@ export interface UpdateSeriesLibraryEntry {
   seasons?: number | null;
   episodes?: number | null;
   seriesStatus?: string;
-  isRewatching?: boolean;
   seasonList?: SeriesSeasonMeta[] | null;
 }
 
@@ -86,11 +86,11 @@ export interface SeriesLibraryRow {
   next_airing_episode: SeriesNextAiringEpisode | null;
   synced_at: string | null;
   last_notified_episode: number | null;
-  is_rewatching: boolean;
   season_list: SeriesSeasonMeta[] | null;
   season_states: Record<string, SeriesSeasonState> | null;
   cover_season: number | null;
   watched_at: string | null;
+  last_access_at: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -27,8 +27,8 @@ export const gameLibraryModel = createLibraryModel<GameLibraryEntry, CreateGameL
   ],
   statusField: "status",
   completion: { column: "finished_at", field: "finishedAt", whenStatus: "beaten" },
+  lastAccess: { column: "last_access_at", field: "lastAccessAt" },
   collectionColumn: "collection_id",
-  rewatch: { column: "is_rewatching", field: "isRewatching" },
 });
 
 function toEntry(row: GameLibraryRow): GameLibraryEntry {
@@ -44,11 +44,11 @@ function toEntry(row: GameLibraryRow): GameLibraryEntry {
     gameStatus: row.game_status,
     collectionId: row.collection_id,
     isCover: row.is_cover,
-    isRewatching: row.is_rewatching,
     gameModes: row.game_modes,
     syncedAt: row.synced_at,
     notes: row.notes,
     finishedAt: row.finished_at,
+    lastAccessAt: row.last_access_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -64,7 +64,7 @@ export async function bulkUpsertGames(entries: CreateGameLibraryEntry[], collect
   for (const entry of entries) {
     const statusParam = `$${i + 3}`;
     rows.push(
-      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, CASE WHEN ${statusParam} = 'beaten' THEN NOW() ELSE NULL END)`
+      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, CASE WHEN ${statusParam} = 'beaten' THEN NOW() ELSE NULL END, CASE WHEN ${statusParam} = 'beaten' THEN NOW() ELSE NULL END)`
     );
     values.push(
       entry.igdbId,
@@ -83,7 +83,7 @@ export async function bulkUpsertGames(entries: CreateGameLibraryEntry[], collect
 
   const result = await pool.query<GameLibraryRow>(
     `INSERT INTO game_library
-       (igdb_id, title, background_image, status, score, released, metacritic, game_status, collection_id, game_modes, finished_at)
+       (igdb_id, title, background_image, status, score, released, metacritic, game_status, collection_id, game_modes, finished_at, last_access_at)
      VALUES ${rows.join(", ")}
      ON CONFLICT (igdb_id) DO UPDATE SET
        collection_id = COALESCE(game_library.collection_id, EXCLUDED.collection_id)

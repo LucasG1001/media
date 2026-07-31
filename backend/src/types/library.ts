@@ -11,7 +11,6 @@ export interface LibraryEntry {
   animeStatus: string;
   franchiseId: number | null;
   isCover: boolean;
-  isRewatching: boolean;
   format: string | null;
   seasonYear: number | null;
   nextAiringEpisode: AniListNextAiringEpisode | null;
@@ -19,6 +18,7 @@ export interface LibraryEntry {
   syncedAt: string | null;
   notes: string | null;
   watchedAt: string | null;
+  lastAccessAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,7 +46,6 @@ export interface UpdateLibraryEntry {
   score?: number;
   totalEpisodes?: number | null;
   animeStatus?: string;
-  isRewatching?: boolean;
   notes?: string | null;
 }
 
@@ -72,7 +71,6 @@ export interface LibraryRow {
   anime_status: string;
   franchise_id: number | null;
   is_cover: boolean;
-  is_rewatching: boolean;
   format: string | null;
   season_year: number | null;
   next_airing_episode: AniListNextAiringEpisode | null;
@@ -80,6 +78,7 @@ export interface LibraryRow {
   synced_at: string | null;
   notes: string | null;
   watched_at: string | null;
+  last_access_at: string | null;
   created_at: string;
   updated_at: string;
 }

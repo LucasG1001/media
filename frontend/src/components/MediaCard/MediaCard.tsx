@@ -24,16 +24,16 @@ const TONE_CLASS: Record<StatusTone, string> = {
   orange: styles.statusOrange,
 };
 
-interface MediaCardProps<T, E extends { status: string; score: number; isRewatching?: boolean }> {
+interface MediaCardProps<T, E extends { status: string; score: number }> {
   item: T;
   config: MediaCardConfig<T>;
   libraryEntry?: E;
   onClick: () => void;
   onAdd: (e: MouseEvent) => void;
   isLibraryView?: boolean;
-  // Capa de coleção: mostra só a média. Sem botão de status e sem os badges do
-  // item (exibição/lançamento e "reassistindo") — esse estado é dos membros, não
-  // da coleção; o lugar deles no topo fica para a contagem do FranchiseCard.
+  // Capa de coleção: mostra só a média. Sem botão de status e sem o badge de
+  // exibição/lançamento — esse estado é dos membros, não da coleção; o lugar
+  // deles no topo fica para a contagem do FranchiseCard.
   isCollectionCover?: boolean;
   index?: number;
   selectionMode?: boolean;
@@ -42,7 +42,7 @@ interface MediaCardProps<T, E extends { status: string; score: number; isRewatch
   onToggleSelect?: () => void;
 }
 
-export function MediaCard<T, E extends { status: string; score: number; isRewatching?: boolean }>({
+export function MediaCard<T, E extends { status: string; score: number }>({
   item,
   config,
   libraryEntry,
@@ -139,9 +139,6 @@ export function MediaCard<T, E extends { status: string; score: number; isRewatc
           )}
           {badge && (
             <span className={`${styles.statusBadge} ${TONE_CLASS[badge.tone]}`}>{badge.label}</span>
-          )}
-          {libraryEntry?.isRewatching && !isCollectionCover && (
-            <span className={styles.rewatchBadge} title="Reassistindo" aria-label="Reassistindo">🔁</span>
           )}
         </div>
 

@@ -20,7 +20,7 @@ export interface YoutubeLibraryEntry {
   status: YoutubeLibraryStatus;
   score: number;
   likedAt: string | null;
-  isRewatching: boolean;
+  lastAccessAt: string | null;
   notes: string | null;
   collectionId: number | null;
   isCover: boolean;
@@ -48,7 +48,6 @@ export interface UpdateYoutubeLibraryEntry {
   title?: string;
   status?: YoutubeLibraryStatus;
   score?: number;
-  isRewatching?: boolean;
   notes?: string | null;
   tags?: string[];
 }

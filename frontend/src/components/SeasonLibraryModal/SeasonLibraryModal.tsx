@@ -9,19 +9,21 @@ interface SeasonLibraryModalProps {
   poster: string | null;
   status: SeriesLibraryStatus;
   score: number;
-  isRewatching: boolean;
   isCover: boolean;
+  lastAccessAt: string | null;
   onClose: () => void;
-  onSave: (data: { status: SeriesLibraryStatus; score: number; isRewatching: boolean }) => void;
+  onSave: (data: { status: SeriesLibraryStatus; score: number }) => void;
+  // "Assisti de novo" da temporada.
+  onAccessAgain: () => void;
   // Só nas coleções de 2+ temporadas: definir esta como capa.
   onSetCover?: () => void;
   // Só na série de temporada única: remover = remover a série.
   onRemove?: () => void;
 }
 
-// Modal de temporada igual ao dos filmes (status + nota + reassistindo + definir
-// capa). Temporada de coleção não é removida individualmente — daí o "Remover"
-// aparecer só quando a série tem uma única temporada.
+// Modal de temporada igual ao dos filmes (status + nota + definir capa).
+// Temporada de coleção não é removida individualmente — daí o "Remover" aparecer
+// só quando a série tem uma única temporada.
 export function SeasonLibraryModal({
   seriesTitle,
   seasonNumber,
@@ -29,10 +31,11 @@ export function SeasonLibraryModal({
   poster,
   status,
   score,
-  isRewatching,
   isCover,
+  lastAccessAt,
   onClose,
   onSave,
+  onAccessAgain,
   onSetCover,
   onRemove,
 }: SeasonLibraryModalProps) {
@@ -48,13 +51,13 @@ export function SeasonLibraryModal({
       canSetCover={!!onSetCover}
       isCover={isCover}
       onSetCover={onSetCover}
-      rewatch={{ label: "Reassistindo", whenStatus: "watched", initial: isRewatching }}
+      lastAccess={{ label: "Última vez assistida", at: lastAccessAt }}
+      again={{ label: "🔁 Assisti de novo", whenStatus: "watched", onClick: onAccessAgain }}
       onClose={onClose}
       onSave={(data) =>
         onSave({
           status: data.status as SeriesLibraryStatus,
           score: data.score,
-          isRewatching: data.rewatching ?? false,
         })
       }
       onRemove={() => onRemove?.()}

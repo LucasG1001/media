@@ -4,6 +4,7 @@ import {
   youtubeLibraryModel,
   addTagMany,
   removeTagMany,
+  touchAccess,
   bulkUpsertVideos,
   createCollection,
   renameCollection as renameCollectionModel,
@@ -56,6 +57,21 @@ export async function update(req: Request, res: Response): Promise<void> {
     }
   }
   await base.update(req, res);
+}
+
+// No YouTube o acesso é abrir o vídeo, não mudar de status.
+export async function registerAccess(req: Request, res: Response): Promise<void> {
+  try {
+    const entry = await touchAccess(String(req.params.id));
+    if (!entry) {
+      res.status(404).json({ error: "Vídeo não encontrado na biblioteca." });
+      return;
+    }
+    res.json(entry);
+  } catch (error) {
+    void notifyError("API POST /api/youtube-library/:id/access", error);
+    res.status(500).json({ error: "Erro ao registrar acesso ao vídeo." });
+  }
 }
 
 export async function createFromUrl(req: Request, res: Response): Promise<void> {

@@ -23,7 +23,7 @@ const base = createLibraryController({
   },
 });
 
-export const { getAll, update, updateManyStatus, setCover, remove, removeMany } = base;
+export const { getAll, update, updateManyStatus, setCover, registerAccess, remove, removeMany } = base;
 
 export async function create(req: Request, res: Response): Promise<void> {
   try {

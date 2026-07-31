@@ -16,6 +16,12 @@ export async function updateLibraryEntry(id: string, data: UpdateMovieLibraryEnt
   return response.data;
 }
 
+// "Assisti/joguei de novo": só a data de último acesso avança.
+export async function registerAccess(id: string): Promise<MovieLibraryEntry> {
+  const response = await api.post<MovieLibraryEntry>(`/api/movie-library/${id}/access`);
+  return response.data;
+}
+
 export async function setCover(id: string): Promise<MovieLibraryEntry> {
   const response = await api.put<MovieLibraryEntry>(`/api/movie-library/${id}/cover`);
   return response.data;

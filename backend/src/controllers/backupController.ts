@@ -42,6 +42,7 @@ const TABLES: TableSpec[] = [
       { column: "franchise_id", get: (e) => e.franchiseId ?? null },
       { column: "format", get: (e) => e.format ?? null },
       { column: "watched_at", get: (e) => e.watchedAt ?? null },
+      { column: "last_access_at", get: (e) => e.lastAccessAt ?? null },
       { column: "synced_at", get: (e) => e.syncedAt ?? null },
       { column: "notes", get: (e) => e.notes ?? null },
     ],
@@ -61,6 +62,7 @@ const TABLES: TableSpec[] = [
       { column: "movie_status", get: (e) => e.movieStatus ?? "RELEASED" },
       { column: "collection_id", get: (e) => e.collectionId ?? null },
       { column: "watched_at", get: (e) => e.watchedAt ?? null },
+      { column: "last_access_at", get: (e) => e.lastAccessAt ?? null },
       { column: "synced_at", get: (e) => e.syncedAt ?? null },
       { column: "notes", get: (e) => e.notes ?? null },
     ],
@@ -83,7 +85,8 @@ const TABLES: TableSpec[] = [
       { column: "next_airing_episode", get: (e) => e.nextAiringEpisode ?? null, json: true },
       { column: "synced_at", get: (e) => e.syncedAt ?? null },
       { column: "watched_at", get: (e) => e.watchedAt ?? null },
-      // Estado por temporada (status/nota/reassistindo/anotação) — sem isto o
+      { column: "last_access_at", get: (e) => e.lastAccessAt ?? null },
+      // Estado por temporada (status/nota/anotação/último acesso) — sem isto o
       // import zera a coleção de temporadas.
       { column: "season_list", get: (e) => e.seasonList ?? null, json: true },
       { column: "season_states", get: (e) => e.seasonStates ?? null, json: true },
@@ -106,6 +109,7 @@ const TABLES: TableSpec[] = [
       { column: "collection_id", get: (e) => e.collectionId ?? null },
       { column: "game_modes", get: (e) => e.gameModes ?? null },
       { column: "finished_at", get: (e) => e.finishedAt ?? null },
+      { column: "last_access_at", get: (e) => e.lastAccessAt ?? null },
       { column: "synced_at", get: (e) => e.syncedAt ?? null },
       { column: "notes", get: (e) => e.notes ?? null },
     ],
@@ -155,8 +159,8 @@ const TABLES: TableSpec[] = [
       { column: "score", get: (e) => e.score ?? 0 },
       { column: "collection_id", get: (e) => e.collectionId ?? null },
       { column: "is_cover", get: (e) => e.isCover ?? false },
-      { column: "is_rewatching", get: (e) => e.isRewatching ?? false },
       { column: "liked_at", get: (e) => e.likedAt ?? null },
+      { column: "last_access_at", get: (e) => e.lastAccessAt ?? null },
       { column: "notes", get: (e) => e.notes ?? null },
       { column: "tags", get: (e) => e.tags ?? [] },
     ],

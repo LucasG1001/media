@@ -30,13 +30,16 @@ export const youtubeLibraryModel = createLibraryModel<
     { column: "notes", field: "notes", default: null },
     { column: "collection_id", field: "collectionId", default: null },
     { column: "is_cover", field: "isCover", default: false, readonly: true },
+    // Último acesso do YouTube não é dirigido por status (o whenStatus é `liked`,
+    // que é o default — qualquer salvar estamparia a data): quem grava é o
+    // touchAccess, chamado ao abrir o drawer do vídeo. Daí `readonly`.
+    { column: "last_access_at", field: "lastAccessAt", default: null, readonly: true },
     // `text[]` vai como array JS direto (igual game_modes), sem JSON.stringify.
     { column: "tags", field: "tags", default: [] },
   ],
   statusField: "status",
   completion: { column: "liked_at", field: "likedAt", whenStatus: "liked" },
   collectionColumn: "collection_id",
-  rewatch: { column: "is_rewatching", field: "isRewatching" },
 });
 
 // Playlist importada vira uma coleção com o nome dela.
@@ -90,6 +93,18 @@ export async function bulkUpsertVideos(
   }
 
   return count;
+}
+
+// Abrir o drawer do vídeo é o que conta como acesso no YouTube (não o status, nem
+// um botão de "assisti de novo" como nas outras mídias). Não toca `updated_at`:
+// abrir um vídeo é passivo e não pode reordenar a biblioteca.
+export async function touchAccess(id: string): Promise<YoutubeLibraryEntry | null> {
+  const result = await pool.query(
+    `UPDATE youtube_library SET last_access_at = NOW() WHERE id = $1`,
+    [id]
+  );
+  if ((result.rowCount ?? 0) === 0) return null;
+  return youtubeLibraryModel.findById(id);
 }
 
 // `collection_id IS NOT NULL` firma a regra no banco: tag só existe dentro de

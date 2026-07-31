@@ -59,6 +59,8 @@ export function SeriesPage() {
     remove: removeEntry,
     saveSeason,
     saveSeasonNotes,
+    registerAccess,
+    registerSeasonAccess,
     setCoverSeason,
     findByTmdbId,
   } = useSeriesLibrary();
@@ -96,8 +98,8 @@ export function SeriesPage() {
     }
   }, []);
 
-  // Botão de status: temporada → modal da temporada (status/nota/reassistindo/capa);
-  // série sem temporadas → modal da série (status/reassistindo/remover).
+  // Botão de status: temporada → modal da temporada (status/nota/capa);
+  // série sem temporadas → modal da série (status/remover).
   const handleSeasonStatusClick = useCallback((card: SeasonMember) => {
     const entry = findByTmdbId(card.tmdbId);
     if (!entry) return;
@@ -112,10 +114,10 @@ export function SeriesPage() {
     setSelectedSeriesForModal(item);
   }, []);
 
-  const handleModalSave = useCallback((item: SeriesCard, data: { status: SeriesLibraryStatus; isRewatching: boolean }) => {
+  const handleModalSave = useCallback((item: SeriesCard, data: { status: SeriesLibraryStatus }) => {
     const existing = findByTmdbId(item.id);
     if (existing) {
-      updateEntry(existing.id, { status: data.status, isRewatching: data.isRewatching, seriesStatus: item.seriesStatus });
+      updateEntry(existing.id, { status: data.status, seriesStatus: item.seriesStatus });
     } else {
       addEntry({
         tmdbId: item.id,
@@ -175,9 +177,7 @@ export function SeriesPage() {
   const collectionGroups = useMemo(() => {
     const hasFilter = libraryFilter.length > 0 || airFilter.length > 0;
     const memberFilter = libraryFilter.length > 0
-      ? (m: SeasonMember) =>
-          libraryFilter.includes(m.status as SeriesLibraryStatus) ||
-          (libraryFilter.includes("plan_to_watch") && m.isRewatching)
+      ? (m: SeasonMember) => libraryFilter.includes(m.status as SeriesLibraryStatus)
       : undefined;
 
     const entries = airFilter.length > 0
@@ -351,6 +351,7 @@ export function SeriesPage() {
           onClose={() => setSelectedSeriesForModal(null)}
           onSave={handleModalSave}
           onRemove={handleModalRemove}
+          onAccessAgain={(id) => { void registerAccess(id); }}
         />
       )}
 
@@ -377,12 +378,15 @@ export function SeriesPage() {
           poster={seasonModal.member.poster}
           status={seasonModal.member.status as SeriesLibraryStatus}
           score={seasonModal.member.score}
-          isRewatching={seasonModal.member.isRewatching}
+          lastAccessAt={seasonModal.member.lastAccessAt}
           isCover={findByTmdbId(seasonModal.member.tmdbId)?.coverSeason === seasonModal.member.seasonNumber}
           onClose={() => setSeasonModal(null)}
           onSave={(data) => {
             saveSeason(seasonModal.entry.id, seasonModal.member.seasonNumber as number, data);
             setSeasonModal(null);
+          }}
+          onAccessAgain={() => {
+            void registerSeasonAccess(seasonModal.entry.id, seasonModal.member.seasonNumber as number);
           }}
           onSetCover={
             seasonModal.member.isOnlySeason

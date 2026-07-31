@@ -7,12 +7,13 @@ interface LibraryModalProps {
   anime: AnimeCard;
   libraryEntry: LibraryEntry | undefined;
   onClose: () => void;
-  onSave: (anime: AnimeCard, data: { status: LibraryStatus; score: number; isRewatching: boolean }) => void;
+  onSave: (anime: AnimeCard, data: { status: LibraryStatus; score: number }) => void;
   onRemove: (id: string) => void;
   onSetCover: (id: string) => void;
+  onAccessAgain: (id: string) => void;
 }
 
-export function LibraryModal({ anime, libraryEntry, onClose, onSave, onRemove, onSetCover }: LibraryModalProps) {
+export function LibraryModal({ anime, libraryEntry, onClose, onSave, onRemove, onSetCover, onAccessAgain }: LibraryModalProps) {
   return (
     <LibraryModalBase
       title={anime.title}
@@ -24,14 +25,14 @@ export function LibraryModal({ anime, libraryEntry, onClose, onSave, onRemove, o
       hasEntry={!!libraryEntry}
       canSetCover={!!libraryEntry && libraryEntry.franchiseId != null}
       isCover={libraryEntry?.isCover ?? false}
-      rewatch={{ label: "Reassistindo", whenStatus: "watched", initial: libraryEntry?.isRewatching ?? false }}
+      lastAccess={{ label: "Última vez assistido", at: libraryEntry?.lastAccessAt ?? null }}
+      again={{ label: "🔁 Assisti de novo", whenStatus: "watched", onClick: () => libraryEntry && onAccessAgain(libraryEntry.id) }}
       onSetCover={() => libraryEntry && onSetCover(libraryEntry.id)}
       onClose={onClose}
       onSave={(data) =>
         onSave(anime, {
           status: data.status as LibraryStatus,
           score: data.score,
-          isRewatching: data.rewatching ?? false,
         })
       }
       onRemove={() => libraryEntry && onRemove(libraryEntry.id)}

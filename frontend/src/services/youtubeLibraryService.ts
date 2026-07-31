@@ -32,6 +32,11 @@ export async function updateLibraryEntry(id: string, data: UpdateYoutubeLibraryE
   return response.data;
 }
 
+export async function registerAccess(id: string): Promise<YoutubeLibraryEntry> {
+  const response = await api.post<YoutubeLibraryEntry>(`/api/youtube-library/${id}/access`);
+  return response.data;
+}
+
 export async function setCover(id: string): Promise<YoutubeLibraryEntry> {
   const response = await api.put<YoutubeLibraryEntry>(`/api/youtube-library/${id}/cover`);
   return response.data;

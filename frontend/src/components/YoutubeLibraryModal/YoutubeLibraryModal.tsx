@@ -5,7 +5,7 @@ import { LibraryModalBase } from "../LibraryModalBase/LibraryModalBase";
 interface YoutubeLibraryModalProps {
   entry: YoutubeLibraryEntry;
   onClose: () => void;
-  onSave: (id: string, data: { status: YoutubeLibraryStatus; score: number; isRewatching: boolean }) => void;
+  onSave: (id: string, data: { status: YoutubeLibraryStatus; score: number }) => void;
   onRemove: (id: string) => void;
   onSetCover: (id: string) => void;
 }
@@ -22,13 +22,13 @@ export function YoutubeLibraryModal({ entry, onClose, onSave, onRemove, onSetCov
       hasEntry
       canSetCover={entry.collectionId != null}
       isCover={entry.isCover}
+      lastAccess={{ label: "Último acesso", at: entry.lastAccessAt }}
       onSetCover={() => onSetCover(entry.id)}
       onClose={onClose}
       onSave={(data) =>
         onSave(entry.id, {
           status: data.status as YoutubeLibraryStatus,
           score: data.score,
-          isRewatching: data.rewatching ?? false,
         })
       }
       onRemove={() => onRemove(entry.id)}

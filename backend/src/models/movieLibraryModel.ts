@@ -26,8 +26,8 @@ export const movieLibraryModel = createLibraryModel<MovieLibraryEntry, CreateMov
   ],
   statusField: "status",
   completion: { column: "watched_at", field: "watchedAt", whenStatus: "watched" },
+  lastAccess: { column: "last_access_at", field: "lastAccessAt" },
   collectionColumn: "collection_id",
-  rewatch: { column: "is_rewatching", field: "isRewatching" },
 });
 
 function toEntry(row: MovieLibraryRow): MovieLibraryEntry {
@@ -43,10 +43,10 @@ function toEntry(row: MovieLibraryRow): MovieLibraryEntry {
     movieStatus: row.movie_status,
     collectionId: row.collection_id,
     isCover: row.is_cover,
-    isRewatching: row.is_rewatching,
     syncedAt: row.synced_at,
     notes: row.notes,
     watchedAt: row.watched_at,
+    lastAccessAt: row.last_access_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -101,7 +101,7 @@ export async function bulkUpsertMovies(entries: CreateMovieLibraryEntry[], colle
   for (const entry of entries) {
     const statusParam = `$${i + 3}`;
     rows.push(
-      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, CASE WHEN ${statusParam} = 'watched' THEN NOW() ELSE NULL END)`
+      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, CASE WHEN ${statusParam} = 'watched' THEN NOW() ELSE NULL END, CASE WHEN ${statusParam} = 'watched' THEN NOW() ELSE NULL END)`
     );
     values.push(
       entry.tmdbId,
@@ -119,7 +119,7 @@ export async function bulkUpsertMovies(entries: CreateMovieLibraryEntry[], colle
 
   const result = await pool.query<MovieLibraryRow>(
     `INSERT INTO movie_library
-       (tmdb_id, title, poster_image, status, score, release_date, runtime, movie_status, collection_id, watched_at)
+       (tmdb_id, title, poster_image, status, score, release_date, runtime, movie_status, collection_id, watched_at, last_access_at)
      VALUES ${rows.join(", ")}
      ON CONFLICT (tmdb_id) DO UPDATE SET
        collection_id = COALESCE(movie_library.collection_id, EXCLUDED.collection_id)

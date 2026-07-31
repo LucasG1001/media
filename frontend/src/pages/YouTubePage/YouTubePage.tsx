@@ -76,6 +76,7 @@ export function YouTubePage() {
     remove: removeEntry,
     removeMany: removeManyEntries,
     findByVideoId,
+    registerAccess,
     addFromUrl,
     addTagMany,
     removeTagMany,
@@ -374,8 +375,12 @@ export function YouTubePage() {
 
       {drawerEntry && (
         <YoutubeDrawer
+          // key por vídeo: o drawer registra o acesso na montagem e congela a
+          // data anterior para exibir, então trocar de vídeo precisa remontar.
+          key={drawerEntry.id}
           entry={drawerEntry}
           onClose={() => setDrawerVideoId(null)}
+          onOpen={() => { void registerAccess(drawerEntry.id); }}
           onNotesChange={(notes) => { void updateEntry(drawerEntry.id, { notes }); }}
         />
       )}

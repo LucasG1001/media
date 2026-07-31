@@ -12,10 +12,10 @@ export interface MovieLibraryEntry {
   movieStatus: string;
   collectionId: number | null;
   isCover: boolean;
-  isRewatching: boolean;
   syncedAt: string | null;
   notes: string | null;
   watchedAt: string | null;
+  lastAccessAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -39,7 +39,6 @@ export interface UpdateMovieLibraryEntry {
   releaseDate?: string | null;
   runtime?: number | null;
   movieStatus?: string;
-  isRewatching?: boolean;
   notes?: string | null;
 }
 

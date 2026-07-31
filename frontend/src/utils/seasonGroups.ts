@@ -14,11 +14,13 @@ export interface SeasonMember {
   poster: string | null;
   score: number;
   status: string;
-  isRewatching: boolean;
   airDate: string | null;
   episodeCount: number | null;
   // Anotação do usuário. Só nos membros temporada — a série não tem anotação.
   notes: string | null;
+  // Última vez assistida. Nos membros temporada vem do season_states; no
+  // representante e no fallback sem temporadas, da coluna da série.
+  lastAccessAt: string | null;
   // Nos membros temporada: indica se é a capa da coleção.
   isCover?: boolean;
   // Só no representante: indica se há temporadas reais.
@@ -53,19 +55,19 @@ function seriesRepresentative(
     // fantasma" em série sem temporada avaliada).
     score,
     status: entry.status,
-    isRewatching: false,
     airDate: entry.firstAirDate,
     episodeCount: entry.episodes,
     notes: null,
+    lastAccessAt: entry.lastAccessAt,
     hasSeasons,
   };
 }
 
 // Estado padrão de uma temporada ainda não avaliada.
-const DEFAULT_STATE = { status: "plan_to_watch", score: 0, isRewatching: false, notes: null };
+const DEFAULT_STATE = { status: "plan_to_watch", score: 0, notes: null, lastAccessAt: null };
 
 // Uma coleção por série: representante = a série (capa + nome), membros = as
-// temporadas (cada uma com status/nota/reassistindo próprios). Só é coleção com
+// temporadas (cada uma com status e nota próprios). Só é coleção com
 // 2+ temporadas: com 1 temporada o grupo vira card simples que mostra a série mas
 // carrega o estado daquela temporada (`isOnlySeason`), e séries sem season_list
 // caem no fallback de 1 membro (a própria série).
@@ -98,10 +100,10 @@ export function buildSeasonGroups(
         poster: s.poster ?? entry.posterImage,
         score: st.score,
         status: st.status,
-        isRewatching: st.isRewatching,
         airDate: s.airDate,
         episodeCount: s.episodeCount,
         notes: st.notes ?? null,
+        lastAccessAt: st.lastAccessAt ?? null,
         isCover: entry.coverSeason === s.number,
       };
     });

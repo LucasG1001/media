@@ -23,8 +23,8 @@ export const animeLibraryModel = createLibraryModel<LibraryEntry, CreateLibraryE
   ],
   statusField: "status",
   completion: { column: "watched_at", field: "watchedAt", whenStatus: "watched" },
+  lastAccess: { column: "last_access_at", field: "lastAccessAt" },
   collectionColumn: "franchise_id",
-  rewatch: { column: "is_rewatching", field: "isRewatching" },
 });
 
 // CRUD padrão vem da factory; funções específicas de anime (JSONB, sync, franquia) ficam abaixo.
@@ -49,7 +49,6 @@ function toLibraryEntry(row: LibraryRow): LibraryEntry {
     animeStatus: row.anime_status,
     franchiseId: row.franchise_id,
     isCover: row.is_cover,
-    isRewatching: row.is_rewatching,
     format: row.format,
     seasonYear: row.season_year,
     nextAiringEpisode: row.next_airing_episode,
@@ -57,6 +56,7 @@ function toLibraryEntry(row: LibraryRow): LibraryEntry {
     syncedAt: row.synced_at,
     notes: row.notes,
     watchedAt: row.watched_at,
+    lastAccessAt: row.last_access_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -80,8 +80,8 @@ export async function findStale(nonFinishedTtlHours: number, finishedTtlHours: n
 export async function create(entry: CreateLibraryEntry): Promise<LibraryEntry> {
   const result = await pool.query<LibraryRow>(
     `INSERT INTO anime_library
-       (anilist_id, title, cover_image, status, score, total_episodes, anime_status, season_year, next_airing_episode, streaming_links, synced_at, watched_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), CASE WHEN $4 = 'watched' THEN NOW() ELSE NULL END)
+       (anilist_id, title, cover_image, status, score, total_episodes, anime_status, season_year, next_airing_episode, streaming_links, synced_at, watched_at, last_access_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), CASE WHEN $4 = 'watched' THEN NOW() ELSE NULL END, CASE WHEN $4 = 'watched' THEN NOW() ELSE NULL END)
      RETURNING *`,
     [
       entry.anilistId,
@@ -109,7 +109,7 @@ export async function bulkUpsert(entries: CreateLibraryEntry[], franchiseId: num
   for (const entry of entries) {
     const statusParam = `$${i + 3}`;
     rows.push(
-      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, $${i + 10}, $${i + 11}, NOW(), CASE WHEN ${statusParam} = 'watched' THEN NOW() ELSE NULL END)`
+      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, $${i + 10}, $${i + 11}, NOW(), CASE WHEN ${statusParam} = 'watched' THEN NOW() ELSE NULL END, CASE WHEN ${statusParam} = 'watched' THEN NOW() ELSE NULL END)`
     );
     values.push(
       entry.anilistId,
@@ -130,7 +130,7 @@ export async function bulkUpsert(entries: CreateLibraryEntry[], franchiseId: num
 
   const result = await pool.query<LibraryRow>(
     `INSERT INTO anime_library
-       (anilist_id, title, cover_image, status, score, total_episodes, anime_status, season_year, next_airing_episode, streaming_links, franchise_id, format, synced_at, watched_at)
+       (anilist_id, title, cover_image, status, score, total_episodes, anime_status, season_year, next_airing_episode, streaming_links, franchise_id, format, synced_at, watched_at, last_access_at)
      VALUES ${rows.join(", ")}
      ON CONFLICT (anilist_id) DO UPDATE SET
        franchise_id = COALESCE(anime_library.franchise_id, EXCLUDED.franchise_id),

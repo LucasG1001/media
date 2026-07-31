@@ -12,11 +12,11 @@ export interface GameLibraryEntry {
   gameStatus: string;
   collectionId: number | null;
   isCover: boolean;
-  isRewatching: boolean;
   gameModes: string[] | null;
   syncedAt: string | null;
   notes: string | null;
   finishedAt: string | null;
+  lastAccessAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -42,7 +42,6 @@ export interface UpdateGameLibraryEntry {
   released?: string | null;
   metacritic?: number | null;
   gameStatus?: string;
-  isRewatching?: boolean;
   notes?: string | null;
 }
 
@@ -66,11 +65,11 @@ export interface GameLibraryRow {
   game_status: string;
   collection_id: number | null;
   is_cover: boolean;
-  is_rewatching: boolean;
   game_modes: string[] | null;
   synced_at: string | null;
   notes: string | null;
   finished_at: string | null;
+  last_access_at: string | null;
   created_at: string;
   updated_at: string;
 }

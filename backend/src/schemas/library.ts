@@ -17,7 +17,7 @@ export const movieCreateSchema = z.object({
   runtime: nullableNumber,
   movieStatus: z.string().optional(),
 });
-export const movieUpdateSchema = movieCreateSchema.partial().extend({ isRewatching: z.boolean().optional(), notes });
+export const movieUpdateSchema = movieCreateSchema.partial().extend({ notes });
 
 export const seriesCreateSchema = z.object({
   tmdbId: z.number(),
@@ -30,7 +30,7 @@ export const seriesCreateSchema = z.object({
   episodes: nullableNumber,
   seriesStatus: z.string().optional(),
 });
-export const seriesUpdateSchema = seriesCreateSchema.partial().extend({ isRewatching: z.boolean().optional() });
+export const seriesUpdateSchema = seriesCreateSchema.partial();
 
 export const gameCreateSchema = z.object({
   igdbId: z.number(),
@@ -43,7 +43,7 @@ export const gameCreateSchema = z.object({
   gameStatus: z.string().optional(),
   gameModes: z.array(z.string()).optional(),
 });
-export const gameUpdateSchema = gameCreateSchema.partial().extend({ isRewatching: z.boolean().optional(), notes });
+export const gameUpdateSchema = gameCreateSchema.partial().extend({ notes });
 
 export const bookCreateSchema = z.object({
   googleBooksId: z.string().min(1),
@@ -77,7 +77,6 @@ export const animeUpdateSchema = z.object({
   score,
   totalEpisodes: nullableNumber,
   animeStatus: z.string().optional(),
-  isRewatching: z.boolean().optional(),
   notes,
 });
 
@@ -98,7 +97,7 @@ export const youtubeCreateSchema = z.object({
   score,
   tags: z.array(tag).max(50).optional(),
 });
-export const youtubeUpdateSchema = youtubeCreateSchema.partial().extend({ isRewatching: z.boolean().optional(), notes });
+export const youtubeUpdateSchema = youtubeCreateSchema.partial().extend({ notes });
 
 export const youtubeFromUrlSchema = z.object({ url: z.string().min(1) });
 export const youtubeBulkTagSchema = z.object({

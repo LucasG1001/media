@@ -14,8 +14,11 @@ export interface LibraryModelConfig {
   fields: FieldSpec[];
   statusField: string;
   completion: { column: string; field: string; whenStatus: string };
+  // Última vez consumido. Distinto do `completion`: é gravado ao entrar no status
+  // concluído e pelo `touchAccess` ("assisti de novo"), e nunca é limpo ao sair
+  // do status concluído.
+  lastAccess?: { column: string; field: string };
   collectionColumn?: string;
-  rewatch?: { column: string; field: string };
 }
 
 export interface LibraryModel<TEntry, TCreate, TUpdate> {
@@ -25,6 +28,8 @@ export interface LibraryModel<TEntry, TCreate, TUpdate> {
   create(entry: TCreate): Promise<TEntry>;
   update(id: string, data: TUpdate): Promise<TEntry | null>;
   updateManyStatus(ids: string[], status: string): Promise<TEntry[]>;
+  /** Só existe quando `lastAccess` está configurado. */
+  touchAccess?(id: string): Promise<TEntry | null>;
   remove(id: string): Promise<boolean>;
   removeMany(ids: string[]): Promise<number>;
   setCover?(id: string): Promise<TEntry | null>;
@@ -35,7 +40,7 @@ type Row = Record<string, unknown>;
 export function createLibraryModel<TEntry, TCreate, TUpdate>(
   config: LibraryModelConfig
 ): LibraryModel<TEntry, TCreate, TUpdate> {
-  const { table, externalId, fields, statusField, completion, collectionColumn, rewatch } = config;
+  const { table, externalId, fields, statusField, completion, lastAccess, collectionColumn } = config;
 
   const toEntry = (row: Row): TEntry => {
     const entry: Row = { id: row.id };
@@ -45,7 +50,7 @@ export function createLibraryModel<TEntry, TCreate, TUpdate>(
       entry[f.field] = f.numeric ? parseFloat(value as string) : value;
     }
     entry[completion.field] = row[completion.column];
-    if (rewatch) entry[rewatch.field] = row[rewatch.column];
+    if (lastAccess) entry[lastAccess.field] = row[lastAccess.column];
     entry.createdAt = row.created_at;
     entry.updatedAt = row.updated_at;
     return entry as TEntry;
@@ -81,6 +86,12 @@ export function createLibraryModel<TEntry, TCreate, TUpdate>(
     const statusParam = insertable.findIndex((f) => f.field === statusField) + 2;
     insertCols.push(completion.column);
     placeholders.push(`CASE WHEN $${statusParam} = '${completion.whenStatus}' THEN NOW() ELSE NULL END`);
+    // Entrar na biblioteca já concluído conta como acesso (adicionar do catálogo
+    // direto como assistido/zerado).
+    if (lastAccess) {
+      insertCols.push(lastAccess.column);
+      placeholders.push(`CASE WHEN $${statusParam} = '${completion.whenStatus}' THEN NOW() ELSE NULL END`);
+    }
     const result = await pool.query<Row>(
       `INSERT INTO ${table} (${insertCols.join(", ")}) VALUES (${placeholders.join(", ")}) RETURNING *`,
       values
@@ -88,17 +99,20 @@ export function createLibraryModel<TEntry, TCreate, TUpdate>(
     return toEntry(result.rows[0]);
   };
 
+  const statusColumn = fields.find((f) => f.field === statusField)?.column ?? statusField;
+
   const update = async (id: string, data: TUpdate): Promise<TEntry | null> => {
     const patch = data as Row;
     const sets: string[] = [];
     const values: unknown[] = [];
     let index = 1;
+    let statusParam: number | null = null;
 
     for (const f of fields) {
       if (f.readonly) continue;
       if (patch[f.field] === undefined) continue;
       if (f.field === statusField) {
-        const statusParam = index++;
+        statusParam = index++;
         sets.push(`${f.column} = $${statusParam}`);
         values.push(patch[f.field]);
         sets.push(
@@ -114,13 +128,18 @@ export function createLibraryModel<TEntry, TCreate, TUpdate>(
       }
     }
 
-    if (rewatch) {
-      if (patch[statusField] !== undefined && patch[statusField] !== completion.whenStatus) {
-        sets.push(`${rewatch.column} = FALSE`);
-      } else if (patch[rewatch.field] !== undefined) {
-        sets.push(`${rewatch.column} = $${index++}`);
-        values.push(patch[rewatch.field]);
-      }
+    // Só a transição para o status concluído conta como acesso: salvar de novo
+    // mexendo apenas na nota não mexe na data, e sair do concluído não a limpa —
+    // por isso o `ELSE` devolve a própria coluna, ao contrário do completion.
+    // Consumir de novo algo já concluído é o `touchAccess`. A coluna sem prefixo
+    // no CASE lê o valor pré-UPDATE da linha.
+    if (lastAccess && statusParam != null) {
+      sets.push(
+        `${lastAccess.column} = CASE
+           WHEN $${statusParam} = '${completion.whenStatus}' AND ${statusColumn} != '${completion.whenStatus}' THEN NOW()
+           ELSE ${lastAccess.column}
+         END`
+      );
     }
 
     if (sets.length === 0) return findById(id);
@@ -135,7 +154,12 @@ export function createLibraryModel<TEntry, TCreate, TUpdate>(
     return result.rows[0] ? toEntry(result.rows[0]) : null;
   };
 
-  const statusColumn = fields.find((f) => f.field === statusField)?.column ?? statusField;
+  const lastAccessBulkSet = lastAccess
+    ? `${lastAccess.column} = CASE
+                WHEN $2 = '${completion.whenStatus}' AND ${statusColumn} != '${completion.whenStatus}' THEN NOW()
+                ELSE ${lastAccess.column}
+              END,`
+    : "";
 
   const updateManyStatus = async (ids: string[], status: string): Promise<TEntry[]> => {
     if (ids.length === 0) return [];
@@ -147,12 +171,24 @@ export function createLibraryModel<TEntry, TCreate, TUpdate>(
                 WHEN $2 != '${completion.whenStatus}' THEN NULL
                 ELSE ${completion.column}
               END,
+              ${lastAccessBulkSet}
               updated_at = NOW()
         WHERE id = ANY($1::uuid[])
        RETURNING *`,
       [ids, status]
     );
     return result.rows.map(toEntry);
+  };
+
+  // "Assisti/joguei de novo": item já concluído volta a ser consumido. Sem isto
+  // não haveria como registrar a revisita — marcar como concluído algo que já
+  // está concluído não é transição e o CASE do update não pegaria.
+  const touchAccess = async (id: string): Promise<TEntry | null> => {
+    const result = await pool.query<Row>(
+      `UPDATE ${table} SET ${lastAccess!.column} = NOW(), updated_at = NOW() WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    return result.rows[0] ? toEntry(result.rows[0]) : null;
   };
 
   const remove = async (id: string): Promise<boolean> => {
@@ -201,5 +237,6 @@ export function createLibraryModel<TEntry, TCreate, TUpdate>(
     removeMany,
   };
   if (collectionColumn) model.setCover = setCover;
+  if (lastAccess) model.touchAccess = touchAccess;
   return model;
 }

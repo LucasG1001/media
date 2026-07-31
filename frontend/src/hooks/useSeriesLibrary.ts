@@ -15,14 +15,14 @@ export function useSeriesLibrary() {
     (entry) => entry.tmdbId
   );
 
-  // Estado por temporada (status/nota/reassistindo): patch otimista de
+  // Estado por temporada (status/nota): patch otimista de
   // seasonStates + score (média das notas > 0; mantém a atual se nenhuma tem nota).
   const { mutate, entries } = store;
   const saveSeason = useCallback(
     (
       id: string,
       seasonNumber: number,
-      data: { status: SeriesLibraryStatus; score: number; isRewatching: boolean }
+      data: { status: SeriesLibraryStatus; score: number }
     ): Promise<SeriesLibraryEntry | null> => {
       const entry = entries.find((e) => e.id === id);
       if (!entry) return Promise.resolve(null);
@@ -52,11 +52,31 @@ export function useSeriesLibrary() {
       states[key] = {
         status: previous?.status ?? "plan_to_watch",
         score: previous?.score ?? 0,
-        isRewatching: previous?.isRewatching ?? false,
         notes,
       };
       return mutate(id, { seasonStates: states }, () =>
         seriesLibraryService.saveSeasonNotes(id, seasonNumber, notes)
+      );
+    },
+    [mutate, entries]
+  );
+
+  // "Assisti de novo" da temporada: só o lastAccessAt daquela temporada avança.
+  const registerSeasonAccess = useCallback(
+    (id: string, seasonNumber: number): Promise<SeriesLibraryEntry | null> => {
+      const entry = entries.find((e) => e.id === id);
+      if (!entry) return Promise.resolve(null);
+      const states = { ...(entry.seasonStates ?? {}) };
+      const key = String(seasonNumber);
+      const previous = states[key];
+      states[key] = {
+        ...previous,
+        status: previous?.status ?? "plan_to_watch",
+        score: previous?.score ?? 0,
+        lastAccessAt: new Date().toISOString(),
+      };
+      return mutate(id, { seasonStates: states }, () =>
+        seriesLibraryService.registerSeasonAccess(id, seasonNumber)
       );
     },
     [mutate, entries]
@@ -68,5 +88,5 @@ export function useSeriesLibrary() {
     [mutate]
   );
 
-  return { ...store, findByTmdbId: store.findByExternalId, saveSeason, saveSeasonNotes, setCoverSeason };
+  return { ...store, findByTmdbId: store.findByExternalId, saveSeason, saveSeasonNotes, registerSeasonAccess, setCoverSeason };
 }

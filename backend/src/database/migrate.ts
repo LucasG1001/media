@@ -47,11 +47,6 @@ export async function migrate(): Promise<void> {
   `);
 
   await pool.query(`
-    ALTER TABLE anime_library
-    ADD COLUMN IF NOT EXISTS is_rewatching BOOLEAN NOT NULL DEFAULT FALSE;
-  `);
-
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS movie_library (
       id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       tmdb_id       INTEGER NOT NULL UNIQUE,
@@ -94,11 +89,6 @@ export async function migrate(): Promise<void> {
   `);
 
   await pool.query(`
-    ALTER TABLE movie_library
-    ADD COLUMN IF NOT EXISTS is_rewatching BOOLEAN NOT NULL DEFAULT FALSE;
-  `);
-
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS series_library (
       id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       tmdb_id         INTEGER NOT NULL UNIQUE,
@@ -135,13 +125,8 @@ export async function migrate(): Promise<void> {
       AND (next_airing_episode->>'airingAt')::bigint <= EXTRACT(EPOCH FROM NOW());
   `);
 
-  await pool.query(`
-    ALTER TABLE series_library
-    ADD COLUMN IF NOT EXISTS is_rewatching BOOLEAN NOT NULL DEFAULT FALSE;
-  `);
-
   // season_list = metadado das temporadas (TMDB); NULL = ainda não backfilled.
-  // season_states = estado do usuário por temporada ({ "1": {status,score,isRewatching} });
+  // season_states = estado do usuário por temporada ({ "1": {status,score,notes,lastAccessAt} });
   // score da série = média das notas > 0. Ver backfillSeriesSeasons e setSeasonState.
   await pool.query(`
     ALTER TABLE series_library
@@ -156,7 +141,7 @@ export async function migrate(): Promise<void> {
     SET season_states = (
       SELECT jsonb_object_agg(
         key,
-        jsonb_build_object('status', 'plan_to_watch', 'score', (value)::numeric, 'isRewatching', false)
+        jsonb_build_object('status', 'plan_to_watch', 'score', (value)::numeric)
       )
       FROM jsonb_each_text(season_scores)
     )
@@ -246,11 +231,6 @@ export async function migrate(): Promise<void> {
     ADD COLUMN IF NOT EXISTS release_notified_at TIMESTAMPTZ;
   `);
 
-  await pool.query(`
-    ALTER TABLE game_library
-    ADD COLUMN IF NOT EXISTS is_rewatching BOOLEAN NOT NULL DEFAULT FALSE;
-  `);
-
   // NULL = ainda não backfilled; [] = jogo sem modo conhecido. Distinção usada
   // pelo backfill (backfillGameModes) para só reprocessar linhas nunca buscadas.
   await pool.query(`
@@ -309,7 +289,6 @@ export async function migrate(): Promise<void> {
       status            TEXT NOT NULL DEFAULT 'plan_to_watch',
       score             NUMERIC(3,1) DEFAULT 0,
       liked_at          TIMESTAMPTZ,
-      is_rewatching     BOOLEAN NOT NULL DEFAULT FALSE,
       collection_id     INTEGER REFERENCES youtube_collection(id) ON DELETE SET NULL,
       is_cover          BOOLEAN NOT NULL DEFAULT FALSE,
       created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -367,6 +346,57 @@ export async function migrate(): Promise<void> {
   await pool.query(`
     UPDATE youtube_library SET tags = '{}'
      WHERE collection_id IS NULL AND cardinality(tags) > 0;
+  `);
+
+  // Última vez assistido/jogado. Distinta do timestamp de conclusão, que marca a
+  // PRIMEIRA conclusão e é zerado ao sair do status concluído. NULL = nunca.
+  // Livros ficam fora (só read_at).
+  await pool.query(`ALTER TABLE anime_library   ADD COLUMN IF NOT EXISTS last_access_at TIMESTAMPTZ;`);
+  await pool.query(`ALTER TABLE movie_library   ADD COLUMN IF NOT EXISTS last_access_at TIMESTAMPTZ;`);
+  await pool.query(`ALTER TABLE series_library  ADD COLUMN IF NOT EXISTS last_access_at TIMESTAMPTZ;`);
+  await pool.query(`ALTER TABLE game_library    ADD COLUMN IF NOT EXISTS last_access_at TIMESTAMPTZ;`);
+  await pool.query(`ALTER TABLE youtube_library ADD COLUMN IF NOT EXISTS last_access_at TIMESTAMPTZ;`);
+
+  // Backfill: o que já estava concluído tem a conclusão como último acesso
+  // conhecido. Roda a cada boot e só toca linha ainda sem data — as duas colunas
+  // passam a ser gravadas juntas, então uma linha nova nunca cai aqui.
+  // O YouTube não entra: liked_at é quando o vídeo foi curtido, não quando foi
+  // aberto, e NULL = "nunca abri" é a semântica correta.
+  await pool.query(`
+    UPDATE anime_library SET last_access_at = watched_at
+     WHERE last_access_at IS NULL AND watched_at IS NOT NULL;
+  `);
+  await pool.query(`
+    UPDATE movie_library SET last_access_at = watched_at
+     WHERE last_access_at IS NULL AND watched_at IS NOT NULL;
+  `);
+  await pool.query(`
+    UPDATE series_library SET last_access_at = watched_at
+     WHERE last_access_at IS NULL AND watched_at IS NOT NULL;
+  `);
+  await pool.query(`
+    UPDATE game_library SET last_access_at = finished_at
+     WHERE last_access_at IS NULL AND finished_at IS NOT NULL;
+  `);
+
+  // Reassistindo/rejogando deixou de existir: marcar como concluído é tudo, e
+  // rever de novo é o `touchAccess` (só a data de último acesso avança).
+  await pool.query(`ALTER TABLE anime_library   DROP COLUMN IF EXISTS is_rewatching;`);
+  await pool.query(`ALTER TABLE movie_library   DROP COLUMN IF EXISTS is_rewatching;`);
+  await pool.query(`ALTER TABLE series_library  DROP COLUMN IF EXISTS is_rewatching;`);
+  await pool.query(`ALTER TABLE game_library    DROP COLUMN IF EXISTS is_rewatching;`);
+  await pool.query(`ALTER TABLE youtube_library DROP COLUMN IF EXISTS is_rewatching;`);
+
+  // A mesma limpeza dentro do JSONB das temporadas: `setSeasonState` faz merge,
+  // então a chave sobreviveria para sempre. Guardado pelo LIKE — só toca linha
+  // que ainda tem a chave.
+  await pool.query(`
+    UPDATE series_library
+    SET season_states = (
+      SELECT jsonb_object_agg(key, value - 'isRewatching')
+      FROM jsonb_each(season_states)
+    )
+    WHERE season_states IS NOT NULL AND season_states::text LIKE '%isRewatching%';
   `);
 
   await pool.query(`UPDATE anime_library  SET status = 'plan_to_watch' WHERE status = 'watching';`);

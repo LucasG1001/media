@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { createLibraryController } from "../lib/createLibraryController.js";
-import { seriesLibraryModel, setSeasonState, setSeasonNotes, setSeasonList, setCoverSeason } from "../models/seriesLibraryModel.js";
+import { seriesLibraryModel, setSeasonState, setSeasonNotes, setSeasonList, setCoverSeason, touchSeasonAccess } from "../models/seriesLibraryModel.js";
 import { fetchSeriesById } from "../services/tmdbSeriesService.js";
 import { seriesCreateSchema, seriesUpdateSchema } from "../schemas/library.js";
 import type { CreateSeriesLibraryEntry } from "../types/seriesLibrary.js";
@@ -23,7 +23,7 @@ const base = createLibraryController({
   },
 });
 
-export const { getAll, update, updateManyStatus, remove, removeMany } = base;
+export const { getAll, update, updateManyStatus, registerAccess, remove, removeMany } = base;
 
 export async function create(req: Request, res: Response): Promise<void> {
   try {
@@ -63,10 +63,9 @@ export async function saveSeason(req: Request, res: Response): Promise<void> {
   try {
     const id = String(req.params.id);
     const seasonNumber = Number(req.params.seasonNumber);
-    const body = req.body as { status?: unknown; score?: unknown; isRewatching?: unknown };
+    const body = req.body as { status?: unknown; score?: unknown };
     const status = String(body.status);
     const score = Number(body.score);
-    const isRewatching = Boolean(body.isRewatching);
 
     if (!Number.isInteger(seasonNumber) || seasonNumber < 0) {
       res.status(400).json({ error: "Temporada inválida." });
@@ -84,7 +83,6 @@ export async function saveSeason(req: Request, res: Response): Promise<void> {
     const entry = await setSeasonState(id, seasonNumber, {
       status: status as "plan_to_watch" | "watched" | "dropped",
       score,
-      isRewatching,
     });
     if (!entry) {
       res.status(404).json({ error: "Série não encontrada na biblioteca." });
@@ -94,6 +92,27 @@ export async function saveSeason(req: Request, res: Response): Promise<void> {
   } catch (error) {
     void notifyError("API PUT /api/series-library/:id/seasons/:seasonNumber", error);
     res.status(500).json({ error: "Erro ao salvar temporada." });
+  }
+}
+
+// "Assisti de novo" da temporada: nem status nem nota no corpo.
+export async function registerSeasonAccess(req: Request, res: Response): Promise<void> {
+  try {
+    const id = String(req.params.id);
+    const seasonNumber = Number(req.params.seasonNumber);
+    if (!Number.isInteger(seasonNumber) || seasonNumber < 0) {
+      res.status(400).json({ error: "Temporada inválida." });
+      return;
+    }
+    const entry = await touchSeasonAccess(id, seasonNumber);
+    if (!entry) {
+      res.status(404).json({ error: "Série não encontrada na biblioteca." });
+      return;
+    }
+    res.json(entry);
+  } catch (error) {
+    void notifyError("API POST /api/series-library/:id/seasons/:seasonNumber/access", error);
+    res.status(500).json({ error: "Erro ao registrar acesso à temporada." });
   }
 }
 

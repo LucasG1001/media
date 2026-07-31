@@ -1,10 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
+import { formatLastAccess, formatLastAccessExact } from "../../utils/lastAccess";
 import styles from "./LibraryModalBase.module.css";
 
-interface RewatchConfig {
+// Última vez consumido. `at` nulo = nunca — a linha não aparece.
+interface LastAccessConfig {
+  label: string;
+  at: string | null;
+}
+
+// "Assisti/joguei de novo": só faz sentido em item que JÁ estava concluído — é o
+// único jeito de a data de último acesso avançar sem transição de status.
+interface AgainConfig {
   label: string;
   whenStatus: string;
-  initial: boolean;
+  onClick: () => void;
 }
 
 interface LibraryModalBaseProps {
@@ -18,10 +27,11 @@ interface LibraryModalBaseProps {
   canSetCover?: boolean;
   isCover?: boolean;
   hideScore?: boolean;
-  rewatch?: RewatchConfig;
+  lastAccess?: LastAccessConfig;
+  again?: AgainConfig;
   onSetCover?: () => void;
   onClose: () => void;
-  onSave: (data: { status: string; score: number; rewatching?: boolean }) => void;
+  onSave: (data: { status: string; score: number }) => void;
   onRemove: () => void;
 }
 
@@ -36,7 +46,8 @@ export function LibraryModalBase({
   canSetCover = false,
   isCover = false,
   hideScore = false,
-  rewatch,
+  lastAccess,
+  again,
   onSetCover,
   onClose,
   onSave,
@@ -44,8 +55,10 @@ export function LibraryModalBase({
 }: LibraryModalBaseProps) {
   const [status, setStatus] = useState(initialStatus);
   const [score, setScore] = useState(initialScore);
-  const [rewatching, setRewatching] = useState(rewatch?.initial ?? false);
-  const showRewatch = rewatch != null && status === rewatch.whenStatus;
+  // Vale o status SALVO, não o do seletor: trocando o seletor para concluído sem
+  // salvar, quem grava a data é o próprio Salvar (é transição). Item que não está
+  // na biblioteca cai fora sozinho — o status inicial dele é o de "planejo".
+  const showAgain = again != null && initialStatus === again.whenStatus;
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") onClose();
@@ -103,26 +116,23 @@ export function LibraryModalBase({
             </div>
           )}
 
-          {showRewatch && (
-            <button
-              type="button"
-              className={styles.rewatchRow}
-              onClick={() => setRewatching((prev) => !prev)}
-              aria-pressed={rewatching}
-              role="switch"
-              aria-checked={rewatching}
-            >
-              <span className={styles.rewatchLabel}>{rewatch.label}</span>
-              <span className={`${styles.switch} ${rewatching ? styles.switchOn : ""}`}>
-                <span className={styles.switchThumb} />
-              </span>
+          {lastAccess?.at && (
+            <div className={styles.lastAccessRow} title={formatLastAccessExact(lastAccess.at)}>
+              <span className={styles.controlLabel}>{lastAccess.label}</span>
+              <span className={styles.lastAccessValue}>{formatLastAccess(lastAccess.at)}</span>
+            </div>
+          )}
+
+          {showAgain && (
+            <button type="button" className={styles.againButton} onClick={again.onClick}>
+              {again.label}
             </button>
           )}
 
           <div className={styles.actionButtons}>
             <button
               className={styles.saveButton}
-              onClick={() => onSave({ status, score, rewatching: showRewatch ? rewatching : false })}
+              onClick={() => onSave({ status, score })}
             >
               Salvar
             </button>

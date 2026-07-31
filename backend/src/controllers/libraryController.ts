@@ -28,7 +28,7 @@ const base = createLibraryController({
 // sincronização. Antes havia um `await refreshStaleEntries()` aqui, o que fazia
 // a página de Anime (e o Dashboard, que carrega cinco bibliotecas) travar numa
 // ida à AniList com rate limiter de 2 s. Quem sincroniza é o runSyncTick.
-export const { getAll, update, updateManyStatus, setCover, remove, removeMany } = base;
+export const { getAll, update, updateManyStatus, setCover, registerAccess, remove, removeMany } = base;
 
 export async function create(req: Request, res: Response): Promise<void> {
   try {

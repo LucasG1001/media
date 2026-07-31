@@ -67,7 +67,8 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 - **`lib/` (reutilizáveis — prefira-os a reinventar):**
   - **`createLibraryModel.ts` / `createLibraryController.ts`** — factories que geram o CRUD padrão
     das bibliotecas (findAll/create/update/updateManyStatus/setCover/remove + timestamp de
-    conclusão + reset de `is_rewatching`). Movie/series/game/book/youtube adotam por completo;
+    conclusão + `lastAccess`/`touchAccess` — último acesso, ver esquema).
+    Movie/series/game/book/youtube adotam por completo;
     anime usa a factory pro CRUD e mantém funções próprias (JSONB, franquia, sync) standalone.
   - **`httpClient.ts`** — wrapper axios com retry (429/5xx, respeita `Retry-After`), cache opcional
     e **rate limiter opt-in** por chamada. **`rateLimiter.ts`** — throttle proativo + pacing por
@@ -115,7 +116,8 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   agrupada por franquia/coleção; aceita `renderExpansion` — inversão de controle da expansão — e
   `extraActions`, ações extra repassadas à `SelectionBar` com os ids selecionados, habilitadas só com
   a seleção numa única coleção), `LibraryModalBase` (seletor de status derivado do mapa de labels
-  de cada mídia), `LibraryControls` (barra de biblioteca: busca + botões Filtros/Ordenação com painel
+  de cada mídia + linha opcional `lastAccess` — "Última vez assistido/jogado" em data relativa,
+  escondida quando nunca houve acesso), `LibraryControls` (barra de biblioteca: busca + botões Filtros/Ordenação com painel
   que é bottom-sheet no mobile e popover ancorado no desktop + chip de contagem; dirigido por config
   `filterGroups`/`sort`, cada página monta a config do seu estado. As opções de filtro ficam em
   **grade** (`.filterOptions`), não em `flex-wrap`: com rótulos de larguras diferentes o wrap
@@ -170,7 +172,7 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     exibe apenas a **média** e o clique **expande/recolhe** em vez de abrir o drawer do representante
     (que segue acessível como membro da expansão, já que `buildCollectionGroups` inclui o
     representante em `members`). O `MediaCard` recebe `isCollectionCover` e some com **tudo que é
-    estado de item**: botão de status, badge de exibição/lançamento e o 🔁 de reassistindo — na
+    estado de item**: botão de status e badge de exibição/lançamento — na
     coleção esse estado é dos membros, e o representante é só quem empresta a capa. O topo assim
     liberado é ocupado pela contagem `mostrados/total` do `FranchiseCard` (classe `.badgeTop`).
     **Grupo de 1 item é card simples normal**: botão de status (status/nota/remover) + drawer no
@@ -179,14 +181,14 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   - **Séries = coleção de temporadas** (`utils/seasonGroups.ts`, `buildSeasonGroups`): a coleção
     NÃO vem de linhas do banco — cada série é **1 linha** e os membros (temporadas) são sintetizados
     do JSONB `season_list` (metadado) + `season_states` (estado do usuário por temporada:
-    `{status,score,isRewatching,notes}`). **Cada temporada se comporta como um filme da coleção**: card com
+    `{status,score,notes,lastAccessAt}`). **Cada temporada se comporta como um filme da coleção**: card com
     botão de status colorido + nota própria. Representante = a série (nome + capa: pôster da temporada
     `cover_season`, senão da série), sujeito à regra `coverIsCollectionOnly` acima. Nos
     membros: clique na **imagem** → `SeasonDrawer`, que traz **os dados da série** (banner, trailer,
     gêneros, onde assistir, grade de 5 infos — corpo compartilhado `SeriesDrawer/SeriesDetailBody.tsx`,
     com overrides de pôster/tagline/sinopse da temporada) **+ a lista de episódios** (`GET
     /api/series/:id/season/:n`); clique no **botão de status** →
-    `SeasonLibraryModal` (`LibraryModalBase`, status/nota/reassistindo + "Definir como capa"; `onSetCover`
+    `SeasonLibraryModal` (`LibraryModalBase`, status/nota + "Definir como capa"; `onSetCover`
     e `onRemove` são opcionais — temporada de coleção não se remove sozinha) → `saveSeason`
     (`PUT /:id/seasons/:n`, `setSeasonState` recalcula `score` da série =
     média das notas > 0) e `setCoverSeason` (`PUT /:id/cover-season/:n`). `setSeasonState` **mescla**
@@ -210,7 +212,9 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   (capa/expansão, `buildYoutubeCollectionGroups` + `sortGroups`), mas a organização **dentro** de cada
   coleção é por **tag**. Pipeline em `useMemo`: agrupa → filtro de coleção → `applyStatusView` (aba
   de status) → busca (título/canal) → ordenação por grupo. Ordenação (`useSingleSort`, padrão
-  Alfabética(asc)): Alfabética, Data e Visualizações.
+  Alfabética(asc)): Alfabética, Data e Visualizações. Abrir o drawer do vídeo **registra acesso**
+  (`registerAccess` → `POST /:id/access`, otimista; `key` por vídeo no drawer, que grava na montagem)
+  — ver `last_access_at` no esquema.
   - **Invariante central: tag só existe dentro de coleção.** Vídeo avulso tem `tags = '{}'` e **não
     mostra nem a linha de chips**. Sair da coleção (`removeFromCollection`) **e trocar de coleção**
     (`assignCollection`, `CASE WHEN collection_id IS DISTINCT FROM`) zeram as tags — o vocabulário é
@@ -291,12 +295,36 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 `anime_library`, `movie_library`, `series_library`, `game_library`, `books_library` (plural),
 `youtube_library`. Colunas em `TEXT`/`JSONB`, sem CHECK de enum (migração de status = `UPDATE`).
 Convenções comuns a todas: `is_cover` (capa da
-coleção), `is_rewatching`, timestamp de conclusão (`watched_at`/`finished_at`/`read_at`), coluna de
+coleção), timestamp de conclusão (`watched_at`/`finished_at`/`read_at`), coluna de
 coleção (`franchise_id`/`collection_id`) e `notes`
 (`TEXT`, anotação livre do usuário; `NULL` = nunca anotado) — este **menos em `series_library`**, onde
 a anotação é por temporada, dentro de `season_states`.
+
+**`last_access_at`** (`TIMESTAMPTZ`; `NULL` = nunca) — última vez assistido/jogado, **distinto do
+timestamp de conclusão**, que marca a *primeira* conclusão e é zerado ao sair do status concluído.
+Existe em anime/filmes/séries/jogos/youtube; **livros ficam fora** (só `read_at`). Regras:
+- **Só a transição para o status concluído grava.** Salvar de novo mexendo apenas na nota **não**
+  mexe na data, e **sair** do status concluído **não limpa** (item abandonado mantém a última vez que
+  foi visto) — daí o `ELSE` do `CASE` devolver a própria coluna, ao contrário do `CASE` de conclusão.
+- **Consumir de novo algo já concluído é o `touchAccess`** (`POST /:id/access` nas quatro mídias, via
+  `registerAccess` do controller/store): só a data avança, status e nota ficam. Sem ele não haveria
+  como registrar a revisita — marcar como concluído o que já está concluído não é transição. Na UI é
+  o botão "🔁 Assisti/Joguei de novo" do `LibraryModalBase` (prop `again`), que aparece **só** quando
+  o status **salvo** já é o concluído: com o seletor mudado sem salvar, quem grava é o próprio Salvar.
+- **Séries**: o que vale é o da **temporada**, dentro de `season_states` (`setSeasonState` aplica a
+  mesma regra em JS; `touchSeasonAccess` é o "de novo" da temporada, `POST /:id/seasons/:n/access`).
+  A coluna da série só é gravada pelo fallback de série sem `season_list`.
+- **YouTube é a exceção**: não é dirigido por status (o `whenStatus` dele é `liked`, o default) e não
+  tem botão — quem grava é `touchAccess` via `POST /api/youtube-library/:id/access`, chamado ao
+  **abrir o drawer** do vídeo (e sem tocar `updated_at`: abrir é passivo e não pode reordenar a
+  biblioteca). Por isso a coluna é `readonly` na config do model. O drawer exibe o acesso
+  **anterior** (congelado na montagem): mostrar "hoje" apagaria da tela justamente o "faz 5 anos
+  que não vejo".
+- Coluna nova em biblioteca precisa entrar também nas listas de `backupController`, senão se perde
+  no round-trip de export/import.
+
 `series_library` tem ainda `season_list` (JSONB, metadado das temporadas do TMDB), `season_states`
-(JSONB, estado por temporada `{ "1": {status,score,isRewatching,notes} }`; `score` da série = média das notas)
+(JSONB, estado por temporada `{ "1": {status,score,isRewatching,notes,lastAccessAt} }`; `score` da série = média das notas)
 e `cover_season` (INTEGER, temporada usada como capa da coleção). `game_library` tem `game_modes`
 (`TEXT[]`). `youtube_library` tem `tags` (`TEXT[] NOT NULL DEFAULT '{}'`, N tags por vídeo, `[]` = sem
 tag; **só valem dentro de coleção** — ver a seção do YouTube acima) e sua coleção é a tabela à parte
@@ -314,7 +342,9 @@ o `findStaleSeries` puxar a linha para backfill. `synced_at` (todas as quatro ta
 último refresh; `NULL` entra na próxima execução do job.
 
 **Status da biblioteca:** `plan_to_*` (planejo) → concluído (`watched`/`beaten`/`read`) →
-`dropped`. Não existe status "em progresso". YouTube usa `liked`/`removed`.
+`dropped`. Não existe status "em progresso" **nem reassistindo/rejogando**: a coluna
+`is_rewatching` foi dropada e rever algo é só o `touchAccess` (a data de último acesso avança, o
+status fica). YouTube usa `liked`/`removed`.
 
 ## Convenções
 

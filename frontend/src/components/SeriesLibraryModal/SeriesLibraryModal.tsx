@@ -7,11 +7,12 @@ interface SeriesLibraryModalProps {
   series: SeriesCard;
   libraryEntry: SeriesLibraryEntry | undefined;
   onClose: () => void;
-  onSave: (series: SeriesCard, data: { status: SeriesLibraryStatus; isRewatching: boolean }) => void;
+  onSave: (series: SeriesCard, data: { status: SeriesLibraryStatus }) => void;
   onRemove: (id: string) => void;
+  onAccessAgain: (id: string) => void;
 }
 
-export function SeriesLibraryModal({ series, libraryEntry, onClose, onSave, onRemove }: SeriesLibraryModalProps) {
+export function SeriesLibraryModal({ series, libraryEntry, onClose, onSave, onRemove, onAccessAgain }: SeriesLibraryModalProps) {
   // Sem nota aqui: a nota da série é a média das temporadas (dada clicando na
   // capa de cada temporada na biblioteca).
   return (
@@ -24,9 +25,10 @@ export function SeriesLibraryModal({ series, libraryEntry, onClose, onSave, onRe
       initialScore={0}
       hideScore
       hasEntry={!!libraryEntry}
-      rewatch={{ label: "Reassistindo", whenStatus: "watched", initial: libraryEntry?.isRewatching ?? false }}
+      lastAccess={{ label: "Última vez assistido", at: libraryEntry?.lastAccessAt ?? null }}
+      again={{ label: "🔁 Assisti de novo", whenStatus: "watched", onClick: () => libraryEntry && onAccessAgain(libraryEntry.id) }}
       onClose={onClose}
-      onSave={(data) => onSave(series, { status: data.status as SeriesLibraryStatus, isRewatching: data.rewatching ?? false })}
+      onSave={(data) => onSave(series, { status: data.status as SeriesLibraryStatus })}
       onRemove={() => libraryEntry && onRemove(libraryEntry.id)}
     />
   );

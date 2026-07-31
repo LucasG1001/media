@@ -58,6 +58,7 @@ export function MoviesPage() {
     update: updateEntry,
     updateMany: updateManyEntries,
     setCover: setCoverEntry,
+    registerAccess,
     remove: removeEntry,
     removeMany: removeManyEntries,
     findByTmdbId,
@@ -90,10 +91,10 @@ export function MoviesPage() {
     setSelectedMovieForModal(movie);
   }, []);
 
-  const handleModalSave = useCallback((movie: MovieCard, data: { status: MovieLibraryStatus; score: number; isRewatching: boolean }) => {
+  const handleModalSave = useCallback((movie: MovieCard, data: { status: MovieLibraryStatus; score: number }) => {
     const existing = findByTmdbId(movie.id);
     if (existing) {
-      updateEntry(existing.id, { status: data.status, score: data.score, isRewatching: data.isRewatching, movieStatus: movie.movieStatus });
+      updateEntry(existing.id, { status: data.status, score: data.score, movieStatus: movie.movieStatus });
     } else {
       addEntry({
         tmdbId: movie.id,
@@ -150,10 +151,7 @@ export function MoviesPage() {
     // Multi-seleção: OU dentro de cada grupo, E entre status e lançamento.
     const memberFilter = hasFilter
       ? (m: MovieLibraryEntry) => {
-          const statusOk =
-            libraryFilter.length === 0 ||
-            libraryFilter.includes(m.status as MovieLibraryStatus) ||
-            (libraryFilter.includes("plan_to_watch") && m.isRewatching);
+          const statusOk = libraryFilter.length === 0 || libraryFilter.includes(m.status as MovieLibraryStatus);
           const releaseOk = releaseFilter.length === 0 || releaseFilter.includes(m.movieStatus);
           return statusOk && releaseOk;
         }
@@ -328,6 +326,7 @@ export function MoviesPage() {
             setCoverEntry(id);
             setSelectedMovieForModal(null);
           }}
+          onAccessAgain={(id) => { void registerAccess(id); }}
         />
       )}
     </div>

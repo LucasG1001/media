@@ -33,6 +33,7 @@ export interface LibraryService<TEntry, TCreate, TUpdate> {
   updateLibraryEntry: (id: string, data: TUpdate) => Promise<TEntry>;
   updateManyStatus: (ids: string[], status: string) => Promise<TEntry[]>;
   setCover?: (id: string) => Promise<TEntry>;
+  registerAccess?: (id: string) => Promise<TEntry>;
   removeFromLibrary: (id: string) => Promise<void>;
   removeManyFromLibrary: (ids: string[]) => Promise<void>;
 }
@@ -49,6 +50,8 @@ export interface LibraryStore<TEntry, TCreate, TUpdate> {
   mutate: (id: string, optimistic: Partial<TEntry>, serverCall: () => Promise<TEntry>) => Promise<TEntry | null>;
   updateMany: (ids: string[], status: string) => Promise<boolean>;
   setCover: (id: string) => Promise<TEntry | null>;
+  // "Assisti/joguei de novo": só a data de último acesso avança.
+  registerAccess: (id: string) => Promise<TEntry | null>;
   remove: (id: string) => Promise<boolean>;
   removeMany: (ids: string[]) => Promise<boolean>;
   findByExternalId: (externalId: number | string) => TEntry | undefined;
@@ -183,6 +186,13 @@ export function useLibraryStore<TEntry extends { id: string }, TCreate, TUpdate>
     }
   }, [media, service, setSlice, getCollectionKey]);
 
+  // A data é NOW() dos dois lados, então o patch otimista já é o valor final.
+  const registerAccess = useCallback(async (id: string): Promise<TEntry | null> => {
+    if (!service.registerAccess) return null;
+    const lastAccessAt = new Date().toISOString();
+    return mutate(id, { lastAccessAt } as unknown as Partial<TEntry>, () => service.registerAccess!(id));
+  }, [mutate, service]);
+
   const remove = useCallback(async (id: string): Promise<boolean> => {
     let removed: TEntry | undefined;
     let index = -1;
@@ -228,5 +238,5 @@ export function useLibraryStore<TEntry extends { id: string }, TCreate, TUpdate>
     [entries, getExternalId]
   );
 
-  return { entries, loading: slice.loading, error: slice.error, load, add, update, mutate, updateMany, setCover, remove, removeMany, findByExternalId };
+  return { entries, loading: slice.loading, error: slice.error, load, add, update, mutate, updateMany, setCover, registerAccess, remove, removeMany, findByExternalId };
 }

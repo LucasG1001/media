@@ -30,6 +30,7 @@ export interface LibraryController {
   update(req: Request, res: Response): Promise<void>;
   updateManyStatus(req: Request, res: Response): Promise<void>;
   setCover(req: Request, res: Response): Promise<void>;
+  registerAccess(req: Request, res: Response): Promise<void>;
   remove(req: Request, res: Response): Promise<void>;
   removeMany(req: Request, res: Response): Promise<void>;
 }
@@ -141,6 +142,26 @@ export function createLibraryController<TEntry, TCreate, TUpdate>(
     }
   };
 
+  // "Assisti/joguei de novo": só a data de último acesso avança (status e nota
+  // ficam como estão).
+  const registerAccess = async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!model.touchAccess) {
+        res.status(400).json({ error: messages.invalid });
+        return;
+      }
+      const entry = await model.touchAccess(String(req.params.id));
+      if (!entry) {
+        res.status(404).json({ error: messages.notFound });
+        return;
+      }
+      res.json(entry);
+    } catch (error) {
+      void notifyError(messages.errorUpdate, error);
+      res.status(500).json({ error: messages.errorUpdate });
+    }
+  };
+
   const remove = async (req: Request, res: Response): Promise<void> => {
     try {
       const id = String(req.params.id);
@@ -171,5 +192,5 @@ export function createLibraryController<TEntry, TCreate, TUpdate>(
     }
   };
 
-  return { getAll, create, update, updateManyStatus, setCover, remove, removeMany };
+  return { getAll, create, update, updateManyStatus, setCover, registerAccess, remove, removeMany };
 }

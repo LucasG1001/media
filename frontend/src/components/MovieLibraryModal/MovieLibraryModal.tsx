@@ -7,12 +7,13 @@ interface MovieLibraryModalProps {
   movie: MovieCard;
   libraryEntry: MovieLibraryEntry | undefined;
   onClose: () => void;
-  onSave: (movie: MovieCard, data: { status: MovieLibraryStatus; score: number; isRewatching: boolean }) => void;
+  onSave: (movie: MovieCard, data: { status: MovieLibraryStatus; score: number }) => void;
   onRemove: (id: string) => void;
   onSetCover: (id: string) => void;
+  onAccessAgain: (id: string) => void;
 }
 
-export function MovieLibraryModal({ movie, libraryEntry, onClose, onSave, onRemove, onSetCover }: MovieLibraryModalProps) {
+export function MovieLibraryModal({ movie, libraryEntry, onClose, onSave, onRemove, onSetCover, onAccessAgain }: MovieLibraryModalProps) {
   return (
     <LibraryModalBase
       title={movie.title}
@@ -24,10 +25,11 @@ export function MovieLibraryModal({ movie, libraryEntry, onClose, onSave, onRemo
       hasEntry={!!libraryEntry}
       canSetCover={!!libraryEntry && libraryEntry.collectionId != null}
       isCover={libraryEntry?.isCover ?? false}
-      rewatch={{ label: "Reassistindo", whenStatus: "watched", initial: libraryEntry?.isRewatching ?? false }}
+      lastAccess={{ label: "Última vez assistido", at: libraryEntry?.lastAccessAt ?? null }}
+      again={{ label: "🔁 Assisti de novo", whenStatus: "watched", onClick: () => libraryEntry && onAccessAgain(libraryEntry.id) }}
       onSetCover={() => libraryEntry && onSetCover(libraryEntry.id)}
       onClose={onClose}
-      onSave={(data) => onSave(movie, { status: data.status as MovieLibraryStatus, score: data.score, isRewatching: data.rewatching ?? false })}
+      onSave={(data) => onSave(movie, { status: data.status as MovieLibraryStatus, score: data.score })}
       onRemove={() => libraryEntry && onRemove(libraryEntry.id)}
     />
   );

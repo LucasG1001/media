@@ -60,6 +60,7 @@ export function GamesPage() {
     update: updateEntry,
     updateMany: updateManyEntries,
     setCover: setCoverEntry,
+    registerAccess,
     remove: removeEntry,
     removeMany: removeManyEntries,
     findByIgdbId,
@@ -92,10 +93,10 @@ export function GamesPage() {
     setSelectedGameForModal(game);
   }, []);
 
-  const handleModalSave = useCallback((game: GameCard, data: { status: GameLibraryStatus; score: number; isRewatching: boolean }) => {
+  const handleModalSave = useCallback((game: GameCard, data: { status: GameLibraryStatus; score: number }) => {
     const existing = findByIgdbId(game.id);
     if (existing) {
-      updateEntry(existing.id, { status: data.status, score: data.score, isRewatching: data.isRewatching, gameStatus: game.gameStatus });
+      updateEntry(existing.id, { status: data.status, score: data.score, gameStatus: game.gameStatus });
     } else {
       addEntry({
         igdbId: game.id,
@@ -158,10 +159,7 @@ export function GamesPage() {
     // Multi-seleção: OU dentro de cada grupo, E entre status, lançamento e modos.
     const memberFilter = hasFilter
       ? (m: GameLibraryEntry) => {
-          const statusOk =
-            libraryFilter.length === 0 ||
-            libraryFilter.includes(m.status as GameLibraryStatus) ||
-            (libraryFilter.includes("plan_to_play") && m.isRewatching);
+          const statusOk = libraryFilter.length === 0 || libraryFilter.includes(m.status as GameLibraryStatus);
           const releaseOk = releaseFilter.length === 0 || releaseFilter.includes(m.gameStatus);
           const modeOk =
             modeFilter.length === 0 ||
@@ -347,6 +345,7 @@ export function GamesPage() {
             setCoverEntry(id);
             setSelectedGameForModal(null);
           }}
+          onAccessAgain={(id) => { void registerAccess(id); }}
         />
       )}
     </div>
