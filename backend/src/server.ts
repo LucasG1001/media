@@ -23,7 +23,6 @@ import { bookRoutes } from "./routes/bookRoutes.js";
 import { bookLibraryRoutes } from "./routes/bookLibraryRoutes.js";
 import { youtubeLibraryRoutes } from "./routes/youtubeLibraryRoutes.js";
 import { backupRoutes } from "./routes/backupRoutes.js";
-import { settingsRoutes } from "./routes/settingsRoutes.js";
 import { notFoundHandler, errorHandler } from "./middleware/errorHandler.js";
 import { notifyError } from "./services/notifyService.js";
 
@@ -61,7 +60,6 @@ app.use("/api/book", bookRoutes);
 app.use("/api/book-library", bookLibraryRoutes);
 app.use("/api/youtube-library", youtubeLibraryRoutes);
 app.use("/api/backup", backupRoutes);
-app.use("/api/settings", settingsRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

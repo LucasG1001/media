@@ -1,5 +1,10 @@
 export type YoutubeLibraryStatus = "liked" | "removed";
 
+export interface YoutubeCollection {
+  id: number;
+  name: string;
+}
+
 export interface YoutubeLibraryEntry {
   id: string;
   videoId: string;
@@ -17,7 +22,10 @@ export interface YoutubeLibraryEntry {
   likedAt: string | null;
   isRewatching: boolean;
   notes: string | null;
-  // N tags por vídeo; `[]` = sem tag.
+  collectionId: number | null;
+  isCover: boolean;
+  // N tags por vídeo; `[]` = sem tag. Só existem dentro de coleção: vídeo avulso
+  // tem sempre `[]`, e sair da coleção zera.
   tags: string[];
   createdAt: string;
   updatedAt: string;
@@ -55,6 +63,8 @@ export interface YoutubeCard {
   viewCount: number | null;
   // O `id` do card é o videoId; as tags são escritas pelo id da entry (UUID).
   entryId: string;
+  // `null` = vídeo avulso, que não tem tag (nem a linha de chips).
+  collectionId: number | null;
   tags: string[];
 }
 
@@ -62,8 +72,3 @@ export const YOUTUBE_LIBRARY_STATUS_LABELS: Record<YoutubeLibraryStatus, string>
   liked: "Gostei",
   removed: "Removido",
 };
-
-// Quantas tags a faixa de filtro sugere de uma vez (configurável em Configurações).
-export const TAG_SUGGESTIONS_KEY = "youtube-tag-suggestions";
-
-export const DEFAULT_TAG_SUGGESTIONS = 10;

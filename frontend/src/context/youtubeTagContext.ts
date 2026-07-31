@@ -1,15 +1,17 @@
 import { createContext, useContext } from "react";
 
+// Tudo é por coleção: a tag só existe dentro de uma, e o vocabulário de uma
+// coleção não significa nada na outra. Daí o `collectionId` em cada leitura.
 export interface YoutubeTagContextValue {
-  // Vocabulário derivado dos dados, não de tabela: todas as tags em uso, em ordem
-  // alfabética (é a lista do menu, feita para varrer).
-  allTags: string[];
-  // Posição da tag no ranking de popularidade (mais usada primeiro, empate em
-  // ordem alfabética) — é o que ordena os chips dentro do card.
-  tagRank: Map<string, number>;
-  // Coocorrência: as tags que mais acompanham **todas** as tags passadas. Lista
-  // vazia devolve as mais usadas da biblioteca.
-  recommendFor: (tags: string[]) => string[];
+  // Vocabulário derivado dos dados, não de tabela: as tags em uso naquela coleção,
+  // em ordem alfabética (é a lista do menu, feita para varrer).
+  allTagsFor: (collectionId: number) => string[];
+  // Posição da tag no ranking de popularidade da coleção (mais usada primeiro,
+  // empate em ordem alfabética) — é o que ordena os chips dentro do card.
+  rankFor: (collectionId: number) => Map<string, number>;
+  // Coocorrência dentro da coleção: as tags que mais acompanham **todas** as tags
+  // passadas. Lista vazia devolve as mais usadas da coleção.
+  recommendFor: (collectionId: number, tags: string[]) => string[];
   setTags: (entryId: string, tags: string[]) => void;
 }
 

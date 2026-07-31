@@ -37,6 +37,13 @@ interface FranchiseGridProps<
   getCollectionName?: (group: MediaGroup<E>) => string | null;
   onRenameCollection?: (group: MediaGroup<E>, name: string) => void;
   getCollectionExtra?: (group: MediaGroup<E>) => ReactNode;
+  // Inversão de controle da expansão: quem recebe decide o que vai antes dos
+  // cards e quais membros passa de volta para `renderMembers` (é assim que o
+  // filtro de tag do YouTube reduz só a expansão, sem tocar na capa/badge).
+  renderExpansion?: (group: MediaGroup<E>, renderMembers: (members: E[]) => ReactNode) => ReactNode;
+  // Ações extra da SelectionBar, recebendo os ids selecionados. Só habilitam com
+  // os selecionados numa única coleção — tag fora de coleção não existe.
+  extraActions?: { label: string; onClick: (ids: string[]) => void }[];
   gridClassName?: string;
   expansionClassName?: string;
 }
@@ -69,6 +76,8 @@ export function FranchiseGrid<
   getCollectionName,
   onRenameCollection,
   getCollectionExtra,
+  renderExpansion,
+  extraActions,
   gridClassName,
   expansionClassName,
 }: FranchiseGridProps<E, T>) {
@@ -101,6 +110,17 @@ export function FranchiseGrid<
   const canFormGroup = groupingEnabled && !!onFormGroup && selectedCollections.length === 0;
   const canAddToGroup = groupingEnabled && !!onAddToGroup && selectedCollections.length === 1;
   const canRemoveFromGroup = groupingEnabled && !!onRemoveFromGroup && selectedCollections.length >= 1;
+
+  // Uma única coleção **e** nenhum avulso na seleção: a ação extra é a tag em lote,
+  // e tag fora de coleção não existe.
+  const canUseExtraActions =
+    !!extraActions?.length &&
+    !!getCollectionKey &&
+    selectedCollections.length === 1 &&
+    [...selectedIds].every((id) => {
+      const entry = entryById.get(id);
+      return !!entry && getCollectionKey(entry) != null;
+    });
 
   const [prevAnimationKey, setPrevAnimationKey] = useState(animationKey);
   if (prevAnimationKey !== animationKey) {
@@ -231,7 +251,7 @@ export function FranchiseGrid<
       ),
       expansion: isExpanded ? (
         <div className={`${styles.expansion} ${expansionClassName ?? ""}`} key={`exp-${group.key}`}>
-          {renderMembers(group.members)}
+          {renderExpansion ? renderExpansion(group, renderMembers) : renderMembers(group.members)}
         </div>
       ) : null,
     };
@@ -263,6 +283,17 @@ export function FranchiseGrid<
                   onRemoveFromGroup?.([...selectedIds]);
                   setSelectedIds(new Set());
                 }
+              : undefined
+          }
+          extraActions={
+            canUseExtraActions
+              ? extraActions?.map((action) => ({
+                  label: action.label,
+                  onClick: () => {
+                    action.onClick([...selectedIds]);
+                    setSelectedIds(new Set());
+                  },
+                }))
               : undefined
           }
         />

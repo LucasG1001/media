@@ -16,13 +16,9 @@ interface MediaGridProps<T extends { id: number | string }, E extends { id: stri
   getLibraryEntry: (id: T["id"]) => E | undefined;
   statusLabels?: Record<string, string>;
   onBulkSetStatus?: (ids: string[], status: string) => void | Promise<unknown>;
-  // Ações extra da SelectionBar, recebendo os ids selecionados.
-  extraActions?: { label: string; onClick: (ids: string[]) => void }[];
   emptyMessage?: string;
-  emptyHint?: string;
   isLibraryView?: boolean;
   animationKey?: string;
-  gridClassName?: string;
 }
 
 export function MediaGrid<T extends { id: number | string }, E extends { id: string; status: string; score: number }>({
@@ -37,12 +33,9 @@ export function MediaGrid<T extends { id: number | string }, E extends { id: str
   getLibraryEntry,
   statusLabels,
   onBulkSetStatus,
-  extraActions,
   emptyMessage = "Nada encontrado.",
-  emptyHint = "Tente uma busca diferente.",
   isLibraryView,
   animationKey,
-  gridClassName,
 }: MediaGridProps<T, E>) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const selectionEnabled = !!(isLibraryView && statusLabels && onBulkSetStatus);
@@ -91,7 +84,7 @@ export function MediaGrid<T extends { id: number | string }, E extends { id: str
         <div className={styles.emptyState}>
           <div className={styles.emptyIcon}>📭</div>
           <div className={styles.emptyTitle}>{emptyMessage}</div>
-          <div className={styles.emptyText}>{emptyHint}</div>
+          <div className={styles.emptyText}>Tente uma busca diferente.</div>
         </div>
       </div>
     );
@@ -99,7 +92,7 @@ export function MediaGrid<T extends { id: number | string }, E extends { id: str
 
   return (
     <>
-      <div className={`${styles.grid} ${gridClassName ?? ""}`} key={animationKey}>
+      <div className={styles.grid} key={animationKey}>
         {items.map((item, index) => {
           const entry = selectionEnabled ? getLibraryEntry(item.id) : undefined;
           const entryId = entry?.id;
@@ -135,13 +128,6 @@ export function MediaGrid<T extends { id: number | string }, E extends { id: str
           statusLabels={statusLabels}
           onApply={applyStatus}
           onClear={() => setSelectedIds(new Set())}
-          extraActions={extraActions?.map((action) => ({
-            label: action.label,
-            onClick: () => {
-              action.onClick([...selectedIds]);
-              setSelectedIds(new Set());
-            },
-          }))}
         />
       )}
     </>

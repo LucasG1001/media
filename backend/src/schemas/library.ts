@@ -105,3 +105,15 @@ export const youtubeBulkTagSchema = z.object({
   ids: z.array(z.string().min(1)).min(1),
   tag,
 });
+export const youtubeFormGroupSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1),
+  name: z.string().min(1),
+});
+export const youtubeAddToGroupSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1),
+  collectionId: z.number(),
+});
+export const youtubeRemoveFromGroupSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1),
+});
+export const youtubeRenameSchema = z.object({ name: z.string().min(1) });

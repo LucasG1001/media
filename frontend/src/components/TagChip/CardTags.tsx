@@ -9,6 +9,8 @@ import styles from "./CardTags.module.css";
 
 interface CardTagsProps {
   entryId: string;
+  // O vocabulário, o ranking e a sugestão são todos da coleção do vídeo.
+  collectionId: number;
   tags: string[];
 }
 
@@ -18,8 +20,10 @@ const MARGIN = 8;
 // Espaço mínimo embaixo para abrir para baixo: menu + faixa de sugestão.
 const STACK_MIN_HEIGHT = MENU_MAX_HEIGHT + 80;
 
-export function CardTags({ entryId, tags }: CardTagsProps) {
-  const { allTags, tagRank, recommendFor, setTags } = useYoutubeTags();
+export function CardTags({ entryId, collectionId, tags }: CardTagsProps) {
+  const { allTagsFor, rankFor, recommendFor, setTags } = useYoutubeTags();
+  const allTags = allTagsFor(collectionId);
+  const tagRank = rankFor(collectionId);
   const anchorRef = useRef<HTMLDivElement>(null);
   const stackRef = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState<{ left: number; top?: number; bottom?: number } | null>(null);
@@ -130,7 +134,7 @@ export function CardTags({ entryId, tags }: CardTagsProps) {
                 if (e.key !== "Escape") e.stopPropagation();
               }}
             >
-              <TagSuggestions tags={recommendFor(tags)} onPick={toggle} />
+              <TagSuggestions tags={recommendFor(collectionId, tags)} onPick={toggle} />
               <div className={styles.menu} style={{ maxHeight: MENU_MAX_HEIGHT }}>
                 <TagPicker allTags={allTags} selected={tags} onToggle={toggle} />
               </div>

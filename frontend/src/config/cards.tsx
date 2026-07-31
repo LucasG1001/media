@@ -177,7 +177,10 @@ export const youtubeCardConfig: MediaCardConfig<YoutubeCard> = {
         <div className={ytStyles.stats}>
           {formatDuration(v.durationSeconds)} · {formatViews(v.viewCount)}
         </div>
-        <CardTags entryId={v.entryId} tags={v.tags} />
+        {/* Vídeo avulso não tem tag: sem coleção, nem a linha de chips aparece. */}
+        {v.collectionId != null && (
+          <CardTags entryId={v.entryId} collectionId={v.collectionId} tags={v.tags} />
+        )}
       </div>
     </div>
   ),

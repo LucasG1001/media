@@ -128,6 +128,15 @@ const TABLES: TableSpec[] = [
     ],
   },
   {
+    key: "youtubeCollections",
+    table: "youtube_collection",
+    conflict: "id",
+    columns: [
+      { column: "id", get: (e) => e.id },
+      { column: "name", get: (e) => e.name },
+    ],
+  },
+  {
     key: "youtube",
     table: "youtube_library",
     conflict: "video_id",
@@ -144,6 +153,8 @@ const TABLES: TableSpec[] = [
       { column: "description", get: (e) => e.description ?? null },
       { column: "status", get: (e) => e.status ?? "liked" },
       { column: "score", get: (e) => e.score ?? 0 },
+      { column: "collection_id", get: (e) => e.collectionId ?? null },
+      { column: "is_cover", get: (e) => e.isCover ?? false },
       { column: "is_rewatching", get: (e) => e.isRewatching ?? false },
       { column: "liked_at", get: (e) => e.likedAt ?? null },
       { column: "notes", get: (e) => e.notes ?? null },
@@ -154,13 +165,14 @@ const TABLES: TableSpec[] = [
 
 export async function exportAll(_req: Request, res: Response): Promise<void> {
   try {
-    const [anime, movies, series, games, books, youtube] = await Promise.all([
+    const [anime, movies, series, games, books, youtube, youtubeCollectionsResult] = await Promise.all([
       libraryModel.findAll(),
       movieLibraryModel.findAll(),
       seriesLibraryModel.findAll(),
       gameLibraryModel.findAll(),
       bookLibraryModel.findAll(),
       youtubeLibraryModel.findAll(),
+      pool.query("SELECT id, name FROM youtube_collection ORDER BY id"),
     ]);
     res.json({
       version: 1,
@@ -170,6 +182,7 @@ export async function exportAll(_req: Request, res: Response): Promise<void> {
       series,
       games,
       books,
+      youtubeCollections: youtubeCollectionsResult.rows,
       youtube,
     });
   } catch (error) {
@@ -256,6 +269,11 @@ export async function importAll(req: Request, res: Response): Promise<void> {
       const rows = body[spec.key];
       if (!Array.isArray(rows)) continue;
       imported[spec.key] = await upsertRows(client, spec, rows as Record<string, unknown>[]);
+    }
+    if (Array.isArray(body.youtubeCollections) && body.youtubeCollections.length > 0) {
+      await client.query(
+        "SELECT setval(pg_get_serial_sequence('youtube_collection', 'id'), (SELECT COALESCE(MAX(id), 1) FROM youtube_collection))"
+      );
     }
     await client.query("COMMIT");
     res.json({ imported });

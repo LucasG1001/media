@@ -5,12 +5,22 @@ import {
   addTagMany,
   removeTagMany,
   bulkUpsertVideos,
+  createCollection,
+  renameCollection as renameCollectionModel,
+  assignCollection,
+  removeFromCollection,
+  listCollections as listCollectionsModel,
+  pruneEmptyCollections,
 } from "../models/youtubeLibraryModel.js";
 import {
   youtubeCreateSchema,
   youtubeUpdateSchema,
   youtubeFromUrlSchema,
   youtubeBulkTagSchema,
+  youtubeFormGroupSchema,
+  youtubeAddToGroupSchema,
+  youtubeRemoveFromGroupSchema,
+  youtubeRenameSchema,
 } from "../schemas/library.js";
 import { extractVideoId, extractPlaylistId, fetchVideo, fetchPlaylist, YoutubeServiceError } from "../services/youtubeService.js";
 import { notifyError } from "../services/notifyService.js";
@@ -32,7 +42,21 @@ const base = createLibraryController({
   },
 });
 
-export const { getAll, create, update, updateManyStatus, remove, removeMany } = base;
+export const { getAll, create, updateManyStatus, setCover, remove, removeMany } = base;
+
+// Tag só existe dentro de coleção: vídeo avulso tem o campo descartado antes de
+// chegar ao model. É o único caminho de escrita de tag que não passa pelos
+// endpoints em lote (que já filtram por `collection_id` no próprio UPDATE).
+export async function update(req: Request, res: Response): Promise<void> {
+  if (req.body && typeof req.body === "object" && "tags" in req.body) {
+    const entry = await youtubeLibraryModel.findById(String(req.params.id)).catch(() => null);
+    if (entry && entry.collectionId == null) {
+      const { tags: _discarded, ...rest } = req.body as Record<string, unknown>;
+      req.body = rest;
+    }
+  }
+  await base.update(req, res);
+}
 
 export async function createFromUrl(req: Request, res: Response): Promise<void> {
   try {
@@ -63,9 +87,13 @@ export async function createFromUrl(req: Request, res: Response): Promise<void> 
         res.status(404).json({ error: "Playlist vazia ou indisponível." });
         return;
       }
-      // Sem coleção: o nome da playlist entra como tag dos vídeos.
-      await bulkUpsertVideos(videos, title);
-      res.status(201).json({ playlist: { name: title, imported: videos.length } });
+      // A playlist vira uma coleção com o nome dela; as tags ficam para depois,
+      // já dentro do escopo dessa coleção.
+      const collection = await createCollection(title);
+      await bulkUpsertVideos(videos, collection.id);
+      res
+        .status(201)
+        .json({ playlist: { name: title, imported: videos.length, collectionId: collection.id } });
       return;
     }
 
@@ -118,3 +146,87 @@ export const removeTag = bulkTagHandler(
   "API POST /api/youtube-library/bulk-remove-tag",
   "Erro ao remover tag."
 );
+
+export async function formGroup(req: Request, res: Response): Promise<void> {
+  try {
+    const parsed = youtubeFormGroupSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inválidos." });
+      return;
+    }
+    const { ids, name } = parsed.data;
+    const collection = await createCollection(name.trim());
+    await assignCollection(ids, collection.id);
+    await pruneEmptyCollections().catch(() => undefined);
+    res.status(201).json({ collection });
+  } catch (error) {
+    void notifyError("API POST /api/youtube-library/collections", error);
+    res.status(500).json({ error: "Erro ao criar coleção." });
+  }
+}
+
+export async function addToGroup(req: Request, res: Response): Promise<void> {
+  try {
+    const parsed = youtubeAddToGroupSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inválidos." });
+      return;
+    }
+    const { ids, collectionId } = parsed.data;
+    await assignCollection(ids, collectionId);
+    await pruneEmptyCollections().catch(() => undefined);
+    res.json({ ok: true });
+  } catch (error) {
+    void notifyError("API POST /api/youtube-library/collections/add", error);
+    res.status(500).json({ error: "Erro ao adicionar à coleção." });
+  }
+}
+
+export async function removeFromGroup(req: Request, res: Response): Promise<void> {
+  try {
+    const parsed = youtubeRemoveFromGroupSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inválidos." });
+      return;
+    }
+    await removeFromCollection(parsed.data.ids);
+    await pruneEmptyCollections().catch(() => undefined);
+    res.json({ ok: true });
+  } catch (error) {
+    void notifyError("API POST /api/youtube-library/collections/remove", error);
+    res.status(500).json({ error: "Erro ao remover da coleção." });
+  }
+}
+
+export async function renameCollection(req: Request, res: Response): Promise<void> {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Coleção inválida." });
+      return;
+    }
+    const parsed = youtubeRenameSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Informe o nome da coleção." });
+      return;
+    }
+    const collection = await renameCollectionModel(id, parsed.data.name.trim());
+    if (!collection) {
+      res.status(404).json({ error: "Coleção não encontrada." });
+      return;
+    }
+    res.json({ collection });
+  } catch (error) {
+    void notifyError("API PUT /api/youtube-library/collections/:id", error);
+    res.status(500).json({ error: "Erro ao renomear coleção." });
+  }
+}
+
+export async function listCollections(_req: Request, res: Response): Promise<void> {
+  try {
+    res.json(await listCollectionsModel());
+  } catch (error) {
+    void notifyError("API GET /api/youtube-library/collections", error);
+    res.status(500).json({ error: "Erro ao buscar coleções." });
+  }
+}

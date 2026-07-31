@@ -1,5 +1,10 @@
 export type YoutubeLibraryStatus = "liked" | "removed";
 
+export interface YoutubeCollection {
+  id: number;
+  name: string;
+}
+
 export interface YoutubeLibraryEntry {
   id: string;
   videoId: string;
@@ -17,7 +22,9 @@ export interface YoutubeLibraryEntry {
   likedAt: string | null;
   isRewatching: boolean;
   notes: string | null;
-  // N tags por vídeo; `[]` = sem tag.
+  collectionId: number | null;
+  isCover: boolean;
+  // N tags por vídeo; `[]` = sem tag. Só faz sentido dentro de coleção.
   tags: string[];
   createdAt: string;
   updatedAt: string;
