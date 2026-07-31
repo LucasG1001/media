@@ -39,6 +39,49 @@
   color: var(--color-text-primary);
 }
 
+/* Gatilho dividido (ordenação): o padding vai para os botões internos, para a
+   área de clique de cada um cobrir a própria metade da pílula. Sem divisor. */
+.toggleSplit {
+  padding: 0;
+  gap: 0;
+}
+
+.triggerIcon,
+.triggerLabel {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.triggerIcon {
+  padding-left: 16px;
+  padding-right: var(--spacing-sm);
+}
+
+.triggerLabel {
+  padding-right: 16px;
+}
+
+.triggerIcon:hover {
+  color: var(--color-accent);
+}
+
+.iconWrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.iconActive {
+  color: var(--color-accent);
+}
+
 .iconToggle {
   flex-shrink: 0;
 }

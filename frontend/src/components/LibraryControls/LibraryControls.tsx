@@ -90,6 +90,7 @@ export function LibraryControls({
           </svg>
         }
         label="Filtros"
+        iconActive={!nothingSelected}
         panelWidth="wide"
         headerLeft={
           <button
@@ -129,6 +130,12 @@ export function LibraryControls({
           icon={<SortDirectionIcon asc={sort.dir === "asc"} />}
           label={activeSortLabel}
           title="Ordenação"
+          // O ícone já mostra a direção, então é ele que a inverte — reselecionar o
+          // critério ativo é o que o useSingleSort trata como "vira a direção".
+          onIconClick={() => sort.onSelect(sort.active)}
+          iconTitle={`Inverter ordem (agora: ${
+            sort.dir === "desc" ? "maior/mais recente primeiro" : "menor/mais antigo primeiro"
+          })`}
         >
           <div className={styles.filterGroup}>
             <div className={styles.checkboxRow}>

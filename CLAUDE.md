@@ -120,7 +120,12 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   escondida quando nunca houve acesso), `LibraryControls` (barra de biblioteca: busca + botões Filtros/Ordenação com painel
   que é bottom-sheet no mobile e popover ancorado no desktop + chip de contagem; dirigido por config
   `filterGroups`/`sort`/`toggle` (este último é um botão liga/desliga sem painel — hoje o "Último
-  acesso"), cada página monta a config do seu estado. As opções de filtro ficam em
+  acesso"), cada página monta a config do seu estado. O gatilho da **Ordenação é dividido**
+  (`onIconClick` do `ControlPopover`): o ícone **inverte a direção** — é ele que a mostra — e o
+  rótulo abre o painel; são dois botões irmãos porque `<button>` dentro de `<button>` é inválido,
+  mas sem divisor visual (parece uma pílula só). Inverter = reselecionar o critério ativo, que é o
+  que o `useSingleSort` já trata como troca de direção. O ícone do **Filtros fica roxo** enquanto
+  houver filtro ativo (`iconActive`). As opções de filtro ficam em
   **grade** (`.filterOptions`), não em `flex-wrap`: com rótulos de larguras diferentes o wrap
   desalinhava as linhas; rótulo longo trunca com reticências e o texto inteiro vai no `title`; o
   grupo de opções em si é o `FilterCheckboxGroup` — `layout="grid"` (default) alinha as colunas,
@@ -331,9 +336,8 @@ Existe em anime/filmes/séries/jogos/youtube; **livros ficam fora** (só `read_a
 - **YouTube é a exceção**: não é dirigido por status (o `whenStatus` dele é `liked`, o default) e não
   tem botão — quem grava é `touchAccess` via `POST /api/youtube-library/:id/access`, chamado ao
   **abrir o drawer** do vídeo (e sem tocar `updated_at`: abrir é passivo e não pode reordenar a
-  biblioteca). Por isso a coluna é `readonly` na config do model. O drawer exibe o acesso
-  **anterior** (congelado na montagem): mostrar "hoje" apagaria da tela justamente o "faz 5 anos
-  que não vejo".
+  biblioteca). Por isso a coluna é `readonly` na config do model. O drawer só **grava**, não exibe:
+  quem mostra a data é o chip do card (botão "Último acesso").
 - Coluna nova em biblioteca precisa entrar também nas listas de `backupController`, senão se perde
   no round-trip de export/import.
 
