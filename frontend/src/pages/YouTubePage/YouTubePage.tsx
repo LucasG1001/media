@@ -335,6 +335,7 @@ export function YouTubePage() {
           getLibraryEntry={(id) => findByVideoId(id)}
           onCardClick={handleCardClick}
           onAddToLibrary={handleOpenModal}
+          coverIsCollectionOnly
           onDeleteGroup={(group) => removeManyEntries(group.members.map((m) => m.id)).then(() => collections.reload())}
           statusLabels={YOUTUBE_LIBRARY_STATUS_LABELS}
           onBulkSetStatus={(ids, status) => updateManyEntries(ids, status)}

@@ -167,7 +167,7 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     leitura **mais recente** (`agg:"latest"`). Avulsos contam como coleção de 1.
   - Padrões: anime/filmes/jogos = Lançamento(desc)+Nota; séries idem; livros =
     Publicação(desc)+Leitura+Nota.
-  - **Capa é só coleção (anime/filmes/séries/jogos; prop `coverIsCollectionOnly` do
+  - **Capa é só coleção (anime/filmes/séries/jogos/youtube; prop `coverIsCollectionOnly` do
     `FranchiseGrid`/`FranchiseCard`, que livros NÃO passa)**: em grupo com 2+ itens a capa
     exibe apenas a **média** e o clique **expande/recolhe** em vez de abrir o drawer do representante
     (que segue acessível como membro da expansão, já que `buildCollectionGroups` inclui o
