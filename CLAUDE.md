@@ -156,7 +156,9 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     filtro** e a **qtde que bate** quando há filtro. Ex.: coleção de 6 → sem filtro `6/6`; filtro
     "planejo" → `3/6` (expansão mostra só esses 3, capa vira um deles). Coleção sem match some. Sem filtro (array vazio):
     `memberFilter` fica `undefined`, mostra tudo (inclusive `dropped`), escondendo só coleções 100%
-    `dropped` (`.filter(some não-dropped)` na página). `filterGroupsBySearch` continua por título.
+    `dropped` (`.filter(some não-dropped)` na página). `filterGroupsBySearch` casa por título **do representante ou de
+    qualquer membro** — o representante entra por causa das séries, onde os membros são as
+    temporadas ("Temporada 1"...) e o nome da série existe só nele.
   - **Grupos de filtro por mídia** (todos member-level e combinados em **E** entre si, **OU** dentro
     de cada um): anime = Status + **Exibição** (`animeStatus`, 3 estados); filmes = Status +
     **Lançamento** (`movieStatus`); jogos = Status + **Lançamento** (`gameStatus`) + Modos de jogo;
