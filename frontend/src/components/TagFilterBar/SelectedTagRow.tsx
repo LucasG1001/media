@@ -1,4 +1,5 @@
 import { chipColorVars } from "../../utils/chipColor";
+import { NO_TAG, tagLabel } from "./noTag";
 import styles from "./TagFilterBar.module.css";
 
 interface SelectedTagRowProps {
@@ -17,17 +18,18 @@ export function SelectedTagRow({ tags, onRemove, onClear }: SelectedTagRowProps)
       <span className={styles.caption}>Filtrando por</span>
       <div className={styles.chips}>
         {tags.map((tag) => {
+          const isNoTag = tag === NO_TAG;
           const { color, background } = chipColorVars(tag);
           return (
             <button
               key={tag}
               type="button"
-              className={`${styles.chip} ${styles.selectedChip}`}
-              style={{ color, background }}
+              className={`${styles.chip} ${styles.selectedChip} ${isNoTag ? styles.noTagChip : ""}`}
+              style={isNoTag ? undefined : { color, background }}
               onClick={() => onRemove(tag)}
-              title={`Remover ${tag}`}
+              title={isNoTag ? "Remover filtro de sem tag" : `Remover ${tag}`}
             >
-              <span className={styles.selectedLabel}>{tag}</span>
+              <span className={styles.selectedLabel}>{tagLabel(tag)}</span>
               <span className={styles.remove} aria-hidden="true">✕</span>
             </button>
           );

@@ -264,6 +264,13 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
       quando não tem conteúdo. O wrapper `.expansionFilter` tem `grid-column: 1 / -1`: a expansão é
       grid e sem isso a faixa viraria mais uma coluna.
     - Tags filtradas combinam em **E**: o vídeo precisa ter **todas**.
+    - **"Sem tag"** (`NO_TAG`, pseudo-tag sentinela em `TagFilterBar/noTag.ts`) é o único recorte que
+      o E não alcançaria — vídeo sem tag nunca casa com tag alguma. Entra **no fim** da faixa de
+      sugestão (não disputa slot com o limite; antes das tags mentiria sobre a ordem por contagem) e
+      só **sem filtro ativo**, quando há membro sem tag. É **exclusivo**: clicar zera o resto, e com
+      ele ativo a faixa de sugestão desaparece por não ter companheira — mesmo caminho da combinação
+      que esgota as tags, sem ramo próprio. Chip de estilo **neutro** (borda tracejada), fora da cor
+      por hash: ausência de tag não deve se passar por uma do vocabulário.
     - A contagem sai do conjunto **já visível da coleção** — "quantos resultados se eu marcar essa
       tag", com a interseção aplicada. Por isso **toda tag sugerida tem pelo menos um resultado** (não
       há beco sem saída, e o chip não precisa mostrar contagem), e combinação que esgotou as

@@ -45,6 +45,15 @@
   filter: brightness(1.3);
 }
 
+/* "Sem tag" é ausência de tag, não uma tag: borda tracejada e cor neutra, para não
+   se passar por uma das do vocabulário da coleção. */
+.noTagChip {
+  border-style: dashed;
+  border-color: var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
 .selectedLabel {
   min-width: 0;
   overflow: hidden;

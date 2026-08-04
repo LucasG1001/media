@@ -1,4 +1,5 @@
 import { chipColorVars } from "../../utils/chipColor";
+import { NO_TAG, tagLabel } from "./noTag";
 import styles from "./TagFilterBar.module.css";
 
 interface TagSuggestionRowProps {
@@ -19,17 +20,19 @@ export function TagSuggestionRow({ tags, onPick, hasFilter }: TagSuggestionRowPr
       <span className={styles.caption}>{hasFilter ? "Refinar com" : "Filtrar por"}</span>
       <div className={styles.chips}>
         {tags.map((tag) => {
+          // "Sem tag" não é tag: sai da cor por hash e vai de estilo neutro.
+          const isNoTag = tag === NO_TAG;
           const { color, background } = chipColorVars(tag);
           return (
             <button
               key={tag}
               type="button"
-              className={styles.chip}
-              style={{ color, background }}
+              className={`${styles.chip} ${isNoTag ? styles.noTagChip : ""}`}
+              style={isNoTag ? undefined : { color, background }}
               onClick={() => onPick(tag)}
-              title={`Filtrar por ${tag}`}
+              title={isNoTag ? "Mostrar só os vídeos sem tag" : `Filtrar por ${tag}`}
             >
-              {tag}
+              {tagLabel(tag)}
             </button>
           );
         })}

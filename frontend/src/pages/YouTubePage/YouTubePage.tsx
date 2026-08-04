@@ -7,6 +7,7 @@ import { LibraryControls } from "../../components/LibraryControls/LibraryControl
 import { TagBulkModal, type TagBulkMode } from "../../components/TagBulkModal/TagBulkModal";
 import { TagSuggestionRow } from "../../components/TagFilterBar/TagSuggestionRow";
 import { SelectedTagRow } from "../../components/TagFilterBar/SelectedTagRow";
+import { NO_TAG } from "../../components/TagFilterBar/noTag";
 import { YoutubeTagContext } from "../../context/youtubeTagContext";
 import { youtubeCardConfig } from "../../config/cards";
 import { useYoutubeLibrary } from "../../hooks/useYoutubeLibrary";
@@ -234,15 +235,25 @@ export function YouTubePage() {
       if (group.representative.collectionId == null) return renderMembers(group.members);
 
       const selected = tagFilter[group.key] ?? [];
-      const visible = group.members.filter((m) => selected.every((t) => m.tags.includes(t)));
+      // "Sem tag" é exclusivo: combinar com tag real daria conjunto vazio sempre,
+      // então ou o filtro é ele, ou é uma lista de tags de verdade.
+      const untagged = selected[0] === NO_TAG;
+      const visible = untagged
+        ? group.members.filter((m) => m.tags.length === 0)
+        : group.members.filter((m) => selected.every((t) => m.tags.includes(t)));
 
       const counts = new Map<string, number>();
       for (const m of visible) for (const tag of m.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
-      const suggestions = [...counts.entries()]
-        .filter(([tag]) => !selected.includes(tag))
-        .sort((a, b) => b[1] - a[1] || byName(a[0], b[0]))
-        .slice(0, FILTER_SUGGESTION_LIMIT)
-        .map(([tag]) => tag);
+      const suggestions = untagged
+        ? []
+        : [...counts.entries()]
+            .filter(([tag]) => !selected.includes(tag))
+            .sort((a, b) => b[1] - a[1] || byName(a[0], b[0]))
+            .slice(0, FILTER_SUGGESTION_LIMIT)
+            .map(([tag]) => tag);
+      // Vai no fim (não disputa slot com o limite, e antes das tags mentiria sobre a
+      // ordem por contagem) e só sem filtro ativo: com tag marcada não sobraria nada.
+      if (selected.length === 0 && visible.some((m) => m.tags.length === 0)) suggestions.push(NO_TAG);
 
       const setFor = (tags: string[]) => setTagFilter((prev) => ({ ...prev, [group.key]: tags }));
 
@@ -252,7 +263,7 @@ export function YouTubePage() {
             <TagSuggestionRow
               tags={suggestions}
               hasFilter={selected.length > 0}
-              onPick={(tag) => setFor([...selected, tag])}
+              onPick={(tag) => setFor(tag === NO_TAG ? [NO_TAG] : [...selected, tag])}
             />
             <SelectedTagRow
               tags={selected}
