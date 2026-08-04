@@ -240,7 +240,9 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   (capa/expansão, `buildYoutubeCollectionGroups` + `sortGroups`), mas a organização **dentro** de cada
   coleção é por **tag**. Pipeline em `useMemo`: agrupa → filtro de coleção → `applyStatusView` (aba
   de status) → busca (título/canal) → ordenação por grupo. Ordenação (`useSingleSort`, padrão
-  Alfabética(asc)): Alfabética, Data e Visualizações. Abrir o drawer do vídeo **registra acesso**
+  Alfabética(asc)): Alfabética, Data e Visualizações. **Vídeo avulso vem sempre antes das coleções**
+  (`standaloneFirst`, aplicado depois da ordenação), em qualquer critério e direção — a ordenação
+  escolhida vale dentro de cada bloco. Abrir o drawer do vídeo **registra acesso**
   (`registerAccess` → `POST /:id/access`, otimista; `key` por vídeo no drawer, que grava na montagem)
   — ver `last_access_at` no esquema.
   - **Invariante central: tag só existe dentro de coleção.** Vídeo avulso tem `tags = '{}'` e **não

@@ -43,6 +43,16 @@ function byName(a: string, b: string): number {
   return a.localeCompare(b, "pt-BR", COLLATOR_OPTS);
 }
 
+// Vídeo avulso vem sempre antes das coleções, em qualquer ordenação e direção: é o
+// que se acabou de colar e o que ainda falta organizar. A ordenação escolhida segue
+// valendo dentro de cada bloco.
+function standaloneFirst(groups: YoutubeGroup[]): YoutubeGroup[] {
+  return [
+    ...groups.filter((g) => g.representative.collectionId == null),
+    ...groups.filter((g) => g.representative.collectionId != null),
+  ];
+}
+
 function matchesSearch(group: YoutubeGroup, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
@@ -196,13 +206,15 @@ export function YouTubePage() {
       const cid = g.representative.collectionId;
       return cid != null ? collections.byId.get(cid) ?? "" : g.representative.title;
     };
-    return sort.field === "views"
-      ? sortGroupsBySumViews(result, viewsOf, sort.dir)
-      : sort.field === "date"
-      ? sortGroupsByMemberDate(result, videoDateOf, sort.dir)
-      : sort.field === "access"
-      ? sortGroupsByMemberDate(result, lastAccessTimeOf, sort.dir, "latest")
-      : sortGroupsByName(result, nameOf, sort.dir);
+    const sorted =
+      sort.field === "views"
+        ? sortGroupsBySumViews(result, viewsOf, sort.dir)
+        : sort.field === "date"
+        ? sortGroupsByMemberDate(result, videoDateOf, sort.dir)
+        : sort.field === "access"
+        ? sortGroupsByMemberDate(result, lastAccessTimeOf, sort.dir, "latest")
+        : sortGroupsByName(result, nameOf, sort.dir);
+    return standaloneFirst(sorted);
   }, [entries, collectionFilter, activeStatus, search, collections.byId, sort.field, sort.dir]);
 
   const gridKey = `${activeStatus}-${collectionFilter.join(",")}-${sort.field}-${sort.dir}-${search}`;
