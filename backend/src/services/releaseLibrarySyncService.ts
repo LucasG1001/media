@@ -2,11 +2,13 @@ import { chunk } from "../lib/chunk.js";
 import { singleFlight } from "../lib/singleFlight.js";
 import { findStaleMovies, updateMovieSyncData } from "../models/movieLibraryModel.js";
 import { findStaleGames, updateGameSyncData } from "../models/gameLibraryModel.js";
+import { findStaleBooks, updateBookSyncData } from "../models/bookLibraryModel.js";
 import { fetchMovieSyncData } from "./tmdbService.js";
 import { fetchGamesSyncData } from "./igdbService.js";
+import { fetchBooksSyncData } from "./hardcoverService.js";
 import { notifyError } from "./notifyService.js";
 
-// Filmes e jogos não têm episódio para acompanhar: o que envelhece é a data de
+// Filmes, jogos e livros não têm episódio para acompanhar: o que envelhece é a data de
 // lançamento (adiamento), o título e a capa. Por isso o TTL curto vale só para
 // quem ainda não lançou.
 const UPCOMING_TTL_HOURS = 12;
@@ -17,6 +19,7 @@ const RELEASED_TTL_HOURS = 24 * 7;
 const MOVIE_RUN_LIMIT = 100;
 const MOVIE_CONCURRENCY = 10;
 const IGDB_BATCH_SIZE = 200;
+const HARDCOVER_BATCH_SIZE = 200;
 
 export const refreshStaleMovies = singleFlight(doRefreshMovies);
 
@@ -63,6 +66,27 @@ async function doRefreshGames(): Promise<void> {
       }
     } catch (error) {
       await notifyError("releaseLibrarySyncService.refreshStaleGames", error);
+    }
+  }
+}
+
+export const refreshStaleBooks = singleFlight(doRefreshBooks);
+
+async function doRefreshBooks(): Promise<void> {
+  const stale = await findStaleBooks(UPCOMING_TTL_HOURS, RELEASED_TTL_HOURS);
+  if (stale.length === 0) return;
+
+  for (const batch of chunk(stale, HARDCOVER_BATCH_SIZE)) {
+    try {
+      const fresh = await fetchBooksSyncData(batch.map((entry) => entry.hardcoverId));
+      for (const entry of batch) {
+        // Livro ausente do retorno (removido da Hardcover): mantém a linha como está.
+        const book = fresh.get(entry.hardcoverId);
+        if (!book) continue;
+        await updateBookSyncData(entry.hardcoverId, book);
+      }
+    } catch (error) {
+      await notifyError("releaseLibrarySyncService.refreshStaleBooks", error);
     }
   }
 }

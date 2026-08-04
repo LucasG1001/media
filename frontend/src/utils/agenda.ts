@@ -114,7 +114,7 @@ export function buildAgenda(
     if (when == null || when < floor) continue;
     items.push({
       media: "book",
-      externalId: b.googleBooksId,
+      externalId: b.hardcoverId,
       title: b.title,
       poster: b.coverImage,
       when,

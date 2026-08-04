@@ -11,7 +11,7 @@ export async function searchBooks(query: string, page = 1, signal?: AbortSignal)
   return response.data;
 }
 
-export async function fetchBookById(id: string): Promise<BookDetail> {
+export async function fetchBookById(id: number): Promise<BookDetail> {
   const response = await api.get<BookDetail>(`/api/book/${id}`);
   return response.data;
 }

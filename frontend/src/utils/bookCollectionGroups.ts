@@ -3,12 +3,6 @@ import type { BookLibraryEntry } from "../types/bookLibrary";
 
 export type BookGroup = CollectionGroup<BookLibraryEntry>;
 
-export function authorKey(entry: BookLibraryEntry): string | null {
-  if (!entry.authors) return null;
-  const first = entry.authors.split(",")[0]?.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-  return first || null;
-}
-
 export function pubTimeOf(entry: BookLibraryEntry): number {
   return entry.publishedDate ? new Date(entry.publishedDate).getTime() : Number.POSITIVE_INFINITY;
 }
@@ -17,7 +11,17 @@ export function readTimeOf(entry: BookLibraryEntry): number {
   return entry.readAt ? new Date(entry.readAt).getTime() : 0;
 }
 
-function byChronology(a: BookLibraryEntry, b: BookLibraryEntry): number {
+export function positionOf(entry: BookLibraryEntry): number {
+  return entry.seriesPosition ?? Number.POSITIVE_INFINITY;
+}
+
+// Livros são a única mídia cuja expansão ordena por um campo GUARDADO da API
+// (series_position) e não pela data: a posição na série é 0.5, 3.5, 7.5 e é ela que dá
+// a ordem de leitura. Posição nula (livro fora de série) vai para o fim.
+function bySeriesPosition(a: BookLibraryEntry, b: BookLibraryEntry): number {
+  const pa = positionOf(a);
+  const pb = positionOf(b);
+  if (pa !== pb) return pa - pb;
   const ta = pubTimeOf(a);
   const tb = pubTimeOf(b);
   if (ta !== tb) return ta - tb;
@@ -29,11 +33,10 @@ export function buildBookCollectionGroups(
   memberFilter?: (entry: BookLibraryEntry) => boolean
 ): BookGroup[] {
   return buildCollectionGroups(entries, {
-    getKey: (e) => {
-      const author = authorKey(e);
-      return author ? `author-${author}` : `single-${e.googleBooksId}`;
-    },
-    compareMembers: byChronology,
+    getKey: (e) => (e.collectionId != null ? `collection-${e.collectionId}` : `single-${e.hardcoverId}`),
+    compareMembers: bySeriesPosition,
+    // Ao contrário das outras mídias, a expansão não é invertida: a ordem crescente de
+    // posição é a ordem de leitura.
     reverseMembers: false,
     memberFilter,
   });

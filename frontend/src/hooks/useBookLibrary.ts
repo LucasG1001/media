@@ -6,7 +6,10 @@ export function useBookLibrary() {
   const store = useLibraryStore<BookLibraryEntry, CreateBookLibraryEntry, UpdateBookLibraryEntry>(
     "book",
     bookLibraryService,
-    (entry) => entry.googleBooksId
+    (entry) => entry.hardcoverId,
+    // Sem este 4º argumento o setCover otimista não limpa o isCover do irmão localmente,
+    // e dois membros ficariam marcados como capa até o próximo fetch.
+    (entry) => entry.collectionId
   );
-  return { ...store, findByGoogleBooksId: store.findByExternalId };
+  return { ...store, findByHardcoverId: store.findByExternalId };
 }

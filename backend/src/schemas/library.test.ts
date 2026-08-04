@@ -15,7 +15,7 @@ describe("library schemas", () => {
   });
 
   it("requires a non-empty title", () => {
-    expect(bookCreateSchema.safeParse({ googleBooksId: "a" }).success).toBe(false);
+    expect(bookCreateSchema.safeParse({ hardcoverId: 1 }).success).toBe(false);
   });
 
   it("accepts a valid anime payload with unknown JSONB fields", () => {

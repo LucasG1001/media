@@ -138,14 +138,19 @@ export const bookCardConfig: MediaCardConfig<BookCard> = {
   getImage: (b) => b.coverImage,
   placeholderEmoji: "📚",
   coverAspect: "3 / 4.6",
+  getStatusBadge: (b) =>
+    b.bookStatus === "UPCOMING"
+      ? { label: "Em breve", tone: "orange" }
+      : { label: "Lançado", tone: "blue" },
   getScore: (b) => b.averageRating ?? null,
   formatScore: (s) => s.toFixed(1),
+  // A nota da Hardcover é 0–5, não 0–10 como as outras mídias.
   scoreColor: scoreColorFn(4, 2.5),
   libraryStatusColor: catalogStatusColor,
   renderMeta: (b) => (
     <div className={cardStyles.meta}>
       <span className={cardStyles.author}>{b.authors.length > 0 ? b.authors.join(", ") : "—"}</span>
-      <span className={cardStyles.year}>{b.publishedDate ? b.publishedDate.slice(0, 4) : "—"}</span>
+      <span className={cardStyles.year}>{b.releaseYear ?? b.publishedDate?.slice(0, 4) ?? "—"}</span>
     </div>
   ),
 };

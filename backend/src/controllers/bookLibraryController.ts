@@ -1,18 +1,18 @@
 import type { Request, Response } from "express";
 import { createLibraryController } from "../lib/createLibraryController.js";
 import { bookLibraryModel, bulkUpsertBooks } from "../models/bookLibraryModel.js";
-import { discoverBooksByAuthor } from "../services/googleBooksService.js";
+import { discoverBookSeries } from "../services/hardcoverService.js";
 import { bookCreateSchema, bookUpdateSchema } from "../schemas/library.js";
 import type { CreateBookLibraryEntry } from "../types/bookLibrary.js";
 import { notifyError } from "../services/notifyService.js";
 
 const base = createLibraryController({
   model: bookLibraryModel,
-  externalIdField: "googleBooksId",
+  externalIdField: "hardcoverId",
   createSchema: bookCreateSchema,
   updateSchema: bookUpdateSchema,
   messages: {
-    required: "googleBooksId e title são obrigatórios.",
+    required: "hardcoverId e title são obrigatórios.",
     invalid: "Dados inválidos.",
     duplicate: "Livro já está na biblioteca.",
     notFound: "Livro não encontrado na biblioteca.",
@@ -23,7 +23,7 @@ const base = createLibraryController({
   },
 });
 
-export const { getAll, update, updateManyStatus, setCover, remove, removeMany } = base;
+export const { getAll, update, updateManyStatus, setCover, registerAccess, remove, removeMany } = base;
 
 export async function create(req: Request, res: Response): Promise<void> {
   try {
@@ -33,46 +33,42 @@ export async function create(req: Request, res: Response): Promise<void> {
       return;
     }
     const data = parsed.data as CreateBookLibraryEntry;
-    if (!data.googleBooksId || !data.title) {
-      res.status(400).json({ error: "googleBooksId e title são obrigatórios." });
+    if (!data.hardcoverId || !data.title) {
+      res.status(400).json({ error: "hardcoverId e title são obrigatórios." });
       return;
     }
 
-    const existing = await bookLibraryModel.findByExternalId(data.googleBooksId);
+    const existing = await bookLibraryModel.findByExternalId(data.hardcoverId);
     if (existing) {
       res.status(409).json({ error: "Livro já está na biblioteca.", entry: existing });
       return;
     }
 
-    const seed: CreateBookLibraryEntry = {
-      googleBooksId: data.googleBooksId,
-      title: data.title,
-      coverImage: data.coverImage ?? null,
-      authors: data.authors ?? null,
-      status: data.status ?? "plan_to_read",
-      score: data.score ?? 0,
-      publishedDate: data.publishedDate ?? null,
-      pageCount: data.pageCount ?? null,
-    };
+    const collection = await discoverBookSeries(data.hardcoverId);
 
-    const firstAuthor = data.authors?.split(",")[0]?.trim();
-    const members = firstAuthor ? await discoverBooksByAuthor(firstAuthor) : [];
+    if (!collection) {
+      const entry = await bookLibraryModel.create(data);
+      res.status(201).json([entry]);
+      return;
+    }
 
-    const memberEntries: CreateBookLibraryEntry[] = members
-      .filter((m) => m.id !== data.googleBooksId)
-      .map((m) => ({
-        googleBooksId: m.id,
-        title: m.title,
-        coverImage: m.coverImage,
-        authors: m.authors.length > 0 ? m.authors.join(", ") : null,
-        status: "plan_to_read",
-        score: 0,
-        publishedDate: m.publishedDate,
-        pageCount: null,
-      }));
+    const { collectionId, members } = collection;
+    const entries: CreateBookLibraryEntry[] = members.map((m) => ({
+      hardcoverId: m.id,
+      title: m.title,
+      coverImage: m.coverImage,
+      authors: m.authors.length > 0 ? m.authors.join(", ") : null,
+      status: m.id === data.hardcoverId ? data.status ?? "plan_to_read" : "plan_to_read",
+      score: m.id === data.hardcoverId ? data.score ?? 0 : 0,
+      publishedDate: m.publishedDate,
+      pageCount: m.pageCount,
+      bookStatus: m.bookStatus,
+      seriesName: m.seriesName,
+      seriesPosition: m.seriesPosition,
+    }));
 
-    const group = await bulkUpsertBooks([seed, ...memberEntries]);
-    group.sort((a, b) => (a.googleBooksId === data.googleBooksId ? -1 : b.googleBooksId === data.googleBooksId ? 1 : 0));
+    const group = await bulkUpsertBooks(entries, collectionId);
+    group.sort((a, b) => (a.hardcoverId === data.hardcoverId ? -1 : b.hardcoverId === data.hardcoverId ? 1 : 0));
     res.status(201).json(group);
   } catch (error) {
     void notifyError("API POST /api/book-library", error);

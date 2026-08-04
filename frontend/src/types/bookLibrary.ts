@@ -2,7 +2,7 @@ export type BookLibraryStatus = "plan_to_read" | "read" | "dropped";
 
 export interface BookLibraryEntry {
   id: string;
-  googleBooksId: string;
+  hardcoverId: number;
   title: string;
   coverImage: string | null;
   authors: string | null;
@@ -10,15 +10,23 @@ export interface BookLibraryEntry {
   score: number;
   publishedDate: string | null;
   pageCount: number | null;
+  bookStatus: string;
+  // O id da série da Hardcover.
+  collectionId: number | null;
+  seriesName: string | null;
+  seriesPosition: number | null;
   isCover: boolean;
+  syncedAt: string | null;
   notes: string | null;
   readAt: string | null;
+  lastAccessAt: string | null;
+  releaseNotifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateBookLibraryEntry {
-  googleBooksId: string;
+  hardcoverId: number;
   title: string;
   coverImage?: string | null;
   authors?: string | null;
@@ -26,6 +34,7 @@ export interface CreateBookLibraryEntry {
   score?: number;
   publishedDate?: string | null;
   pageCount?: number | null;
+  bookStatus?: string;
 }
 
 export interface UpdateBookLibraryEntry {
@@ -36,6 +45,7 @@ export interface UpdateBookLibraryEntry {
   score?: number;
   publishedDate?: string | null;
   pageCount?: number | null;
+  bookStatus?: string;
   notes?: string | null;
 }
 

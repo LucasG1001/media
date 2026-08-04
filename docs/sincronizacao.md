@@ -13,16 +13,17 @@ sistema operacional).
 
 | Quando | O que roda | Mídias | Bate em API externa? |
 |---|---|---|---|
-| Boot + a cada 30 min | `runSyncTick` — refresh das entradas "stale" | Anime, Séries, Filmes, Jogos | Sim |
+| Boot + a cada 30 min | `runSyncTick` — refresh das entradas "stale" | Anime, Séries, Filmes, Jogos, Livros | Sim |
 | Boot + a cada 30 min | `notifyDueSeriesEpisodes` | Séries | Não (só banco + Telegram) |
-| Diário 04:00 | `refreshCollections` — sync de coleções | Anime, Filmes, Jogos | Sim |
-| Boot + diário 09:00 | `notifyDueReleases` | Filmes, Jogos | Não (só banco + Telegram) |
+| Diário 04:00 | `refreshCollections` — sync de coleções | Anime, Filmes, Jogos, Livros | Sim |
+| Boot + diário 09:00 | `notifyDueReleases` | Filmes, Jogos, Livros | Não (só banco + Telegram) |
 | Boot (one-shot) | `backfillGameModes` | Jogos | Sim, só se houver linha pendente |
 | Boot (one-shot) | `backfillSeriesSeasons` | Séries | Sim, só se houver linha pendente |
 | Ao abrir o drawer | `handle*Load` na página | Todas | Sim (detalhe do item) |
 
-Livros e YouTube **não têm sincronização de fundo**. Livro nunca muda depois de publicado, e o
-YouTube tem fluxo próprio de importação.
+Só o **YouTube** fica fora da sincronização de fundo — ele tem fluxo próprio de importação. Livros
+entraram junto com a migração para a Hardcover: livro **tem** data de lançamento futura de verdade
+(a série traz volume anunciado para anos à frente) e título/capa que envelhecem como qualquer outro.
 
 Três caminhos escrevem dados vindos de API na biblioteca:
 
@@ -43,7 +44,7 @@ que está no banco; atualizar é responsabilidade do job.
 
 ## 2. `runSyncTick` — boot e a cada 30 min
 
-Dispara quatro jobs independentes, sem esperar um pelo outro. Todos são `singleFlight`: se uma
+Dispara cinco jobs independentes, sem esperar um pelo outro. Todos são `singleFlight`: se uma
 execução ainda estiver rodando quando o próximo tick chegar, a nova chamada devolve a mesma
 promessa em vez de começar de novo. Uma execução lenta atrasa, nunca empilha.
 
@@ -154,7 +155,35 @@ Jogo que não voltar na resposta (removido da IGDB) é pulado — a linha fica c
 `game_modes` **não** entra aqui: é preenchido na criação, pelo controller. O backfill de boot
 (§5) existe só para as linhas antigas.
 
-### 2.5 `notifyDueSeriesEpisodes`
+### 2.5 Livros — `refreshStaleBooks`
+
+`services/releaseLibrarySyncService.ts` · API: Hardcover
+
+**Quem entra:** `findStaleBooks(12, 168)` — mesma lógica dos jogos, **sem teto por execução**, porque
+a Hardcover aceita consulta em lote (`where: { id: { _in: [...] } }`).
+
+**Como roda:** lotes de 200 ids, um lote por consulta, com o `try/catch` **dentro** do loop de lote.
+Livro que não voltar na resposta (removido da Hardcover) é pulado — a linha fica como está.
+
+**Passa sem cache**, de propósito: o `cachedRequest` chaveia por `{method,url,params,data}` e o
+conjunto de ids que o `findStaleBooks` devolve é determinístico, então com o TTL de 1 h o tick
+seguinte reescreveria valores idênticos e só bumparia `synced_at` — um no-op silencioso na primeira
+hora. É a única chamada da Hardcover que passa `cached = false`.
+
+**O que grava:** `title`, `cover_image` (as duas com `COALESCE(NULLIF(...))`), `published_date`,
+`page_count`, `book_status`, `synced_at`.
+
+`collection_id`, `series_name` e `series_position` **não** entram aqui: são `readonly` no model e só
+a descoberta de série as escreve. A série em destaque de um livro pode ser outra que não a coleção
+em que ele está (um Mistborn cuja `featured` é "The Cosmere", de 42 livros), então gravar a posição
+a partir do próprio livro embaralharia a ordem da expansão de uma coleção correta.
+
+`book_status` sai de `deriveBookStatus`, que **não** é o `deriveStatus` do TMDB: data nula na
+Hardcover significa "não se sabe" (e o livro em geral é antigo), não "sem data marcada", então cai
+no ano de lançamento e só depois em `RELEASED`. Copiar o do TMDB badgearia clássico sem data como
+"Em breve" e o prenderia no TTL de 12 h para sempre.
+
+### 2.6 `notifyDueSeriesEpisodes`
 
 Não bate em API externa. Varre `series_library` por episódio cujo `airingAt` já passou e que ainda
 não foi notificado (`next_airing_episode->>'episode' > last_notified_episode`), manda ao Telegram e
@@ -167,11 +196,11 @@ grande demais para servir de relógio de notificação.
 
 ## 3. Sync de coleções — diário, 04:00
 
-`services/collectionSyncService.ts` · APIs: AniList, TMDB, IGDB
+`services/collectionSyncService.ts` · APIs: AniList, TMDB, IGDB, Hardcover
 
-Roda anime → filmes → jogos, **em sequência**. Não roda no boot.
+Roda anime → filmes → jogos → livros, **em sequência**. Não roda no boot.
 
-**O que faz:** para cada coleção que tenha **ao menos um item concluído** (`watched`/`beaten`),
+**O que faz:** para cada coleção que tenha **ao menos um item concluído** (`watched`/`beaten`/`read`),
 descobre os membros que faltam e adiciona como "planejo", notificando cada um. É assim que
 sequência/OVA/filme novo de uma franquia que você terminou aparece sozinho na biblioteca.
 
@@ -186,10 +215,22 @@ anime avulso pela primeira vez.
 | Anime | `discoverFranchise` — BFS pelas relações (`SEQUEL`/`PREQUEL`/`PARENT`/`SIDE_STORY`), teto de 50 nós | 3–5 consultas encadeadas, cada uma segurada ~2 s pelo rate limiter |
 | Filmes | `discoverCollection` — detalhe do filme + detalhe da coleção | 2 |
 | Jogos | `discoverGameCollection` — referência + detalhe da coleção | 2 |
+| Livros | `discoverBookSeries` — `cached_featured_series` do livro + expansão da série | 2 |
+
+**A dos livros tem duas particularidades.** A expansão da série vai com deduplicação obrigatória
+(`distinct_on: position` + `canonical_id IS NULL` + `is_partial_book false` + `compilation false` +
+`position not null`): sem isso a série volta com traduções ocupando a mesma posição. E o resultado
+passa por uma **trava de sobreposição de autor** — a Hardcover às vezes marca `featured: true` na
+série errada (o "1984" do Orwell aponta para "Rosato and Associates", 11 thrillers da Lisa
+Scottoline), e sem a trava adicionar 1984 traria 10 livros alheios como "Quero Ler". Se menos de 50%
+dos membros compartilham autor com a semente, a coleção é descartada e fica um `console.log`. Falha
+fechada de propósito: coleção faltando é muito melhor que coleção errada — o custo é que série de
+autoria rotativa (Warhammer, Star Wars Legends) não forma coleção.
 
 Quando encontra membro novo, o `bulkUpsert` manda **todos** os membros, não só os novos. Isso é
 intencional e seguro: o `ON CONFLICT` só mexe em `franchise_id`/`format` (filmes/jogos:
-`collection_id`) via `COALESCE`, então serve de backfill e nunca pisa no seu status ou nota.
+`collection_id`; livros: `collection_id` + `series_name` + `series_position`) via `COALESCE`, então
+serve de backfill e nunca pisa no seu status ou nota.
 
 > **Este é o job mais caro e o menos otimizado.** Não existe memória de "já verifiquei esta
 > coleção": ele redescobre todas, todo dia, para na esmagadora maioria das vezes não achar nada.
@@ -201,10 +242,12 @@ intencional e seguro: o `ON CONFLICT` só mexe em `franchise_id`/`format` (filme
 
 `services/releaseNotifyService.ts`
 
-Não bate em API externa — lê a data que já está no banco (mantida fresca pelos jobs de §2.3 e
-§2.4) e avisa o que lançou.
+Não bate em API externa — lê a data que já está no banco (mantida fresca pelos jobs de §2.3, §2.4 e
+§2.5) e avisa o que lançou.
 
-Varre `movie_library` e `game_library` com `release_notified_at IS NULL AND status != 'dropped'`:
+Varre `movie_library`, `game_library` e `books_library` com
+`release_notified_at IS NULL AND status != 'dropped'` (nos livros a data é `published_date` e a
+imagem é `cover_image`):
 
 - Data no futuro ou ausente → deixa para reavaliar nos próximos dias.
 - Lançou nos últimos **3 dias** → notifica e marca `release_notified_at`.
@@ -238,7 +281,7 @@ Colunas alimentadas por API externa. As demais (`status`, `score`, `is_cover`, `
 | Coluna | Criação | Drawer | Job 30 min | Sync coleções |
 |---|:---:|:---:|:---:|:---:|
 | `title`, capa | ✅ | ✅ | ✅ | só em item novo |
-| `anime_status` / `movie_status` / `series_status` / `game_status` | ✅ | ✅ | ✅ | só em item novo |
+| `anime_status` / `movie_status` / `series_status` / `game_status` / `book_status` | ✅ | ✅ | ✅ | só em item novo |
 | `air_status` (séries) | — | — | ✅ | — |
 | `total_episodes` / `episodes` / `seasons` / `runtime` / `metacritic` | ✅ | ✅ | ✅ | só em item novo |
 | data de lançamento/estreia | ✅ | ✅ | ✅ | só em item novo |
@@ -247,6 +290,7 @@ Colunas alimentadas por API externa. As demais (`status`, `score`, `is_cover`, `
 | `season_list` (séries) | ✅ | — | ✅ | — |
 | `game_modes` | ✅ | — | — | ✅ |
 | `franchise_id` / `collection_id` | ✅ | — | — | ✅ (`COALESCE`) |
+| `series_name` / `series_position` (livros) | — | — | — | ✅ (`COALESCE`) — `readonly` no model |
 | `synced_at` | — | — | ✅ | — |
 | `last_notified_episode` | — | — | ✅ | — |
 | `release_notified_at` | — | — | — | job das 09:00 |
@@ -281,7 +325,9 @@ A AniList documenta 90 req/min mas na prática degrada para ~30. Todo tráfego p
 - cooldown ao receber 429.
 
 O limiter é **global ao processo**: navegar no catálogo de anime durante o sync de coleções faz os
-dois disputarem a mesma fila. TMDB, IGDB, Google Books e YouTube não têm limiter — só o retry.
+dois disputarem a mesma fila. A **Hardcover** tem limiter próprio, mas só como throttle de intervalo
+mínimo (350 ms): ela não devolve nenhum header `x-ratelimit-*`, então o pacing por header fica inerte
+de propósito. TMDB, IGDB e YouTube não têm limiter — só o retry.
 
 ### Erros
 
@@ -301,6 +347,7 @@ deduplicação de erro repetido. **Job nunca derruba o processo** e `notifyServi
 | Séries (30 min) | `teto(N/10)` rodadas × ~0,5 s | 100 séries stale → 10 rodadas → **~5 s** |
 | Filmes (30 min) | `teto(N/10)` rodadas × ~0,5 s, N ≤ 100 | teto atingido → **~5 s** por execução |
 | Jogos (30 min) | `teto(N/200)` consultas | 500 jogos stale → 3 consultas → **~2 s** |
+| Livros (30 min) | `teto(N/200)` consultas × ~0,35 s | 300 livros stale → 2 consultas → **~1 s** |
 | Coleções (04:00) | anime domina: 6–10 s por semente | 20 franquias + 15 coleções → **~3 a 4 min** |
 | Lançamentos (09:00) | só banco | **< 1 s** |
 
@@ -309,7 +356,7 @@ o volume real aparece na primeira execução após um deploy que mexa nas condi�
 
 O pico previsível é o **primeiro tick depois de adicionar coluna a um `findStale*`**: a biblioteca
 inteira fica stale de uma vez. Filmes têm teto de 100 por execução; séries e anime absorvem pelo
-fatiamento; jogos resolvem em poucas consultas em lote.
+fatiamento; jogos e livros resolvem em poucas consultas em lote.
 
 ---
 
@@ -326,7 +373,8 @@ Levantadas em revisão e **ainda não corrigidas**. Em ordem de impacto:
    existe para buscar dado fresco e pode acabar gravando resposta de até 1 h atrás carimbando
    `synced_at = NOW()`. Hoje quase não morde — séries, filmes e jogos têm TTL de 12 h, bem acima
    do cache. O apertado é **anime**, cujo TTL de 1 h coincide com o do cache. Falta um
-   `skipCache` no caminho dos jobs.
+   `skipCache` no caminho dos jobs. **Livros já são a exceção**: o `queryHardcover` tem o parâmetro
+   `cached`, e o `fetchBooksSyncData` passa `false` — é o modelo do que fazer nas outras.
 
 3. **O cache nunca despeja nada.** Entrada expirada só sai se alguém pedir aquela chave de novo
    (`cacheGet`). Quem alimenta o crescimento é a busca do catálogo: com debounce, digitar "naruto"
@@ -334,9 +382,24 @@ Levantadas em revisão e **ainda não corrigidas**. Em ordem de impacto:
    tamanho e varredura periódica.
 
 4. **Anime sincroniza item abandonado; as outras mídias não.** O `findStale` de anime não filtra
-   por `status`, enquanto séries, filmes e jogos têm `status != 'dropped'` na query. Anime
+   por `status`, enquanto séries, filmes, jogos e livros têm `status != 'dropped'` na query. Anime
    abandonado consome cota da API mais sensível do conjunto sem gerar notificação (o
    `detectAndNotify` já pula abandonado).
+
+5. **Livro sem posição na série fica fora da coleção.** O `position: {_is_null: false}` da
+   deduplicação é obrigatório (sem ele o `distinct_on: position` colapsaria **todos** os livros sem
+   posição num membro arbitrário), mas o efeito colateral é que volume que a Hardcover nunca
+   posicionou desaparece da coleção. Um membro faltando é melhor que um errado, mas é uma perda real.
+
+6. **A trava de autor nega série de autoria rotativa.** Warhammer, Star Wars Legends, Wild Cards e
+   mangá cujo crédito varia por volume ficam abaixo dos 50% e perdem a coleção, com só um
+   `console.log` para mostrar. Usar a **união** de todos os `cached_contributors` (ilustrador
+   incluído) já é o mais permissivo que dá de graça.
+
+7. **O token da Hardcover é um precipício anual.** Expira em 1 ano com reset em 1º de janeiro, e é
+   exigido em **toda** consulta — numa manhã de janeiro todo o domínio de livros dá 401 de uma vez,
+   busca do catálogo incluída. O `HardcoverError` de 401/403 tem mensagem própria e o `notifyError`
+   manda ao Telegram, então dá para diagnosticar; falta prevenção (um check de uma query no boot).
 
 ---
 

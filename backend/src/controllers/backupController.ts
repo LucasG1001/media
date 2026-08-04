@@ -117,9 +117,9 @@ const TABLES: TableSpec[] = [
   {
     key: "books",
     table: "books_library",
-    conflict: "google_books_id",
+    conflict: "hardcover_id",
     columns: [
-      { column: "google_books_id", get: (e) => e.googleBooksId },
+      { column: "hardcover_id", get: (e) => e.hardcoverId },
       { column: "title", get: (e) => e.title },
       { column: "cover_image", get: (e) => e.coverImage ?? null },
       { column: "authors", get: (e) => e.authors ?? null },
@@ -127,7 +127,17 @@ const TABLES: TableSpec[] = [
       { column: "score", get: (e) => e.score ?? 0 },
       { column: "published_date", get: (e) => e.publishedDate ?? null },
       { column: "page_count", get: (e) => e.pageCount ?? null },
+      { column: "book_status", get: (e) => e.bookStatus ?? "RELEASED" },
+      { column: "collection_id", get: (e) => e.collectionId ?? null },
+      { column: "series_name", get: (e) => e.seriesName ?? null },
+      { column: "series_position", get: (e) => e.seriesPosition ?? null },
+      // Sem isto a capa escolhida da coleção se perde no round-trip. As outras mídias
+      // ainda têm essa lacuna.
+      { column: "is_cover", get: (e) => e.isCover ?? false },
       { column: "read_at", get: (e) => e.readAt ?? null },
+      { column: "last_access_at", get: (e) => e.lastAccessAt ?? null },
+      { column: "synced_at", get: (e) => e.syncedAt ?? null },
+      { column: "release_notified_at", get: (e) => e.releaseNotifiedAt ?? null },
       { column: "notes", get: (e) => e.notes ?? null },
     ],
   },

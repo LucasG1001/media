@@ -247,7 +247,7 @@ export async function migrate(): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS books_library (
       id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      google_books_id  TEXT NOT NULL UNIQUE,
+      hardcover_id     INTEGER NOT NULL UNIQUE,
       title            TEXT NOT NULL,
       cover_image      TEXT,
       authors          TEXT,
@@ -264,6 +264,22 @@ export async function migrate(): Promise<void> {
   await pool.query(`
     ALTER TABLE books_library
     ADD COLUMN IF NOT EXISTS is_cover BOOLEAN NOT NULL DEFAULT FALSE;
+  `);
+
+  // Livros migraram do Google Books para a Hardcover: o id externo passou a ser INTEGER e
+  // não existe mapeamento confiável entre os dois catálogos (as linhas antigas eram
+  // duplicatas do lixo do Google Books — o mesmo "Hunger Games" três vezes, box sets,
+  // nenhuma lida). A biblioteca é recriada pela Hardcover. A sequência é idempotente e se
+  // desliga: depois da primeira subida toda linha tem hardcover_id e o DELETE não casa
+  // com nada — importante porque migrate() roda a cada boot.
+  await pool.query(`ALTER TABLE books_library ADD COLUMN IF NOT EXISTS hardcover_id INTEGER;`);
+  await pool.query(`DELETE FROM books_library WHERE hardcover_id IS NULL;`);
+  await pool.query(`ALTER TABLE books_library DROP COLUMN IF EXISTS google_books_id;`);
+  await pool.query(`ALTER TABLE books_library ALTER COLUMN hardcover_id SET NOT NULL;`);
+  // Este é o nome que o UNIQUE do CREATE TABLE gera: no banco novo o IF NOT EXISTS vira
+  // no-op, no antigo cria o índice. ON CONFLICT (hardcover_id) exige índice único.
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS books_library_hardcover_id_key ON books_library (hardcover_id);
   `);
 
   await pool.query(`
@@ -403,4 +419,38 @@ export async function migrate(): Promise<void> {
   await pool.query(`UPDATE series_library SET status = 'plan_to_watch' WHERE status = 'watching';`);
   await pool.query(`UPDATE game_library   SET status = 'plan_to_play'  WHERE status = 'playing';`);
   await pool.query(`UPDATE books_library  SET status = 'plan_to_read'  WHERE status = 'reading';`);
+
+  // Coleção de livros = série em destaque da Hardcover (`featured_series`), pela mesma
+  // máquina de filmes/jogos: collection_id guarda o id da série e é a coluna de coleção
+  // do is_cover. series_position é NUMERIC porque a posição da Hardcover é float8 com
+  // meio-valor real (0.5 para conto, 3.5 para novela) e é ela que ordena a expansão, não
+  // a data de publicação. series_name vem grátis na mesma resposta e evita uma
+  // requisição só para escrever "Mistborn #2" — e tem de ficar fora de findStaleBooks.
+  await pool.query(`
+    ALTER TABLE books_library
+    ADD COLUMN IF NOT EXISTS collection_id   INTEGER,
+    ADD COLUMN IF NOT EXISTS series_name     TEXT,
+    ADD COLUMN IF NOT EXISTS series_position NUMERIC(6,2);
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_books_library_collection_id ON books_library (collection_id);
+  `);
+
+  // RELEASED/UPCOMING derivado da data — a Hardcover tem lançamento futuro de verdade
+  // dentro de série e também data nula em livro antigo (ver deriveBookStatus).
+  // NULL em synced_at = nunca sincronizado; findStaleBooks pega essas primeiro.
+  await pool.query(`
+    ALTER TABLE books_library
+    ADD COLUMN IF NOT EXISTS book_status         TEXT NOT NULL DEFAULT 'RELEASED',
+    ADD COLUMN IF NOT EXISTS synced_at           TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS last_access_at      TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS release_notified_at TIMESTAMPTZ;
+  `);
+
+  // Mesmo backfill das outras mídias: o que já estava lido tem a conclusão como último
+  // acesso conhecido. Só toca linha ainda sem data.
+  await pool.query(`
+    UPDATE books_library SET last_access_at = read_at
+     WHERE last_access_at IS NULL AND read_at IS NOT NULL;
+  `);
 }

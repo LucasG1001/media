@@ -47,7 +47,8 @@ export function createLibraryModel<TEntry, TCreate, TUpdate>(
     entry[externalId.field] = row[externalId.column];
     for (const f of fields) {
       const value = row[f.column];
-      entry[f.field] = f.numeric ? parseFloat(value as string) : value;
+      // Coluna NUMERIC anulável (series_position) precisa do guard: parseFloat(null) é NaN.
+      entry[f.field] = f.numeric && value != null ? parseFloat(value as string) : value;
     }
     entry[completion.field] = row[completion.column];
     if (lastAccess) entry[lastAccess.field] = row[lastAccess.column];

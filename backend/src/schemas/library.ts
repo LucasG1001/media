@@ -45,8 +45,10 @@ export const gameCreateSchema = z.object({
 });
 export const gameUpdateSchema = gameCreateSchema.partial().extend({ notes });
 
+// collectionId/seriesName/seriesPosition ficam de fora de propósito: só a descoberta
+// de série os escreve, o cliente nunca os manda (igual ao collectionId dos filmes).
 export const bookCreateSchema = z.object({
-  googleBooksId: z.string().min(1),
+  hardcoverId: z.number().int().positive(),
   title: z.string().min(1),
   coverImage: nullableString,
   authors: nullableString,
@@ -54,6 +56,7 @@ export const bookCreateSchema = z.object({
   score,
   publishedDate: nullableString,
   pageCount: nullableNumber,
+  bookStatus: z.string().optional(),
 });
 export const bookUpdateSchema = bookCreateSchema.partial().extend({ notes });
 

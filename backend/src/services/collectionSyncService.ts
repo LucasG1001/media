@@ -2,16 +2,20 @@ import * as libraryModel from "../models/libraryModel.js";
 import { singleFlight } from "../lib/singleFlight.js";
 import { movieLibraryModel, bulkUpsertMovies } from "../models/movieLibraryModel.js";
 import { gameLibraryModel, bulkUpsertGames } from "../models/gameLibraryModel.js";
+import { bookLibraryModel, bulkUpsertBooks } from "../models/bookLibraryModel.js";
 import { discoverFranchise } from "./anilistService.js";
 import { discoverCollection } from "./tmdbService.js";
 import { discoverGameCollection } from "./igdbService.js";
+import { discoverBookSeries } from "./hardcoverService.js";
 import { notifyNewCollectionItem, notifyError } from "./notifyService.js";
 import type { AnimeCard } from "../types/anime.js";
 import type { MovieCard } from "../types/movie.js";
 import type { GameCard } from "../types/game.js";
+import type { BookCard } from "../types/book.js";
 import type { LibraryEntry, CreateLibraryEntry } from "../types/library.js";
 import type { MovieLibraryEntry, CreateMovieLibraryEntry } from "../types/movieLibrary.js";
 import type { GameLibraryEntry, CreateGameLibraryEntry } from "../types/gameLibrary.js";
+import type { BookLibraryEntry, CreateBookLibraryEntry } from "../types/bookLibrary.js";
 
 function igdbAbsoluteImage(proxyPath: string | null): string | undefined {
   if (!proxyPath) return undefined;
@@ -192,10 +196,46 @@ const gameAdapter: CollectionSyncAdapter<GameLibraryEntry, GameCard, CreateGameL
     }),
 };
 
+// A coleção do livro é a série em destaque da Hardcover. `discoverBookSeries` já aplica
+// a deduplicação e a trava de sobreposição de autor, então aqui não há nada de especial:
+// os ids da Hardcover são inteiros e encaixam direto no adapter genérico.
+const bookAdapter: CollectionSyncAdapter<BookLibraryEntry, BookCard, CreateBookLibraryEntry> = {
+  label: "livro",
+  findAll: () => bookLibraryModel.findAll(),
+  externalId: (entry) => entry.hardcoverId,
+  collectionKey: (entry) => entry.collectionId,
+  isCompleted: (entry) => entry.status === "read",
+  discover: (seedId) => discoverBookSeries(seedId),
+  memberId: (member) => member.id,
+  toCreateEntry: (member) => ({
+    hardcoverId: member.id,
+    title: member.title,
+    coverImage: member.coverImage,
+    authors: member.authors.length > 0 ? member.authors.join(", ") : null,
+    status: "plan_to_read",
+    score: 0,
+    publishedDate: member.publishedDate,
+    pageCount: member.pageCount,
+    bookStatus: member.bookStatus,
+    seriesName: member.seriesName,
+    seriesPosition: member.seriesPosition,
+  }),
+  bulkUpsert: (entries, collectionId) => bulkUpsertBooks(entries, collectionId),
+  notify: (member) =>
+    notifyNewCollectionItem({
+      mediaType: "livro",
+      title: member.title,
+      image: member.coverImage ?? undefined,
+      url: member.slug ? `https://hardcover.app/books/${member.slug}` : undefined,
+      releaseLabel: isoReleaseLabel(member.publishedDate, member.bookStatus === "UPCOMING"),
+    }),
+};
+
 export const refreshCollections = singleFlight(doRefresh);
 
 async function doRefresh(): Promise<void> {
   await syncOne(animeAdapter);
   await syncOne(movieAdapter);
   await syncOne(gameAdapter);
+  await syncOne(bookAdapter);
 }

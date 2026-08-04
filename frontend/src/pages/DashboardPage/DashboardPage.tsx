@@ -53,14 +53,14 @@ export function DashboardPage() {
   const { entries: animes, update: updateAnime, findByAnilistId } = useLibrary();
   const { entries: movies, update: updateMovie, findByTmdbId: findMovieByTmdbId } = useMovieLibrary();
   const { entries: series } = useSeriesLibrary();
-  const { entries: books, update: updateBook, findByGoogleBooksId } = useBookLibrary();
+  const { entries: books, update: updateBook, findByHardcoverId } = useBookLibrary();
   const { entries: games, update: updateGame, findByIgdbId } = useGameLibrary();
 
   const [selectedAnimeId, setSelectedAnimeId] = useState<number | null>(null);
   const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
   const [selectedSeriesId, setSelectedSeriesId] = useState<number | null>(null);
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
-  const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
+  const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
 
   const counters = useMemo(() => [
     {
@@ -114,7 +114,7 @@ export function DashboardPage() {
     else if (item.media === "movie") setSelectedMovieId(item.externalId as number);
     else if (item.media === "series") setSelectedSeriesId(item.externalId as number);
     else if (item.media === "game") setSelectedGameId(item.externalId as number);
-    else setSelectedBookId(item.externalId as string);
+    else setSelectedBookId(item.externalId as number);
   };
 
   const renderGroups = (groups: AgendaGroup[], withDate: boolean) =>
@@ -145,7 +145,7 @@ export function DashboardPage() {
   const animeDrawerEntry = selectedAnimeId !== null ? findByAnilistId(selectedAnimeId) : undefined;
   const movieDrawerEntry = selectedMovieId !== null ? findMovieByTmdbId(selectedMovieId) : undefined;
   const gameDrawerEntry = selectedGameId !== null ? findByIgdbId(selectedGameId) : undefined;
-  const bookDrawerEntry = selectedBookId !== null ? findByGoogleBooksId(selectedBookId) : undefined;
+  const bookDrawerEntry = selectedBookId !== null ? findByHardcoverId(selectedBookId) : undefined;
 
   return (
     <div className={styles.page}>

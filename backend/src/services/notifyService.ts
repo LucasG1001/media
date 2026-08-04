@@ -230,20 +230,31 @@ export async function notifySeriesFinished(entry: SeriesLibraryEntry, totalEpiso
 
 // ---------- coleções ----------
 
-const MEDIA_TYPE_LABEL: Record<"anime" | "filme" | "jogo", string> = {
+type CollectionMediaType = "anime" | "filme" | "jogo" | "livro";
+
+const MEDIA_TYPE_LABEL: Record<CollectionMediaType, string> = {
   anime: "Anime",
   filme: "Filme",
   jogo: "Jogo",
+  livro: "Livro",
+};
+
+// Os rótulos batem com o status "planejo" de cada mídia na UI.
+const PLAN_LABEL: Record<CollectionMediaType, string> = {
+  anime: "Planejo Assistir",
+  filme: "Planejo Assistir",
+  jogo: "Planejo Jogar",
+  livro: "Quero Ler",
 };
 
 export async function notifyNewCollectionItem(args: {
-  mediaType: "anime" | "filme" | "jogo";
+  mediaType: CollectionMediaType;
   title: string;
   image?: string;
   url?: string;
   releaseLabel?: string;
 }): Promise<void> {
-  const planLabel = args.mediaType === "jogo" ? "Planejo Jogar" : "Planejo Assistir";
+  const planLabel = PLAN_LABEL[args.mediaType];
   const image = args.image?.startsWith("http") ? args.image : undefined;
   const fields: NotifyField[] = [{ name: "Tipo", value: MEDIA_TYPE_LABEL[args.mediaType], inline: true }];
   if (args.releaseLabel) fields.push({ name: "Estreia", value: args.releaseLabel, inline: true });
@@ -257,7 +268,7 @@ export async function notifyNewCollectionItem(args: {
   });
 }
 
-// ---------- lançamentos (filmes / jogos) ----------
+// ---------- lançamentos (filmes / jogos / livros) ----------
 
 function igdbAbsoluteImage(proxyPath: string | null): string | undefined {
   if (!proxyPath) return undefined;
@@ -281,5 +292,13 @@ export async function notifyGameReleased(game: { title: string; backgroundImage:
     title: `🎮 ${game.title}`,
     description: "Foi lançado!",
     image: igdbAbsoluteImage(game.backgroundImage),
+  });
+}
+
+export async function notifyBookReleased(book: { title: string; coverImage: string | null }): Promise<void> {
+  await send("livro-lancado", {
+    title: `📚 ${book.title}`,
+    description: "Já foi publicado!",
+    image: book.coverImage?.startsWith("http") ? book.coverImage : undefined,
   });
 }

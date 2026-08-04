@@ -12,7 +12,8 @@ e biblioteca pessoal (CRUD em PostgreSQL):
 - **Filmes** e **Séries** — TMDB; filmes têm coleções (ex.: trilogias); séries têm nota por
   temporada (coleção de temporadas; nota da série = média).
 - **Jogos** — IGDB (auth via Twitch OAuth); coleções/sagas; filtro por modos de jogo (`game_modes`).
-- **Livros** — Google Books.
+- **Livros** — Hardcover (GraphQL); coleções por **série** (`featured_series`), com dedupe
+  obrigatório e trava de autor.
 - **YouTube** — vídeos curtidos/salvos (YouTube Data API); modelo à parte (status `liked`/`removed`).
   Coleções (tabela própria) e, **dentro de cada uma**, organização por **tags** (N por vídeo).
 
@@ -52,7 +53,7 @@ tocar em algo coberto.
 Browser → Vite dev proxy (ou nginx do container web em prod)
         → Express (server :3333, /api)
         → PostgreSQL
-        → APIs externas: AniList / TMDB / IGDB / Google Books / YouTube
+        → APIs externas: AniList / TMDB / IGDB / Hardcover / YouTube
         → notify-api :3334 → Telegram (só notificações)
 ```
 
@@ -76,18 +77,20 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   - **`chunk.ts`**, **`singleFlight.ts`** (dedupe de job concorrente), **`igdbAuth.ts`** (token
     Twitch), **`asyncHandler.ts`** (try/catch + `notifyError` + mapeia `AniListError.status`).
 - **`services/`** — clientes das APIs externas (`anilistService`, `tmdbService`,
-  `tmdbSeriesService`, `igdbService`, `googleBooksService`, `youtubeService`) e a lógica de fundo:
+  `tmdbSeriesService`, `igdbService`, `hardcoverService`, `youtubeService`) e a lógica de fundo:
   - **`collectionSyncService.ts`** — para franquias/coleções com item concluído, descobre membros
     faltantes e adiciona como "planejo"; notifica cada novo item.
   - **`librarySyncService.ts`** / **`seriesLibrarySyncService.ts`** — atualizam entradas "stale"
     (episódios/status) e disparam notificações de novo episódio/finalização.
-  - **`releaseLibrarySyncService.ts`** — o mesmo para filmes/jogos, que não têm episódio: TTL de
-    12 h para `UPCOMING` (pega adiamento de data) e 7 dias para `RELEASED`. Filmes vão 1 requisição
-    por item (o TMDB não tem lote) e por isso têm teto por execução; jogos vão em lote na IGDB.
-  - **`releaseNotifyService.ts`** — avisa lançamentos de filmes/jogos.
+  - **`releaseLibrarySyncService.ts`** — o mesmo para filmes/jogos/livros, que não têm episódio: TTL
+    de 12 h para `UPCOMING` (pega adiamento de data) e 7 dias para `RELEASED`. Filmes vão 1 requisição
+    por item (o TMDB não tem lote) e por isso têm teto por execução; jogos vão em lote na IGDB e
+    livros em lote na Hardcover (`id: {_in: [...]}`) — o de livros passa **sem cache** (o conjunto de
+    ids é determinístico, então o cache de 1 h faria o tick seguinte só bumpar `synced_at`).
+  - **`releaseNotifyService.ts`** — avisa lançamentos de filmes/jogos/livros.
   - **`notifyService.ts`** — envia ao Telegram via notify-api; nunca lança.
-- **Jobs (agendados em `server.ts`):** refresh de anime, séries, filmes e jogos **no boot e a cada
-  30 min** (`runSyncTick`; rodar na subida evita deixar tudo parado meia hora após um restart —
+- **Jobs (agendados em `server.ts`):** refresh de anime, séries, filmes, jogos e livros **no boot e a
+  cada 30 min** (`runSyncTick`; rodar na subida evita deixar tudo parado meia hora após um restart —
   todos são `singleFlight`, então execução longa não se sobrepõe ao tick seguinte);
   **collection sync** diário (04:00); **notificação de lançamentos** diária (09:00). No boot roda
   também `backfillGameModes` (one-shot): preenche `game_modes` dos jogos com a coluna NULL via
@@ -145,7 +148,7 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   (`SeasonDrawer` → `saveSeasonNotes` → `PUT /:id/seasons/:n/notes`, endpoint separado do
   `saveSeason`, que exige status/nota válidos); o `SeriesDrawer` não tem bloco.
 - **Filtros/ordenação da biblioteca — lógica com base em coleções (invariantes):**
-  - **Agrupamento**: `buildCollectionGroups` agrupa por franquia/coleção/autor; cada grupo tem
+  - **Agrupamento**: `buildCollectionGroups` agrupa por franquia/coleção; cada grupo tem
     `representative` (capa: `isCover` senão o mais antigo), `members`, `count`, `completedCount`. Os
     `build*CollectionGroups` só **agrupam** (não ordenam).
   - **Filtro reduz a coleção (mas o total não muda)**: os filtros de status são **multi-seleção**
@@ -162,8 +165,8 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   - **Grupos de filtro por mídia** (todos member-level e combinados em **E** entre si, **OU** dentro
     de cada um): anime = Status + **Exibição** (`animeStatus`, 3 estados); filmes = Status +
     **Lançamento** (`movieStatus`); jogos = Status + **Lançamento** (`gameStatus`) + Modos de jogo;
-    livros não têm o de lançamento; YouTube tem só **Coleção**, e o resto do recorte é por tag dentro
-    da expansão (ver abaixo).
+    livros = Status + **Lançamento** (`bookStatus`); YouTube tem só **Coleção**, e o resto do recorte
+    é por tag dentro da expansão (ver abaixo).
     **Séries é a exceção**: o de Exibição é da série, não da
     temporada (o TMDB não dá status de exibição por temporada), então recorta a lista de entries
     **antes** do `buildSeasonGroups`, enquanto o de Status segue member-level. O mapeamento
@@ -173,12 +176,16 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     (`sortGroupsByMemberDate`, `agg:"oldest"`); **nota** = **média** das notas dos membros com
     `score>0` (`sortGroupsByAvgScore`). Exceção: Livros "Leitura" usa a data de
     leitura **mais recente** (`agg:"latest"`). Avulsos contam como coleção de 1.
+  - **A expansão de livros ordena por `series_position`**, não por data: é o único caso em que a
+    ordem dos membros vem de um campo **guardado** da API (a posição na série da Hardcover, com
+    meio-valor real — 0.5 para conto, 3.5 para novela). É a ordem de leitura, e por isso a posição
+    vence a data de publicação (em Hunger Games o prequel é posição 0 e o mais recente). Posição
+    nula vai para o fim, e `reverseMembers` fica `false` (as outras mídias invertem).
   - **Último acesso é derivado na coleção, nunca guardado**: o valor do grupo é o **mais recente**
     entre os membros (`latestAccess` em `utils/lastAccess.ts`; ordenação "Último acesso" =
     `sortGroupsByMemberDate(..., lastAccessTimeOf, agg:"latest")`, com nunca acessado valendo 0). É o
     que faz item que entra numa coleção passar a compor o máximo dela e, ao sair, voltar a valer por
     si — sem escrita nem sincronização. Mesmo espírito da nota, que é a média dos membros.
-    Livros ficam fora (não têm a coluna).
   - **A data no card é opt-in**: o botão "Último acesso" da barra (`showLastAccess`, propagado até o
     `MediaCard`) revela um chip em **todos** os cards — capa, membros da expansão e avulsos. Por
     padrão nada aparece: o card já carrega título, ano, status e nota. O chip entra **dentro do
@@ -187,9 +194,9 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     (`lastAccessTone`): até 1 ano, 1–5 anos, 5+ anos e nunca — as mesmas faixas que o filtro por
     tempo vai usar.
   - Padrões: anime/filmes/jogos = Lançamento(desc)+Nota; séries idem; livros =
-    Publicação(desc)+Leitura+Nota.
-  - **Capa é só coleção (anime/filmes/séries/jogos/youtube; prop `coverIsCollectionOnly` do
-    `FranchiseGrid`/`FranchiseCard`, que livros NÃO passa)**: em grupo com 2+ itens a capa
+    Publicação(desc)+Leitura+Nota+Último acesso.
+  - **Capa é só coleção (todas as mídias com coleção; prop `coverIsCollectionOnly` do
+    `FranchiseGrid`/`FranchiseCard`)**: em grupo com 2+ itens a capa
     exibe apenas a **média** e o clique **expande/recolhe** em vez de abrir o drawer do representante
     (que segue acessível como membro da expansão, já que `buildCollectionGroups` inclui o
     representante em `members`). O `MediaCard` recebe `isCollectionCover` e some com **tudo que é
@@ -323,14 +330,15 @@ a anotação é por temporada, dentro de `season_states`.
 
 **`last_access_at`** (`TIMESTAMPTZ`; `NULL` = nunca) — última vez assistido/jogado, **distinto do
 timestamp de conclusão**, que marca a *primeira* conclusão e é zerado ao sair do status concluído.
-Existe em anime/filmes/séries/jogos/youtube; **livros ficam fora** (só `read_at`). Regras:
+Existe em todas as seis mídias. Regras:
 - **Só a transição para o status concluído grava.** Salvar de novo mexendo apenas na nota **não**
   mexe na data, e **sair** do status concluído **não limpa** (item abandonado mantém a última vez que
   foi visto) — daí o `ELSE` do `CASE` devolver a própria coluna, ao contrário do `CASE` de conclusão.
-- **Consumir de novo algo já concluído é o `touchAccess`** (`POST /:id/access` nas quatro mídias, via
-  `registerAccess` do controller/store): só a data avança, status e nota ficam. Sem ele não haveria
-  como registrar a revisita — marcar como concluído o que já está concluído não é transição. Na UI é
-  o botão "🔁 Assisti/Joguei de novo" do `LibraryModalBase` (prop `again`), que aparece **só** quando
+- **Consumir de novo algo já concluído é o `touchAccess`** (`POST /:id/access` nas mídias dirigidas
+  por status, via `registerAccess` do controller/store): só a data avança, status e nota ficam. Sem
+  ele não haveria como registrar a revisita — marcar como concluído o que já está concluído não é
+  transição. Na UI é
+  o botão "🔁 Assisti/Joguei/Li de novo" do `LibraryModalBase` (prop `again`), que aparece **só** quando
   o status **salvo** já é o concluído: com o seletor mudado sem salvar, quem grava é o próprio Salvar.
 - **Séries**: o que vale é o da **temporada**, dentro de `season_states` (`setSeasonState` aplica a
   mesma regra em JS; `touchSeasonAccess` é o "de novo" da temporada, `POST /:id/seasons/:n/access`).
@@ -346,7 +354,11 @@ Existe em anime/filmes/séries/jogos/youtube; **livros ficam fora** (só `read_a
 `series_library` tem ainda `season_list` (JSONB, metadado das temporadas do TMDB), `season_states`
 (JSONB, estado por temporada `{ "1": {status,score,isRewatching,notes,lastAccessAt} }`; `score` da série = média das notas)
 e `cover_season` (INTEGER, temporada usada como capa da coleção). `game_library` tem `game_modes`
-(`TEXT[]`). `youtube_library` tem `tags` (`TEXT[] NOT NULL DEFAULT '{}'`, N tags por vídeo, `[]` = sem
+(`TEXT[]`). `books_library` tem `series_name` e `series_position` (`NUMERIC(6,2)` — a posição na
+série da Hardcover é float8 com meio-valor real; ordena a expansão). As duas são **`readonly` no
+model**: só `bulkUpsertBooks` (descoberta de série) as escreve, porque a série em destaque de um
+livro pode ser outra que não a coleção em que ele está — drawer e job de refresh gravando-as
+embaralhariam a ordem. `youtube_library` tem `tags` (`TEXT[] NOT NULL DEFAULT '{}'`, N tags por vídeo, `[]` = sem
 tag; **só valem dentro de coleção** — ver a seção do YouTube acima) e sua coleção é a tabela à parte
 `youtube_collection` (`id SERIAL`, `name`), referenciada por `collection_id ON DELETE SET NULL` e
 podada quando fica vazia (`pruneEmptyCollections`). Colunas JSONB são
@@ -355,11 +367,15 @@ direto** (ver `game_modes` e `tags`).
 
 **Status vindos da API externa** (todos alimentados pelos jobs de refresh, nunca editáveis pelo
 usuário): `anime_status` (AniList: `RELEASING`/`FINISHED`/`NOT_YET_RELEASED`) e, em filmes/séries/
-jogos, `movie_status`/`series_status`/`game_status`, que são só `RELEASED`/`UPCOMING` derivados da
+jogos/livros, `movie_status`/`series_status`/`game_status`/`book_status`, que são só
+`RELEASED`/`UPCOMING` derivados da
 data. Séries têm além disso `air_status` — o status cru do TMDB (`Returning Series`/`Ended`/…),
 que é o que dá os três estados do filtro de Exibição; `NULL` = nunca sincronizado, e é o que faz
-o `findStaleSeries` puxar a linha para backfill. `synced_at` (todas as quatro tabelas) guarda o
-último refresh; `NULL` entra na próxima execução do job.
+o `findStaleSeries` puxar a linha para backfill. `synced_at` (todas as cinco tabelas) guarda o
+último refresh; `NULL` entra na próxima execução do job. **`book_status` não usa o `deriveStatus` do
+TMDB**: lá data nula significa "sem data marcada" e cai em `UPCOMING`, mas na Hardcover data nula é
+"não se sabe" e o livro em geral é antigo — `deriveBookStatus` cai no ano e só então em `RELEASED`,
+senão clássico sem data viraria "Em breve" e ficaria preso no TTL de 12 h para sempre.
 
 **Status da biblioteca:** `plan_to_*` (planejo) → concluído (`watched`/`beaten`/`read`) →
 `dropped`. Não existe status "em progresso" **nem reassistindo/rejogando**: a coluna
@@ -389,14 +405,32 @@ status fica). YouTube usa `liked`/`removed`.
   listagens — campo pesado vai só na query do `fetchAnimeById` (é o caso de `stats` e de
   `streamingEpisodes`, que alimenta a lista de episódios do `AnimeDrawer` e vem vazia para anime sem
   streaming licenciado).
-- **TMDB** (filmes/séries), **IGDB** (jogos, via token Twitch em `igdbAuth`), **Google Books**,
+- **Hardcover** (livros, `https://api.hardcover.app/v1/graphql`, POST) — `authorization: Bearer` em
+  **toda** consulta, inclusive a busca do catálogo: sem token o domínio inteiro cai (401). O token é
+  **pessoal**, **expira em 1 ano e reseta em 1º de janeiro** (renovar em `hardcover.app/account/api`).
+  Ids são **inteiros**. Tudo passa por `queryHardcover`, que normaliza erros em `HardcoverError`
+  (401/403 têm mensagem própria, para o precipício anual ser diagnosticável). **Não manda header
+  `x-ratelimit-*`**, então o `rateLimiter` aqui é só throttle de intervalo mínimo (350 ms; 60 req/min
+  documentado). A busca é Typesense: `search(query_type:"Book")` devolve `results` como blob cru
+  **não selecionável** (~4,8 KB por hit), e a ordenação padrão põe stub de poucos leitores no topo —
+  por isso mantém-se a ordenação de relevância, pede-se 25 e filtra-se em código
+  (`isQualityDocument`: `users_count >= 20`, tem capa, tem autor, não é compilação), com
+  `hasNextPage` saindo da contagem **crua**. Gênero é tag de `tag_category_id: 1` (nome exato, ver
+  `bookGenres.ts`); os gêneros do drawer saem de `cached_tags.Genre` (o join `taggings` repete tag).
+  **Dedupe da série é obrigatório** (`distinct_on: position` + `canonical_id`/`is_partial_book`/
+  `compilation`/`position not null`), senão traduções ocupam a mesma posição; e `series.books_count`
+  conta linhas cruas, não membros deduplicados. Um livro pode estar em várias séries, então a coleção
+  é a `cached_featured_series` — que a Hardcover às vezes marca errado (o "1984" aponta para uma série
+  de thrillers da Lisa Scottoline), daí a **trava de sobreposição de autor** de 50% em
+  `discoverBookSeries`.
+- **TMDB** (filmes/séries), **IGDB** (jogos, via token Twitch em `igdbAuth`),
   **YouTube Data API** — chaves em env.
 - **notify-api** (Telegram) — gateway compartilhado; o app só envia (texto/campos/botões).
 
 ## Variáveis de ambiente
 
 Backend (`backend/.env`, copiar de `backend/.env.example`):
-`DATABASE_URL`, `PORT` (3333), `TMDB_API_KEY`, `GOOGLE_BOOKS_API_KEY`, `IGDB_CLIENT_ID`,
+`DATABASE_URL`, `PORT` (3333), `TMDB_API_KEY`, `HARDCOVER_API_TOKEN`, `IGDB_CLIENT_ID`,
 `IGDB_CLIENT_SECRET`, `YOUTUBE_API_KEY`, `NOTIFY_API_URL`, `NOTIFY_API_KEY`.
 
 Docker (`.env` na raiz, copiar de `.env.example`): `POSTGRES_USER/PASSWORD/DB`, `MEDIA_DOMAIN`,

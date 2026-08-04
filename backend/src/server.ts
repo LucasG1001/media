@@ -6,7 +6,7 @@ import cors from "cors";
 import { migrate } from "./database/migrate.js";
 import { refreshStaleEntries } from "./services/librarySyncService.js";
 import { refreshStaleSeries, notifyDueSeriesEpisodes } from "./services/seriesLibrarySyncService.js";
-import { refreshStaleMovies, refreshStaleGames } from "./services/releaseLibrarySyncService.js";
+import { refreshStaleMovies, refreshStaleGames, refreshStaleBooks } from "./services/releaseLibrarySyncService.js";
 import { refreshCollections } from "./services/collectionSyncService.js";
 import { notifyDueReleases } from "./services/releaseNotifyService.js";
 import { backfillGameModes } from "./services/gameModesBackfillService.js";
@@ -82,6 +82,7 @@ async function start(): Promise<void> {
       .catch((error) => void notifyError("Job refreshStaleSeries", error));
     refreshStaleMovies().catch((error) => void notifyError("Job refreshStaleMovies", error));
     refreshStaleGames().catch((error) => void notifyError("Job refreshStaleGames", error));
+    refreshStaleBooks().catch((error) => void notifyError("Job refreshStaleBooks", error));
   };
   runSyncTick();
   setInterval(runSyncTick, SYNC_INTERVAL_MS);

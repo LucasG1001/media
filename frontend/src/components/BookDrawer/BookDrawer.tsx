@@ -7,21 +7,17 @@ import styles from "./BookDrawer.module.css";
 // notes/onNotesChange só vêm quando o item está na biblioteca — no catálogo o
 // bloco de anotação não aparece.
 interface BookDrawerProps {
-  bookId: string;
+  bookId: number;
   onClose: () => void;
   onBookLoad?: (book: BookDetail) => void;
   notes?: string | null;
   onNotesChange?: (notes: string) => void;
 }
 
-function stripHtml(text: string | null): string | null {
-  if (!text) return null;
-  return text.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").trim();
-}
-
-function formatPublishedDate(date: string | null): string {
-  if (!date) return "N/A";
-  if (/^\d{4}$/.test(date)) return date;
+// A descrição da Hardcover é texto puro — não há HTML para limpar aqui, ao contrário do
+// que vinha do Google Books.
+function formatPublishedDate(date: string | null, fallbackYear: number | null): string {
+  if (!date) return fallbackYear != null ? String(fallbackYear) : "N/A";
   const parsed = new Date(`${date}T00:00:00`);
   if (isNaN(parsed.getTime())) return date;
   return parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
@@ -95,9 +91,7 @@ export function BookDrawer({ bookId, onClose, onBookLoad, notes, onNotesChange }
             </div>
 
             <div className={styles.content}>
-              {stripHtml(book.description) && (
-                <div className={styles.description}>{stripHtml(book.description)}</div>
-              )}
+              {book.description && <div className={styles.description}>{book.description}</div>}
 
               <div className={styles.infoGrid}>
                 <div className={styles.infoItem}>
@@ -105,12 +99,16 @@ export function BookDrawer({ bookId, onClose, onBookLoad, notes, onNotesChange }
                   <span className={styles.infoValue}>{book.authors.length > 0 ? book.authors.join(", ") : "N/A"}</span>
                 </div>
                 <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>Editora</span>
-                  <span className={styles.infoValue}>{book.publisher ?? "N/A"}</span>
+                  <span className={styles.infoLabel}>Série</span>
+                  <span className={styles.infoValue}>
+                    {book.seriesName
+                      ? `${book.seriesName}${book.seriesPosition != null ? ` #${book.seriesPosition}` : ""}`
+                      : "N/A"}
+                  </span>
                 </div>
                 <div className={styles.infoItem}>
                   <span className={styles.infoLabel}>Publicação</span>
-                  <span className={styles.infoValue}>{formatPublishedDate(book.publishedDate)}</span>
+                  <span className={styles.infoValue}>{formatPublishedDate(book.publishedDate, book.releaseYear)}</span>
                 </div>
                 <div className={styles.infoItem}>
                   <span className={styles.infoLabel}>Páginas</span>
@@ -125,23 +123,19 @@ export function BookDrawer({ bookId, onClose, onBookLoad, notes, onNotesChange }
                   </span>
                 </div>
                 <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>Idioma</span>
-                  <span className={styles.infoValue}>{book.language ? book.language.toUpperCase() : "N/A"}</span>
+                  <span className={styles.infoLabel}>Leitores</span>
+                  <span className={styles.infoValue}>
+                    {book.usersCount ? book.usersCount.toLocaleString("pt-BR") : "N/A"}
+                  </span>
                 </div>
-                {book.isbn && (
-                  <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>ISBN</span>
-                    <span className={styles.infoValue}>{book.isbn}</span>
-                  </div>
-                )}
               </div>
 
-              {book.categories.length > 0 && (
+              {book.genres.length > 0 && (
                 <div>
                   <div className={styles.sectionTitle}>Categorias</div>
                   <div className={styles.genres}>
-                    {book.categories.map((c) => (
-                      <span key={c} className={styles.genreTag}>{c}</span>
+                    {book.genres.map((g) => (
+                      <span key={g} className={styles.genreTag}>{g}</span>
                     ))}
                   </div>
                 </div>

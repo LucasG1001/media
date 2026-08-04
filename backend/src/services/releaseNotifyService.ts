@@ -1,5 +1,5 @@
 import { pool } from "../database/connection.js";
-import { notifyMovieReleased, notifyGameReleased, notifyError } from "./notifyService.js";
+import { notifyMovieReleased, notifyGameReleased, notifyBookReleased, notifyError } from "./notifyService.js";
 
 const RECENT_WINDOW_DAYS = 3;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -21,16 +21,17 @@ interface ReleaseRow {
   id: string;
   tmdb_id?: number;
   igdb_id?: number;
+  hardcover_id?: number;
   title: string;
   image: string | null;
   released: string | null;
 }
 
 async function processTable(
-  table: "movie_library" | "game_library",
-  idColumn: "tmdb_id" | "igdb_id",
-  imageColumn: "poster_image" | "background_image",
-  dateColumn: "release_date" | "released",
+  table: "movie_library" | "game_library" | "books_library",
+  idColumn: "tmdb_id" | "igdb_id" | "hardcover_id",
+  imageColumn: "poster_image" | "background_image" | "cover_image",
+  dateColumn: "release_date" | "released" | "published_date",
   notify: (row: ReleaseRow) => Promise<void>
 ): Promise<void> {
   const { rows } = await pool.query<ReleaseRow>(
@@ -76,5 +77,12 @@ async function doNotify(): Promise<void> {
     );
   } catch (error) {
     await notifyError("releaseNotifyService.games", error);
+  }
+  try {
+    await processTable("books_library", "hardcover_id", "cover_image", "published_date", (row) =>
+      notifyBookReleased({ title: row.title, coverImage: row.image })
+    );
+  } catch (error) {
+    await notifyError("releaseNotifyService.books", error);
   }
 }
