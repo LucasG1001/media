@@ -16,6 +16,9 @@ export interface LibraryEntry {
   format?: string | null;
   seasonYear: number | null;
   nextAiringEpisode: AnimeNextAiringEpisode | null;
+  // Data do último episódio exibido (ISO); null = a AniList não sabe. É o
+  // "terminou de lançar" do anime.
+  endDate: string | null;
   streamingLinks: AnimeExternalLink[];
   syncedAt: string | null;
   notes: string | null;

@@ -155,7 +155,8 @@ export interface SeriesSyncResult {
   episodes: number | null;
   seriesStatus: string;
   airStatus: string | null;
-  nextAiringEpisode: { episode: number; airingAt: number } | null;
+  nextAiringEpisode: { episode: number; airingAt: number; season: number } | null;
+  lastAiredEpisode: { season: number; episode: number; airDate: string } | null;
   seasonList: SeasonMeta[];
 }
 
@@ -164,7 +165,16 @@ export async function fetchSeriesSyncData(id: number): Promise<SeriesSyncResult>
   const next = data.next_episode_to_air ?? null;
   const nextAiringEpisode =
     next && next.air_date
-      ? { episode: next.episode_number, airingAt: Math.floor(new Date(`${next.air_date}T12:00:00Z`).getTime() / 1000) }
+      ? {
+          episode: next.episode_number,
+          airingAt: Math.floor(new Date(`${next.air_date}T12:00:00Z`).getTime() / 1000),
+          season: next.season_number,
+        }
+      : null;
+  const last = data.last_episode_to_air ?? null;
+  const lastAiredEpisode =
+    last && last.air_date
+      ? { season: last.season_number, episode: last.episode_number, airDate: last.air_date }
       : null;
   return {
     title: data.name,
@@ -175,6 +185,7 @@ export async function fetchSeriesSyncData(id: number): Promise<SeriesSyncResult>
     seriesStatus: deriveStatus(data.first_air_date || null),
     airStatus: data.status,
     nextAiringEpisode,
+    lastAiredEpisode,
     seasonList: toSeasonList(data),
   };
 }

@@ -10,8 +10,11 @@ import { MovieDrawer } from "../../components/MovieDrawer/MovieDrawer";
 import { SeriesDrawer } from "../../components/SeriesDrawer/SeriesDrawer";
 import { GameDrawer } from "../../components/GameDrawer/GameDrawer";
 import { BookDrawer } from "../../components/BookDrawer/BookDrawer";
+import { SeasonDrawer } from "../../components/SeasonDrawer/SeasonDrawer";
+import { ReleaseCarousel } from "../../components/ReleaseCarousel/ReleaseCarousel";
 import { AnimeIcon, MovieIcon, SeriesIcon, BookIcon, GameIcon } from "../../components/Sidebar/Sidebar.icons";
 import { buildAgenda, splitAgenda, groupByDay, groupByMonth, type AgendaItem, type AgendaGroup } from "../../utils/agenda";
+import { buildRecentReleases, type ReleaseItem } from "../../utils/recentReleases";
 import styles from "./DashboardPage.module.css";
 
 const MEDIA_ICON: Record<AgendaItem["media"], typeof AnimeIcon> = {
@@ -52,13 +55,14 @@ function contextLine(inProgress: number | null, backlog: number): string {
 export function DashboardPage() {
   const { entries: animes, update: updateAnime, findByAnilistId } = useLibrary();
   const { entries: movies, update: updateMovie, findByTmdbId: findMovieByTmdbId } = useMovieLibrary();
-  const { entries: series } = useSeriesLibrary();
+  const { entries: series, saveSeasonNotes } = useSeriesLibrary();
   const { entries: books, update: updateBook, findByHardcoverId } = useBookLibrary();
   const { entries: games, update: updateGame, findByIgdbId } = useGameLibrary();
 
   const [selectedAnimeId, setSelectedAnimeId] = useState<number | null>(null);
   const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
   const [selectedSeriesId, setSelectedSeriesId] = useState<number | null>(null);
+  const [selectedSeason, setSelectedSeason] = useState<{ tmdbId: number; season: number } | null>(null);
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
 
@@ -109,12 +113,26 @@ export function DashboardPage() {
     return { weekGroups: groupByDay(week), laterGroups: groupByMonth(later) };
   }, [agenda]);
 
-  const openItem = (item: AgendaItem) => {
+  const releases = useMemo(
+    () => buildRecentReleases(animes, movies, series, games, books),
+    [animes, movies, series, games, books]
+  );
+
+  const openItem = (item: AgendaItem | ReleaseItem) => {
     if (item.media === "anime") setSelectedAnimeId(item.externalId as number);
     else if (item.media === "movie") setSelectedMovieId(item.externalId as number);
     else if (item.media === "series") setSelectedSeriesId(item.externalId as number);
     else if (item.media === "game") setSelectedGameId(item.externalId as number);
     else setSelectedBookId(item.externalId as number);
+  };
+
+  // Temporada encerrada abre o drawer da temporada, não o da série.
+  const openRelease = (item: ReleaseItem) => {
+    if (item.seasonNumber != null) {
+      setSelectedSeason({ tmdbId: item.externalId, season: item.seasonNumber });
+      return;
+    }
+    openItem(item);
   };
 
   const renderGroups = (groups: AgendaGroup[], withDate: boolean) =>
@@ -146,6 +164,9 @@ export function DashboardPage() {
   const movieDrawerEntry = selectedMovieId !== null ? findMovieByTmdbId(selectedMovieId) : undefined;
   const gameDrawerEntry = selectedGameId !== null ? findByIgdbId(selectedGameId) : undefined;
   const bookDrawerEntry = selectedBookId !== null ? findByHardcoverId(selectedBookId) : undefined;
+  const seasonDrawerEntry =
+    selectedSeason !== null ? series.find((e) => e.tmdbId === selectedSeason.tmdbId) : undefined;
+  const seasonDrawerState = seasonDrawerEntry?.seasonStates?.[String(selectedSeason?.season)];
 
   return (
     <div className={styles.page}>
@@ -169,6 +190,13 @@ export function DashboardPage() {
           );
         })}
       </section>
+
+      {releases.length > 0 && (
+        <section className={styles.block}>
+          <div className={styles.blockTitle}>Saiu recentemente</div>
+          <ReleaseCarousel items={releases} onSelect={openRelease} />
+        </section>
+      )}
 
       <section className={styles.agenda}>
         {agenda.length === 0 ? (
@@ -213,6 +241,19 @@ export function DashboardPage() {
       )}
       {selectedSeriesId !== null && (
         <SeriesDrawer seriesId={selectedSeriesId} onClose={() => setSelectedSeriesId(null)} />
+      )}
+      {selectedSeason !== null && (
+        <SeasonDrawer
+          seriesId={selectedSeason.tmdbId}
+          seasonNumber={selectedSeason.season}
+          onClose={() => setSelectedSeason(null)}
+          notes={seasonDrawerState?.notes}
+          onNotesChange={
+            seasonDrawerEntry
+              ? (notes) => { void saveSeasonNotes(seasonDrawerEntry.id, selectedSeason.season, notes); }
+              : undefined
+          }
+        />
       )}
       {selectedGameId !== null && (
         <GameDrawer

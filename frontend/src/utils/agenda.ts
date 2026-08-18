@@ -25,13 +25,13 @@ export interface AgendaGroup {
 
 const WEEKDAY_ABBR_PT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-function startOfToday(): number {
+export function startOfToday(): number {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d.getTime();
 }
 
-function dateOnlyToMs(date: string | null): number | null {
+export function dateOnlyToMs(date: string | null): number | null {
   if (!date) return null;
   let ms = new Date(`${date}T00:00:00`).getTime();
   if (Number.isNaN(ms)) ms = new Date(date).getTime();

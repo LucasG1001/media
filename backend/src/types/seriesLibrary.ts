@@ -3,6 +3,16 @@ export type SeriesLibraryStatus = "plan_to_watch" | "watched" | "dropped";
 export interface SeriesNextAiringEpisode {
   episode: number;
   airingAt: number;
+  // Ausente nas linhas gravadas antes da coluna last_aired_episode existir.
+  season?: number;
+}
+
+// Último episódio já exibido (last_episode_to_air do TMDB). Comparado com o
+// nextAiringEpisode, diz se a temporada encerrou.
+export interface SeriesLastAiredEpisode {
+  season: number;
+  episode: number;
+  airDate: string;
 }
 
 export interface SeriesSeasonMeta {
@@ -35,6 +45,7 @@ export interface SeriesLibraryEntry {
   // Status cru do TMDB ("Returning Series"/"Ended"/...); NULL até o primeiro sync.
   airStatus: string | null;
   nextAiringEpisode: SeriesNextAiringEpisode | null;
+  lastAiredEpisode: SeriesLastAiredEpisode | null;
   syncedAt: string | null;
   lastNotifiedEpisode: number | null;
   seasonList: SeriesSeasonMeta[] | null;
@@ -84,6 +95,7 @@ export interface SeriesLibraryRow {
   series_status: string;
   air_status: string | null;
   next_airing_episode: SeriesNextAiringEpisode | null;
+  last_aired_episode: SeriesLastAiredEpisode | null;
   synced_at: string | null;
   last_notified_episode: number | null;
   season_list: SeriesSeasonMeta[] | null;

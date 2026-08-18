@@ -19,6 +19,7 @@ sistema operacional).
 | Boot + diário 09:00 | `notifyDueReleases` | Filmes, Jogos, Livros | Não (só banco + Telegram) |
 | Boot (one-shot) | `backfillGameModes` | Jogos | Sim, só se houver linha pendente |
 | Boot (one-shot) | `backfillSeriesSeasons` | Séries | Sim, só se houver linha pendente |
+| Boot (one-shot) | `backfillReleaseDates` | Anime, Séries | Sim, só se houver linha pendente |
 | Ao abrir o drawer | `handle*Load` na página | Todas | Sim (detalhe do item) |
 
 Só o **YouTube** fica fora da sincronização de fundo — ele tem fluxo próprio de importação. Livros
@@ -267,6 +268,14 @@ fazer requisição nenhuma.
 |---|---|---|
 | `backfillGameModes` | `game_modes IS NULL` | Lotes de 200 na IGDB. `NULL` = nunca buscado; `[]` = jogo sem modo conhecido. A distinção é o que impede o reprocessamento eterno. |
 | `backfillSeriesSeasons` | `season_list IS NULL` | Uma chamada de detalhe TMDB por série, **sequencial**. |
+| `backfillReleaseDates` (anime) | `end_date IS NULL AND anime_status = 'FINISHED'` | Lotes de 50 na AniList, reaproveitando o `updateSyncData`. |
+| `backfillReleaseDates` (séries) | `last_aired_episode IS NULL` e já estreada (`first_air_date <= hoje`) | Uma chamada de detalhe TMDB por série, concorrência 10. O recorte por data de estreia é o que dá saída garantida: série já estreada sempre tem `last_episode_to_air`. |
+
+**Limitação conhecida do `backfillReleaseDates` (anime):** a AniList devolve `endDate` incompleta
+(sem dia ou mês) para alguns títulos antigos, e essas linhas ficam com `end_date` nulo — logo voltam
+ao conjunto a cada boot. São poucas e vão em lote, então o custo é desprezível; a alternativa seria
+um valor sentinela que confundiria "sem data" com "não buscado". **Não** pendure essa condição no
+`findStale`: lá ela não teria saída e as linhas ficariam stale a cada 30 min para sempre.
 
 Backfill de coluna nova nem sempre precisa virar job: quando dá, é melhor pendurar a condição no
 `findStale*` da mídia (foi o que o `air_status IS NULL` fez) e deixar o job de 30 min resolver.
@@ -286,6 +295,8 @@ Colunas alimentadas por API externa. As demais (`status`, `score`, `is_cover`, `
 | `total_episodes` / `episodes` / `seasons` / `runtime` / `metacritic` | ✅ | ✅ | ✅ | só em item novo |
 | data de lançamento/estreia | ✅ | ✅ | ✅ | só em item novo |
 | `next_airing_episode` | — | — | ✅ | — |
+| `last_aired_episode` (séries) | — | — | ✅ | — |
+| `end_date` (anime) | — | — | ✅ | ✅ (`COALESCE`) |
 | `streaming_links`, `season_year`, `format` (anime) | ✅ | — | ✅ | ✅ (`COALESCE`) |
 | `season_list` (séries) | ✅ | — | ✅ | — |
 | `game_modes` | ✅ | — | — | ✅ |

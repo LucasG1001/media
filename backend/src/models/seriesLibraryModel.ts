@@ -6,6 +6,7 @@ import type {
   UpdateSeriesLibraryEntry,
   SeriesLibraryRow,
   SeriesNextAiringEpisode,
+  SeriesLastAiredEpisode,
   SeriesSeasonMeta,
   SeriesSeasonState,
 } from "../types/seriesLibrary.js";
@@ -24,6 +25,7 @@ export const seriesLibraryModel = createLibraryModel<SeriesLibraryEntry, CreateS
     { column: "series_status", field: "seriesStatus", default: "RELEASED" },
     { column: "air_status", field: "airStatus", default: null, readonly: true },
     { column: "next_airing_episode", field: "nextAiringEpisode", default: null, readonly: true },
+    { column: "last_aired_episode", field: "lastAiredEpisode", default: null, readonly: true },
     { column: "synced_at", field: "syncedAt", default: null, readonly: true },
     { column: "last_notified_episode", field: "lastNotifiedEpisode", default: null, readonly: true },
     // readonly: entram na leitura (getAll etc.), mas são escritos só pelas
@@ -54,6 +56,7 @@ function toSeriesEntry(row: SeriesLibraryRow): SeriesLibraryEntry {
     seriesStatus: row.series_status,
     airStatus: row.air_status,
     nextAiringEpisode: row.next_airing_episode,
+    lastAiredEpisode: row.last_aired_episode,
     syncedAt: row.synced_at,
     lastNotifiedEpisode: row.last_notified_episode,
     seasonList: row.season_list,
@@ -111,6 +114,7 @@ export interface SeriesSyncData {
   seriesStatus: string;
   airStatus: string | null;
   nextAiringEpisode: SeriesNextAiringEpisode | null;
+  lastAiredEpisode: SeriesLastAiredEpisode | null;
   seasonList: SeriesSeasonMeta[];
 }
 
@@ -128,6 +132,7 @@ export async function updateSeriesSyncData(tmdbId: number, data: SeriesSyncData)
          seasons = COALESCE($8, seasons),
          series_status = $9,
          air_status = COALESCE($10, air_status),
+         last_aired_episode = COALESCE($11::jsonb, last_aired_episode),
          synced_at = NOW()
      WHERE tmdb_id = $1`,
     [
@@ -141,8 +146,23 @@ export async function updateSeriesSyncData(tmdbId: number, data: SeriesSyncData)
       data.seasons ?? null,
       data.seriesStatus,
       data.airStatus ?? null,
+      data.lastAiredEpisode ? JSON.stringify(data.lastAiredEpisode) : null,
     ]
   );
+}
+
+// Série que já estreou e ainda não teve o último episódio exibido buscado.
+// O recorte por first_air_date dá saída garantida: série já estreada sempre tem
+// last_episode_to_air no TMDB, então a linha sai do conjunto na primeira
+// passada; série que ainda não estreou nem entra.
+export async function findSeriesWithoutLastAired(): Promise<SeriesLibraryEntry[]> {
+  const result = await pool.query<SeriesLibraryRow>(
+    `SELECT * FROM series_library
+     WHERE last_aired_episode IS NULL
+       AND first_air_date IS NOT NULL
+       AND first_air_date <= to_char(NOW(), 'YYYY-MM-DD')`
+  );
+  return result.rows.map(toSeriesEntry);
 }
 
 export async function findSeriesWithoutSeasonList(): Promise<SeriesLibraryEntry[]> {

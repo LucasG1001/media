@@ -127,6 +127,7 @@ const animeAdapter: CollectionSyncAdapter<LibraryEntry, AnimeCard, CreateLibrary
     format: member.format,
     seasonYear: member.seasonYear,
     nextAiringEpisode: member.nextAiringEpisode,
+    endDate: member.endDate,
     streamingLinks: member.streamingLinks,
   }),
   bulkUpsert: (entries, collectionId) => libraryModel.bulkUpsert(entries, collectionId),

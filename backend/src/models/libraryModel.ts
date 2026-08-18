@@ -16,6 +16,7 @@ export const animeLibraryModel = createLibraryModel<LibraryEntry, CreateLibraryE
     { column: "format", field: "format", default: null },
     { column: "season_year", field: "seasonYear", default: null },
     { column: "next_airing_episode", field: "nextAiringEpisode", default: null },
+    { column: "end_date", field: "endDate", default: null, readonly: true },
     { column: "streaming_links", field: "streamingLinks", default: [] },
     { column: "synced_at", field: "syncedAt", default: null },
     { column: "is_cover", field: "isCover", default: false, readonly: true },
@@ -52,6 +53,7 @@ function toLibraryEntry(row: LibraryRow): LibraryEntry {
     format: row.format,
     seasonYear: row.season_year,
     nextAiringEpisode: row.next_airing_episode,
+    endDate: row.end_date,
     streamingLinks: row.streaming_links ?? [],
     syncedAt: row.synced_at,
     notes: row.notes,
@@ -75,6 +77,18 @@ export async function findStale(nonFinishedTtlHours: number, finishedTtlHours: n
     [nonFinishedTtlHours, finishedTtlHours]
   );
   return result.rows.map(toLibraryEntry);
+}
+
+// Anime já concluído na AniList e ainda sem a data de fim (coluna nunca
+// buscada). Fora do findStale de propósito: a condição não tem saída garantida
+// (a AniList devolve endDate incompleta para alguns títulos antigos) e no job
+// de 30 min essas linhas ficariam stale para sempre.
+export async function findAnilistIdsWithoutEndDate(): Promise<number[]> {
+  const result = await pool.query<{ anilist_id: number }>(
+    `SELECT anilist_id FROM anime_library
+     WHERE end_date IS NULL AND anime_status = 'FINISHED'`
+  );
+  return result.rows.map((row) => row.anilist_id);
 }
 
 export async function create(entry: CreateLibraryEntry): Promise<LibraryEntry> {
@@ -109,7 +123,7 @@ export async function bulkUpsert(entries: CreateLibraryEntry[], franchiseId: num
   for (const entry of entries) {
     const statusParam = `$${i + 3}`;
     rows.push(
-      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, $${i + 10}, $${i + 11}, NOW(), CASE WHEN ${statusParam} = 'watched' THEN NOW() ELSE NULL END, CASE WHEN ${statusParam} = 'watched' THEN NOW() ELSE NULL END)`
+      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, $${i + 10}, $${i + 11}, $${i + 12}, NOW(), CASE WHEN ${statusParam} = 'watched' THEN NOW() ELSE NULL END, CASE WHEN ${statusParam} = 'watched' THEN NOW() ELSE NULL END)`
     );
     values.push(
       entry.anilistId,
@@ -123,18 +137,20 @@ export async function bulkUpsert(entries: CreateLibraryEntry[], franchiseId: num
       JSON.stringify(entry.nextAiringEpisode ?? null),
       JSON.stringify(entry.streamingLinks ?? []),
       franchiseId,
-      entry.format ?? null
+      entry.format ?? null,
+      entry.endDate ?? null
     );
-    i += 12;
+    i += 13;
   }
 
   const result = await pool.query<LibraryRow>(
     `INSERT INTO anime_library
-       (anilist_id, title, cover_image, status, score, total_episodes, anime_status, season_year, next_airing_episode, streaming_links, franchise_id, format, synced_at, watched_at, last_access_at)
+       (anilist_id, title, cover_image, status, score, total_episodes, anime_status, season_year, next_airing_episode, streaming_links, franchise_id, format, end_date, synced_at, watched_at, last_access_at)
      VALUES ${rows.join(", ")}
      ON CONFLICT (anilist_id) DO UPDATE SET
        franchise_id = COALESCE(anime_library.franchise_id, EXCLUDED.franchise_id),
-       format = COALESCE(anime_library.format, EXCLUDED.format)
+       format = COALESCE(anime_library.format, EXCLUDED.format),
+       end_date = COALESCE(anime_library.end_date, EXCLUDED.end_date)
      RETURNING *`,
     values
   );
@@ -154,6 +170,7 @@ export async function updateSyncData(anilistId: number, data: SyncLibraryData): 
          title = COALESCE(NULLIF($7, ''), title),
          cover_image = COALESCE(NULLIF($8, ''), cover_image),
          format = COALESCE($9, format),
+         end_date = COALESCE($10, end_date),
          synced_at = NOW()
      WHERE anilist_id = $1`,
     [
@@ -166,6 +183,7 @@ export async function updateSyncData(anilistId: number, data: SyncLibraryData): 
       data.title ?? null,
       data.coverImage ?? null,
       data.format ?? null,
+      data.endDate ?? null,
     ]
   );
 }

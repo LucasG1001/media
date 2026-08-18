@@ -46,6 +46,13 @@ export async function migrate(): Promise<void> {
     ADD COLUMN IF NOT EXISTS is_cover BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 
+  // Data do último episódio exibido (endDate da AniList, ISO YYYY-MM-DD).
+  // NULL = nunca buscado ou data incompleta na API; ver releaseDateBackfillService.
+  await pool.query(`
+    ALTER TABLE anime_library
+    ADD COLUMN IF NOT EXISTS end_date TEXT;
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS movie_library (
       id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -167,6 +174,14 @@ export async function migrate(): Promise<void> {
   await pool.query(`
     ALTER TABLE series_library
     ADD COLUMN IF NOT EXISTS cover_season INTEGER;
+  `);
+
+  // Último episódio exibido ({season, episode, airDate}), do last_episode_to_air
+  // do TMDB. Com o next_airing_episode diz se a temporada encerrou.
+  // NULL = nunca buscado; ver releaseDateBackfillService.
+  await pool.query(`
+    ALTER TABLE series_library
+    ADD COLUMN IF NOT EXISTS last_aired_episode JSONB;
   `);
 
   // Status de exibição cru do TMDB ("Returning Series"/"Ended"/"Canceled"/...).

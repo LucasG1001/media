@@ -1,7 +1,7 @@
+/* Largura total, como as páginas de biblioteca: é o que faz caber mais card no
+   carrossel. */
 .page {
   padding: var(--spacing-2xl);
-  max-width: 960px;
-  margin: 0 auto;
 }
 
 .counters {

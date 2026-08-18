@@ -2,7 +2,7 @@ import axios from "axios";
 import { cachedRequest } from "../lib/httpClient.js";
 import { createRateLimiter } from "../lib/rateLimiter.js";
 import { chunk } from "../lib/chunk.js";
-import type { AniListAnime, AniListResponse, AniListSingleResponse, AnimeCard, AnimeDetail, AniListExternalLink, AniListFranchiseNode, AniListFranchiseResponse } from "../types/anime.js";
+import type { AniListAnime, AniListResponse, AniListSingleResponse, AnimeCard, AnimeDetail, AniListExternalLink, AniListFuzzyDate, AniListFranchiseNode, AniListFranchiseResponse } from "../types/anime.js";
 
 export class AniListError extends Error {
   constructor(message: string, readonly status: number) {
@@ -45,8 +45,19 @@ const MEDIA_FIELDS = `
   averageScore
   trailer { id site }
   nextAiringEpisode { episode airingAt }
+  endDate { year month day }
   externalLinks { url site icon color type }
 `;
+
+// A AniList devolve endDate com partes nulas (anime em exibição, data
+// desconhecida ou só o ano). Sem dia e mês exatos não dá para dizer "terminou
+// em tal data", então só a data completa vira valor.
+function toIsoDate(date: AniListFuzzyDate | null | undefined): string | null {
+  if (!date || !date.year || !date.month || !date.day) return null;
+  const month = String(date.month).padStart(2, "0");
+  const day = String(date.day).padStart(2, "0");
+  return `${date.year}-${month}-${day}`;
+}
 
 function getStreamingLinks(links: AniListExternalLink[]): AniListExternalLink[] {
   return links.filter((link) => link.type === "STREAMING");
@@ -65,6 +76,7 @@ function toAnimeCard(anime: AniListAnime): AnimeCard {
     seasonYear: anime.seasonYear,
     genres: anime.genres,
     nextAiringEpisode: anime.nextAiringEpisode,
+    endDate: toIsoDate(anime.endDate),
     streamingLinks: getStreamingLinks(anime.externalLinks || []),
   };
 }
@@ -265,6 +277,7 @@ function franchiseNodeToCard(node: AniListFranchiseNode): AnimeCard {
     seasonYear: node.seasonYear,
     genres: [],
     nextAiringEpisode: node.nextAiringEpisode,
+    endDate: toIsoDate(node.endDate),
     streamingLinks: getStreamingLinks(node.externalLinks || []),
   };
 }
@@ -282,6 +295,7 @@ export async function discoverFranchise(seedId: number): Promise<AnimeCard[]> {
           status
           seasonYear
           nextAiringEpisode { episode airingAt }
+          endDate { year month day }
           externalLinks { url site icon color type }
           relations { edges { relationType node { id type format } } }
         }

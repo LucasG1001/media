@@ -11,6 +11,7 @@ import { refreshCollections } from "./services/collectionSyncService.js";
 import { notifyDueReleases } from "./services/releaseNotifyService.js";
 import { backfillGameModes } from "./services/gameModesBackfillService.js";
 import { backfillSeriesSeasons } from "./services/seasonListBackfillService.js";
+import { backfillReleaseDates } from "./services/releaseDateBackfillService.js";
 import { animeRoutes } from "./routes/animeRoutes.js";
 import { libraryRoutes } from "./routes/libraryRoutes.js";
 import { movieRoutes } from "./routes/movieRoutes.js";
@@ -71,6 +72,7 @@ async function start(): Promise<void> {
   });
   backfillGameModes().catch((error) => void notifyError("Job backfillGameModes", error));
   backfillSeriesSeasons().catch((error) => void notifyError("Job backfillSeriesSeasons", error));
+  backfillReleaseDates().catch((error) => void notifyError("Job backfillReleaseDates", error));
 
   // Roda no boot e não só a cada 30 min: sem isso um restart deixava toda a
   // sincronização parada por meia hora. Os jobs são singleFlight, então uma

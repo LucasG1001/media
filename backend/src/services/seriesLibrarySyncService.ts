@@ -54,6 +54,7 @@ async function doRefresh(): Promise<void> {
             seriesStatus: fresh.seriesStatus,
             airStatus: fresh.airStatus,
             nextAiringEpisode: fresh.nextAiringEpisode,
+            lastAiredEpisode: fresh.lastAiredEpisode,
             seasonList: fresh.seasonList,
           });
         } catch (error) {

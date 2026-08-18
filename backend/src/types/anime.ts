@@ -23,6 +23,13 @@ export interface AniListNextAiringEpisode {
   airingAt: number;
 }
 
+// A AniList devolve as partes separadamente e qualquer uma pode vir nula.
+export interface AniListFuzzyDate {
+  year: number | null;
+  month: number | null;
+  day: number | null;
+}
+
 export interface AniListStreamingEpisode {
   title: string | null;
   thumbnail: string | null;
@@ -54,6 +61,7 @@ export interface AniListAnime {
   averageScore: number | null;
   trailer: AniListTrailer | null;
   nextAiringEpisode: AniListNextAiringEpisode | null;
+  endDate: AniListFuzzyDate | null;
   externalLinks: AniListExternalLink[];
   // Só pedido na query de detalhe (fetchAnimeById).
   streamingEpisodes?: AniListStreamingEpisode[] | null;
@@ -98,6 +106,9 @@ export interface AnimeCard {
   seasonYear: number | null;
   genres: string[];
   nextAiringEpisode: AniListNextAiringEpisode | null;
+  // Data do último episódio exibido (ISO YYYY-MM-DD); null quando a AniList não
+  // sabe ou só tem a data parcial. É o "terminou de lançar" do anime.
+  endDate: string | null;
   streamingLinks: AniListExternalLink[];
 }
 
@@ -131,6 +142,7 @@ export interface AniListFranchiseNode {
   status: string;
   seasonYear: number | null;
   nextAiringEpisode: AniListNextAiringEpisode | null;
+  endDate: AniListFuzzyDate | null;
   externalLinks: AniListExternalLink[];
   relations: { edges: AniListRelationEdge[] };
 }

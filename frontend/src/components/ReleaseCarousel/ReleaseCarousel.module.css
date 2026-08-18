@@ -1,0 +1,147 @@
+.track {
+  display: flex;
+  gap: var(--spacing-xl);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: var(--spacing-sm);
+}
+
+/* Mesma anatomia do MediaCard (capa + overlay com o título por cima), só que em
+   faixa horizontal em vez de grade. */
+.card {
+  /* Mesma largura dos cards de biblioteca (MediaGrid). */
+  flex: 0 0 200px;
+  scroll-snap-align: start;
+  position: relative;
+  padding: 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    transform var(--transition-base),
+    box-shadow var(--transition-base),
+    border-color var(--transition-base);
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--media-color);
+}
+
+.imageWrapper {
+  position: relative;
+  aspect-ratio: 3 / 4.2;
+  overflow: hidden;
+}
+
+.coverImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-slow);
+  -webkit-user-drag: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+.card:hover .coverImage {
+  transform: scale(1.05);
+}
+
+.coverPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-bg-tertiary), var(--color-surface));
+}
+
+.placeholderIcon {
+  width: 36px;
+  height: 36px;
+  color: var(--media-color);
+  opacity: 0.5;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.9) 0%,
+    rgba(0, 0, 0, 0.3) 40%,
+    transparent 70%
+  );
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: var(--spacing-base);
+}
+
+/* Acima do título e dentro do overlay, como o chip de último acesso do
+   MediaCard: é a informação que dá sentido ao carrossel. */
+.whenPill {
+  align-self: flex-start;
+  max-width: 100%;
+  margin-bottom: var(--spacing-xs);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  color: var(--media-color);
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--media-color);
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+}
+
+.metaIcon {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  color: var(--media-color);
+}
+
+.metaText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .track {
+    gap: var(--spacing-base);
+  }
+
+  .card {
+    flex-basis: 160px;
+  }
+}

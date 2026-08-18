@@ -14,6 +14,8 @@ export interface LibraryEntry {
   format: string | null;
   seasonYear: number | null;
   nextAiringEpisode: AniListNextAiringEpisode | null;
+  // Data do último episódio exibido (ISO); null = desconhecida.
+  endDate: string | null;
   streamingLinks: AniListExternalLink[];
   syncedAt: string | null;
   notes: string | null;
@@ -36,6 +38,7 @@ export interface CreateLibraryEntry {
   format?: string | null;
   seasonYear?: number | null;
   nextAiringEpisode?: AniListNextAiringEpisode | null;
+  endDate?: string | null;
   streamingLinks?: AniListExternalLink[];
 }
 
@@ -57,6 +60,7 @@ export interface SyncLibraryData {
   animeStatus: string;
   seasonYear: number | null;
   nextAiringEpisode: AniListNextAiringEpisode | null;
+  endDate: string | null;
   streamingLinks: AniListExternalLink[];
 }
 
@@ -74,6 +78,7 @@ export interface LibraryRow {
   format: string | null;
   season_year: number | null;
   next_airing_episode: AniListNextAiringEpisode | null;
+  end_date: string | null;
   streaming_links: AniListExternalLink[];
   synced_at: string | null;
   notes: string | null;

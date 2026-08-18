@@ -97,7 +97,11 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   `fetchGameModes` (IGDB) — idempotente (`NULL` = nunca buscado; `[]` = sem modo conhecido). E
   `backfillSeriesSeasons` (one-shot): preenche `season_list` das séries com a coluna NULL via
   `fetchSeriesById` (TMDB). O refresh de séries também atualiza `season_list` (pega novas
-  temporadas), sem tocar em `season_scores`.
+  temporadas), sem tocar em `season_scores`. E `backfillReleaseDates` (one-shot): preenche as datas
+  de "terminou de lançar" nas linhas antigas — `end_date` (anime, lote na AniList) e
+  `last_aired_episode` (séries, 1 requisição por série). Nenhuma das duas entra em `findStale*`: a
+  condição do anime não tem saída garantida (a AniList devolve `endDate` incompleta para alguns
+  títulos) e lá a linha ficaria stale para sempre.
 - **`docs/sincronizacao.md`** detalha todos os jobs (gatilho, condição de staleness, colunas
   gravadas, custo estimado) e as limitações conhecidas. Consulte antes de mexer em job.
 - **Invariantes do refresh:**
@@ -115,6 +119,14 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 
 - **`App.tsx`** — BrowserRouter + Sidebar; páginas `Dashboard`, `Anime`, `Movies`, `Series`,
   `Games`, `Books`, `YouTube`, `Settings`.
+- **Dashboard** — agrega no cliente, sobre as 5 bibliotecas que os stores já carregam (nenhum
+  endpoint próprio). Duas listas espelhadas: `utils/agenda.ts` (o que **vai** lançar) e
+  `utils/recentReleases.ts` (o que **já** lançou, no `ReleaseCarousel`). O carrossel é uma fila de
+  "já dá para consumir": só entra item em `plan_to_*` — marcar como concluído tira o item de lá —,
+  janela de 90 dias completada até um mínimo de 10 itens para não ficar vazio em período parado.
+  Em séries o evento é a **temporada** encerrada (`last_aired_episode` vs `next_airing_episode`,
+  status lido de `season_states`, clique abre o `SeasonDrawer`); linha antiga sem `season` no
+  próximo episódio degrada para menos itens, nunca para a temporada errada.
 - **Componentes compartilhados**: `MediaCard`/`MediaGrid` (catálogo), `FranchiseGrid` (biblioteca
   agrupada por franquia/coleção; aceita `renderExpansion` — inversão de controle da expansão — e
   `extraActions`, ações extra repassadas à `SelectionBar` com os ids selecionados, habilitadas só com
@@ -380,7 +392,13 @@ jogos/livros, `movie_status`/`series_status`/`game_status`/`book_status`, que s�
 `RELEASED`/`UPCOMING` derivados da
 data. Séries têm além disso `air_status` — o status cru do TMDB (`Returning Series`/`Ended`/…),
 que é o que dá os três estados do filtro de Exibição; `NULL` = nunca sincronizado, e é o que faz
-o `findStaleSeries` puxar a linha para backfill. `synced_at` (todas as cinco tabelas) guarda o
+o `findStaleSeries` puxar a linha para backfill. **Quando algo terminou de lançar** é outra coisa:
+o status externo é recalculado a cada sync comparando a data com hoje, então o instante da virada
+não fica registrado. Quem guarda a data são `anime_library.end_date` (`endDate` da AniList, ISO;
+`NULL` = desconhecida ou incompleta) e `series_library.last_aired_episode` (JSONB
+`{season, episode, airDate}`, do `last_episode_to_air` do TMDB). As duas vêm de campos que as APIs
+já devolvem nas requisições que os jobs fazem, então custam zero requisição.
+`synced_at` (todas as cinco tabelas) guarda o
 último refresh; `NULL` entra na próxima execução do job. **`book_status` não usa o `deriveStatus` do
 TMDB**: lá data nula significa "sem data marcada" e cai em `UPCOMING`, mas na Hardcover data nula é
 "não se sabe" e o livro em geral é antigo — `deriveBookStatus` cai no ano e só então em `RELEASED`,
