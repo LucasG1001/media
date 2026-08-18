@@ -39,9 +39,14 @@ function formatDate(timestamp: number): string {
 }
 
 export function AnimeDrawer({ animeId, onClose, onAnimeLoad, notes, onNotesChange, nav }: AnimeDrawerProps) {
-  const [anime, setAnime] = useState<AnimeDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  // Guardados junto com o id a que pertencem, e loading/error derivados daí:
+  // navegar troca o id sem remontar o drawer, e estado solto seguiria falando do
+  // item anterior (mostrando-o enquanto busca, ou grudando um erro antigo).
+  const [loaded, setLoaded] = useState<{ id: number; data: AnimeDetail } | null>(null);
+  const [failedId, setFailedId] = useState<number | null>(null);
+  const anime = loaded?.id === animeId ? loaded.data : null;
+  const error = failedId === animeId;
+  const loading = !anime && !error;
 
   const onAnimeLoadRef = useRef(onAnimeLoad);
   useEffect(() => {
@@ -53,14 +58,11 @@ export function AnimeDrawer({ animeId, onClose, onAnimeLoad, notes, onNotesChang
     fetchAnimeById(animeId)
       .then((data) => {
         if (!active) return;
-        setAnime(data);
+        setLoaded({ id: animeId, data });
         onAnimeLoadRef.current?.(data);
       })
       .catch(() => {
-        if (active) setError(true);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+        if (active) setFailedId(animeId);
       });
 
     return () => {
@@ -101,7 +103,11 @@ export function AnimeDrawer({ animeId, onClose, onAnimeLoad, notes, onNotesChang
 
             <div className={styles.content}>
               {anime.trailer && anime.trailer.site === "youtube" && (
-                <TrailerEmbed youtubeId={anime.trailer.id} />
+                <TrailerEmbed
+                  youtubeId={anime.trailer.id}
+                  overlay={nav && <DrawerNav {...nav} variant="float" />}
+                  autoPlay
+                />
               )}
 
               {anime.description && (
@@ -206,7 +212,7 @@ export function AnimeDrawer({ animeId, onClose, onAnimeLoad, notes, onNotesChang
                 </div>
               )}
 
-              {onNotesChange && <NotesBlock value={notes ?? null} onSave={onNotesChange} />}
+              {onNotesChange && <NotesBlock key={animeId} value={notes ?? null} onSave={onNotesChange} />}
             </div>
           </>
         ) : (

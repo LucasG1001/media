@@ -45,9 +45,14 @@ function formatReleaseDate(date: string | null): string {
 }
 
 export function MovieDrawer({ movieId, onClose, onMovieLoad, notes, onNotesChange, nav }: MovieDrawerProps) {
-  const [movie, setMovie] = useState<MovieDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  // Guardados junto com o id a que pertencem, e loading/error derivados daí:
+  // navegar troca o id sem remontar o drawer, e estado solto seguiria falando do
+  // item anterior (mostrando-o enquanto busca, ou grudando um erro antigo).
+  const [loaded, setLoaded] = useState<{ id: number; data: MovieDetail } | null>(null);
+  const [failedId, setFailedId] = useState<number | null>(null);
+  const movie = loaded?.id === movieId ? loaded.data : null;
+  const error = failedId === movieId;
+  const loading = !movie && !error;
 
   const onMovieLoadRef = useRef(onMovieLoad);
   useEffect(() => {
@@ -59,14 +64,11 @@ export function MovieDrawer({ movieId, onClose, onMovieLoad, notes, onNotesChang
     fetchMovieById(movieId)
       .then((data) => {
         if (!active) return;
-        setMovie(data);
+        setLoaded({ id: movieId, data });
         onMovieLoadRef.current?.(data);
       })
       .catch(() => {
-        if (active) setError(true);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+        if (active) setFailedId(movieId);
       });
 
     return () => {
@@ -107,7 +109,11 @@ export function MovieDrawer({ movieId, onClose, onMovieLoad, notes, onNotesChang
 
             <div className={styles.content}>
               {movie.trailerKey && (
-                <TrailerEmbed youtubeId={movie.trailerKey} />
+                <TrailerEmbed
+                  youtubeId={movie.trailerKey}
+                  overlay={nav && <DrawerNav {...nav} variant="float" />}
+                  autoPlay
+                />
               )}
 
               {movie.overview && <div className={styles.description}>{movie.overview}</div>}
@@ -160,7 +166,7 @@ export function MovieDrawer({ movieId, onClose, onMovieLoad, notes, onNotesChang
                 </div>
               )}
 
-              {onNotesChange && <NotesBlock value={notes ?? null} onSave={onNotesChange} />}
+              {onNotesChange && <NotesBlock key={movieId} value={notes ?? null} onSave={onNotesChange} />}
             </div>
           </>
         ) : (

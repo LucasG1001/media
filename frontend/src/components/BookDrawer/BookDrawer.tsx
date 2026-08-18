@@ -28,9 +28,14 @@ function formatPublishedDate(date: string | null, fallbackYear: number | null): 
 }
 
 export function BookDrawer({ bookId, onClose, onBookLoad, notes, onNotesChange, nav }: BookDrawerProps) {
-  const [book, setBook] = useState<BookDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  // Guardados junto com o id a que pertencem, e loading/error derivados daí:
+  // navegar troca o id sem remontar o drawer, e estado solto seguiria falando do
+  // item anterior (mostrando-o enquanto busca, ou grudando um erro antigo).
+  const [loaded, setLoaded] = useState<{ id: number; data: BookDetail } | null>(null);
+  const [failedId, setFailedId] = useState<number | null>(null);
+  const book = loaded?.id === bookId ? loaded.data : null;
+  const error = failedId === bookId;
+  const loading = !book && !error;
 
   const onBookLoadRef = useRef(onBookLoad);
   useEffect(() => {
@@ -42,14 +47,11 @@ export function BookDrawer({ bookId, onClose, onBookLoad, notes, onNotesChange, 
     fetchBookById(bookId)
       .then((data) => {
         if (!active) return;
-        setBook(data);
+        setLoaded({ id: bookId, data });
         onBookLoadRef.current?.(data);
       })
       .catch(() => {
-        if (active) setError(true);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+        if (active) setFailedId(bookId);
       });
 
     return () => {
@@ -135,7 +137,7 @@ export function BookDrawer({ bookId, onClose, onBookLoad, notes, onNotesChange, 
                 </div>
               )}
 
-              {onNotesChange && <NotesBlock value={notes ?? null} onSave={onNotesChange} />}
+              {onNotesChange && <NotesBlock key={bookId} value={notes ?? null} onSave={onNotesChange} />}
             </div>
           </>
         ) : (

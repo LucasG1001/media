@@ -37,9 +37,14 @@ function formatReleased(date: string | null): string {
 }
 
 export function GameDrawer({ gameId, onClose, onGameLoad, notes, onNotesChange, nav }: GameDrawerProps) {
-  const [game, setGame] = useState<GameDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  // Guardados junto com o id a que pertencem, e loading/error derivados daí:
+  // navegar troca o id sem remontar o drawer, e estado solto seguiria falando do
+  // item anterior (mostrando-o enquanto busca, ou grudando um erro antigo).
+  const [loaded, setLoaded] = useState<{ id: number; data: GameDetail } | null>(null);
+  const [failedId, setFailedId] = useState<number | null>(null);
+  const game = loaded?.id === gameId ? loaded.data : null;
+  const error = failedId === gameId;
+  const loading = !game && !error;
 
   const onGameLoadRef = useRef(onGameLoad);
   useEffect(() => {
@@ -51,14 +56,11 @@ export function GameDrawer({ gameId, onClose, onGameLoad, notes, onNotesChange, 
     fetchGameById(gameId)
       .then((data) => {
         if (!active) return;
-        setGame(data);
+        setLoaded({ id: gameId, data });
         onGameLoadRef.current?.(data);
       })
       .catch(() => {
-        if (active) setError(true);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+        if (active) setFailedId(gameId);
       });
 
     return () => {
@@ -94,7 +96,11 @@ export function GameDrawer({ gameId, onClose, onGameLoad, notes, onNotesChange, 
 
             <div className={styles.content}>
               {game.trailer && (
-                <TrailerEmbed youtubeId={game.trailer.youtubeId} />
+                <TrailerEmbed
+                  youtubeId={game.trailer.youtubeId}
+                  overlay={nav && <DrawerNav {...nav} variant="float" />}
+                  autoPlay
+                />
               )}
 
               {game.screenshots.length > 0 && (
@@ -172,7 +178,7 @@ export function GameDrawer({ gameId, onClose, onGameLoad, notes, onNotesChange, 
                 </div>
               )}
 
-              {onNotesChange && <NotesBlock value={notes ?? null} onSave={onNotesChange} />}
+              {onNotesChange && <NotesBlock key={gameId} value={notes ?? null} onSave={onNotesChange} />}
             </div>
           </>
         ) : (

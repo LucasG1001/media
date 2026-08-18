@@ -31,9 +31,17 @@ export function SeasonDrawer({
   onNotesChange,
   nav,
 }: SeasonDrawerProps) {
-  const [data, setData] = useState<{ series: SeriesDetail; season: SeasonDetail } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  // Guardados junto com a chave a que pertencem, e loading/error derivados daí:
+  // navegar entre temporadas troca a chave sem remontar o drawer, e estado solto
+  // seguiria falando da temporada anterior.
+  const key = `${seriesId}-${seasonNumber}`;
+  const [loaded, setLoaded] = useState<
+    { key: string; series: SeriesDetail; season: SeasonDetail } | null
+  >(null);
+  const [failedKey, setFailedKey] = useState<string | null>(null);
+  const data = loaded?.key === key ? loaded : null;
+  const error = failedKey === key;
+  const loading = !data && !error;
 
   const onSeriesLoadRef = useRef(onSeriesLoad);
   useEffect(() => {
@@ -45,19 +53,16 @@ export function SeasonDrawer({
     Promise.all([fetchSeriesById(seriesId), fetchSeasonById(seriesId, seasonNumber)])
       .then(([series, season]) => {
         if (!active) return;
-        setData({ series, season });
+        setLoaded({ key, series, season });
         onSeriesLoadRef.current?.(series);
       })
       .catch(() => {
-        if (active) setError(true);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+        if (active) setFailedKey(key);
       });
     return () => {
       active = false;
     };
-  }, [seriesId, seasonNumber]);
+  }, [seriesId, seasonNumber, key]);
 
   useDrawerKeys(onClose, nav);
 
@@ -74,6 +79,7 @@ export function SeasonDrawer({
           <div className={drawer.loading}>Carregando...</div>
         ) : data ? (
           <SeriesDetailBody
+            playerOverlay={nav && <DrawerNav {...nav} variant="float" />}
             series={data.series}
             poster={data.season.poster}
             tagline={seasonLabel}
@@ -104,7 +110,7 @@ export function SeasonDrawer({
               </div>
             )}
 
-            {onNotesChange && <NotesBlock value={notes ?? null} onSave={onNotesChange} />}
+            {onNotesChange && <NotesBlock key={key} value={notes ?? null} onSave={onNotesChange} />}
           </SeriesDetailBody>
         ) : (
           <div className={drawer.loading}>{error ? "Erro ao carregar detalhes." : ""}</div>

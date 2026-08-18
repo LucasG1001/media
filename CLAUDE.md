@@ -175,6 +175,16 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   pela página — a ordem é sempre a que está na tela. Devolve `null` para item fora de coleção ou
   coleção de 1, e só é ligado na aba **biblioteca** (no catálogo a lista exibida é outra). Em séries
   a coleção são as **temporadas**, então navega entre elas.
+  **Nenhum drawer leva `key` por item na página**: remontar destruiria o elemento em tela cheia e o
+  navegador sairia dela a cada troca. Em troca, o que dependia da remontagem é tratado dentro de cada
+  drawer: o payload é guardado **junto com o id a que pertence** (`{ id, data }`) e `loading`/`error`
+  saem daí por derivação — estado solto seguiria mostrando o item anterior enquanto busca, ou grudaria
+  um erro antigo (repor com `setState` no corpo do efeito não serve: o lint barra, com razão). E o
+  `NotesBlock` leva `key` por item, porque guarda o texto em estado interno e a anotação de um vazaria
+  para o seguinte.
+- **Trailers**: `autoPlay` ligado em todas as mídias, e a navegação da coleção aparece **também sobre
+  o player** (`overlay`), além do canto — em livro, que não tem trailer, só o canto. Em séries o
+  `SeriesDetailBody` repassa a sobreposição via `playerOverlay`, já que é ele que monta o player.
 - **`TrailerEmbed` tem tela cheia própria** (`fs=0` no embed + botão que expande o **wrapper**, não o
   iframe): em tela cheia só o elemento fullscreen e seus descendentes são pintados, e nada pode ser
   injetado num iframe de outra origem — expandindo o iframe, qualquer sobreposição sumiria. Os

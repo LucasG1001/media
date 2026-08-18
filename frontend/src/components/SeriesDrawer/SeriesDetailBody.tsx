@@ -11,10 +11,19 @@ interface SeriesDetailBodyProps {
   poster?: string | null;
   tagline?: string | null;
   overview?: string | null;
+  // Sobreposto ao player; o SeasonDrawer usa para a navegação entre temporadas.
+  playerOverlay?: ReactNode;
   children?: ReactNode;
 }
 
-export function SeriesDetailBody({ series, poster, tagline, overview, children }: SeriesDetailBodyProps) {
+export function SeriesDetailBody({
+  series,
+  poster,
+  tagline,
+  overview,
+  playerOverlay,
+  children,
+}: SeriesDetailBodyProps) {
   const coverImage = poster ?? series.posterImage;
   const taglineText = tagline ?? series.tagline;
   const overviewText = overview ?? series.overview;
@@ -41,7 +50,7 @@ export function SeriesDetailBody({ series, poster, tagline, overview, children }
 
       <div className={styles.content}>
         {series.trailerKey && (
-          <TrailerEmbed youtubeId={series.trailerKey} />
+          <TrailerEmbed youtubeId={series.trailerKey} overlay={playerOverlay} autoPlay />
         )}
 
         {overviewText && <div className={styles.description}>{overviewText}</div>}
