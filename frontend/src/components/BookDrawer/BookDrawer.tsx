@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { BookDetail } from "../../types/book";
 import { fetchBookById } from "../../services/bookService";
 import { NotesBlock } from "../NotesBlock/NotesBlock";
+import { DrawerNav, type DrawerNavProps } from "../DrawerNav/DrawerNav";
+import { useDrawerKeys } from "../../hooks/useDrawerKeys";
 import styles from "./BookDrawer.module.css";
 
 // notes/onNotesChange só vêm quando o item está na biblioteca — no catálogo o
@@ -10,6 +12,8 @@ interface BookDrawerProps {
   bookId: number;
   onClose: () => void;
   onBookLoad?: (book: BookDetail) => void;
+  // Navegação entre os itens da coleção, sem fechar o drawer.
+  nav?: DrawerNavProps;
   notes?: string | null;
   onNotesChange?: (notes: string) => void;
 }
@@ -23,7 +27,7 @@ function formatPublishedDate(date: string | null, fallbackYear: number | null): 
   return parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export function BookDrawer({ bookId, onClose, onBookLoad, notes, onNotesChange }: BookDrawerProps) {
+export function BookDrawer({ bookId, onClose, onBookLoad, notes, onNotesChange, nav }: BookDrawerProps) {
   const [book, setBook] = useState<BookDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -53,24 +57,14 @@ export function BookDrawer({ bookId, onClose, onBookLoad, notes, onNotesChange }
     };
   }, [bookId]);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-  }, [onClose]);
-
-  useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
-    };
-  }, [handleKeyDown]);
+  useDrawerKeys(onClose, nav);
 
   return (
     <>
       <div className={styles.overlay} onClick={onClose} />
       <div className={styles.drawer}>
         <button className={styles.closeButton} onClick={onClose}>✕</button>
+        {nav && <DrawerNav {...nav} />}
 
         {loading ? (
           <div className={styles.loading}>Carregando...</div>

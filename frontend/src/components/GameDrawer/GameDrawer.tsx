@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { GameDetail } from "../../types/game";
 import { fetchGameById } from "../../services/gameService";
 import { TrailerEmbed } from "../TrailerEmbed/TrailerEmbed";
 import { NotesBlock } from "../NotesBlock/NotesBlock";
+import { DrawerNav, type DrawerNavProps } from "../DrawerNav/DrawerNav";
+import { useDrawerKeys } from "../../hooks/useDrawerKeys";
 import styles from "./GameDrawer.module.css";
 
 // notes/onNotesChange só vêm quando o item está na biblioteca — no catálogo o
@@ -11,6 +13,8 @@ interface GameDrawerProps {
   gameId: number;
   onClose: () => void;
   onGameLoad?: (game: GameDetail) => void;
+  // Navegação entre os itens da coleção, sem fechar o drawer.
+  nav?: DrawerNavProps;
   notes?: string | null;
   onNotesChange?: (notes: string) => void;
 }
@@ -32,7 +36,7 @@ function formatReleased(date: string | null): string {
   });
 }
 
-export function GameDrawer({ gameId, onClose, onGameLoad, notes, onNotesChange }: GameDrawerProps) {
+export function GameDrawer({ gameId, onClose, onGameLoad, notes, onNotesChange, nav }: GameDrawerProps) {
   const [game, setGame] = useState<GameDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -62,24 +66,14 @@ export function GameDrawer({ gameId, onClose, onGameLoad, notes, onNotesChange }
     };
   }, [gameId]);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-  }, [onClose]);
-
-  useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
-    };
-  }, [handleKeyDown]);
+  useDrawerKeys(onClose, nav);
 
   return (
     <>
       <div className={styles.overlay} onClick={onClose} />
       <div className={styles.drawer}>
         <button className={styles.closeButton} onClick={onClose}>✕</button>
+        {nav && <DrawerNav {...nav} />}
 
         {loading ? (
           <div className={styles.loading}>Carregando...</div>

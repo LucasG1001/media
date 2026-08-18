@@ -5,16 +5,90 @@
 }
 
 .wrapper {
+  position: relative;
   border-radius: var(--radius-md);
   overflow: hidden;
   aspect-ratio: 16 / 9;
   background: var(--color-bg-tertiary);
 }
 
+/* Em tela cheia o wrapper é o elemento expandido: precisa ocupar a tela e
+   soltar a proporção fixa (o próprio player já faz o letterbox). */
+.wrapper:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  aspect-ratio: auto;
+  border-radius: 0;
+  background: #000;
+}
+
 .iframe {
   width: 100%;
   height: 100%;
   border: none;
+}
+
+/* O iframe é de outra origem e engole os eventos de mouse, então revelar por JS
+   não funcionaria com o cursor sobre o player. Com CSS funciona: hover num
+   iframe mantém os ancestrais em :hover. */
+.controls {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  /* Deixa o clique passar para o player; só os botões capturam. */
+  pointer-events: none;
+}
+
+.wrapper:hover .controls,
+.wrapper:focus-within .controls {
+  opacity: 1;
+}
+
+/* Sem hover não há como revelar. */
+@media (hover: none) {
+  .controls {
+    opacity: 1;
+  }
+}
+
+.controls > * {
+  pointer-events: auto;
+}
+
+/* Cobre o player só para posicionar; não intercepta clique nem opacidade — a
+   revelação é de cada botão, no hover dele. */
+.overlaySlot {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.overlaySlot > * {
+  pointer-events: auto;
+}
+
+.fullscreenButton {
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  border: none;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.fullscreenButton:hover {
+  background: rgba(0, 0, 0, 0.85);
 }
 
 .fallback {

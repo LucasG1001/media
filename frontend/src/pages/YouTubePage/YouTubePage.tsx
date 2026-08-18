@@ -26,6 +26,7 @@ import { sortGroupsByName, sortGroupsByMemberDate, sortGroupsBySumViews } from "
 import { lastAccessTimeOf } from "../../utils/lastAccess";
 import { youtubeLibraryEntryToCard } from "../../utils/youtubeLibraryEntryToCard";
 import { visibleMembers } from "../../utils/youtubeTagFilter";
+import { collectionNav } from "../../utils/collectionNav";
 import { formatDurationLong } from "../../utils/formatDuration";
 import { formatViews } from "../../utils/formatViews";
 import styles from "./YouTubePage.module.css";
@@ -230,17 +231,11 @@ export function YouTubePage() {
   // ganha navegação.
   const drawerNav = useMemo(() => {
     if (!drawerEntry) return null;
-    const group = groups.find((g) => g.members.some((m) => m.id === drawerEntry.id));
-    if (!group || group.representative.collectionId == null) return null;
-    const list = visibleMembers(group.members, tagFilter[group.key] ?? []);
-    const index = list.findIndex((m) => m.id === drawerEntry.id);
-    if (index === -1 || list.length < 2) return null;
-    return {
-      index,
-      total: list.length,
-      prev: list[index - 1] ?? null,
-      next: list[index + 1] ?? null,
-    };
+    return collectionNav(
+      groups,
+      (m) => m.id === drawerEntry.id,
+      (g) => visibleMembers(g.members, tagFilter[g.key] ?? [])
+    );
   }, [drawerEntry, groups, tagFilter]);
 
   // No modo remover, só faz sentido oferecer tag que os selecionados têm.
@@ -428,9 +423,9 @@ export function YouTubePage() {
 
       {drawerEntry && (
         <YoutubeDrawer
-          // key por vídeo: o drawer registra o acesso na montagem e congela a
-          // data anterior para exibir, então trocar de vídeo precisa remontar.
-          key={drawerEntry.id}
+          // Sem `key` de propósito: remontar o drawer destruiria o elemento que
+          // está em tela cheia, e o navegador sairia dela a cada vídeo. Quem
+          // remonta por vídeo é só o NotesBlock, lá dentro.
           entry={drawerEntry}
           onClose={() => setDrawerVideoId(null)}
           onOpen={() => { void registerAccess(drawerEntry.id); }}

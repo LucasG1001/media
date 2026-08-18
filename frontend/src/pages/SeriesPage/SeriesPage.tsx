@@ -23,6 +23,7 @@ import { seriesLibraryEntryToCard } from "../../utils/seriesLibraryEntryToCard";
 import { SERIES_AIR_GROUP_LABELS, seriesAirGroup, type SeriesAirGroup } from "../../utils/seriesFormat";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
+import { collectionNav } from "../../utils/collectionNav";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import styles from "./SeriesPage.module.css";
 
@@ -214,6 +215,17 @@ export function SeriesPage() {
   const seasonDrawerEntry = selectedSeason ? findByTmdbId(selectedSeason.tmdbId) : undefined;
   const seasonDrawerNumber = selectedSeason?.seasonNumber ?? null;
 
+  // Navegar entre as temporadas da série sem fechar o drawer. A coleção aqui são
+  // as temporadas, então a sequência sai do próprio grupo — já filtrado e
+  // ordenado pelo pipeline acima.
+  const drawerNav = useMemo(
+    () =>
+      selectedSeason && activeTab === "library"
+        ? collectionNav(collectionGroups.groups, (m) => m.id === selectedSeason.id)
+        : null,
+    [selectedSeason, collectionGroups.groups, activeTab]
+  );
+
   return (
     <div className={styles.page}>
       <h1 className={styles.srOnly}>Séries</h1>
@@ -369,6 +381,16 @@ export function SeriesPage() {
 
       {selectedSeason !== null && seasonDrawerNumber != null && (
         <SeasonDrawer
+          nav={
+            drawerNav
+              ? {
+                  index: drawerNav.index,
+                  total: drawerNav.total,
+                  onPrev: drawerNav.prev ? () => setSelectedSeason(drawerNav.prev!) : undefined,
+                  onNext: drawerNav.next ? () => setSelectedSeason(drawerNav.next!) : undefined,
+                }
+              : undefined
+          }
           seriesId={selectedSeason.tmdbId}
           seasonNumber={seasonDrawerNumber}
           onClose={() => setSelectedSeason(null)}

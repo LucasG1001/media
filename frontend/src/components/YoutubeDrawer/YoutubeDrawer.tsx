@@ -1,7 +1,9 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import type { YoutubeLibraryEntry } from "../../types/youtubeLibrary";
 import { YOUTUBE_LIBRARY_STATUS_LABELS } from "../../types/youtubeLibrary";
 import { TrailerEmbed } from "../TrailerEmbed/TrailerEmbed";
+import { DrawerNav, type DrawerNavProps } from "../DrawerNav/DrawerNav";
+import { useDrawerKeys } from "../../hooks/useDrawerKeys";
 import { NotesBlock } from "../NotesBlock/NotesBlock";
 import { formatDuration } from "../../utils/formatDuration";
 import { formatViews } from "../../utils/formatViews";
@@ -14,13 +16,7 @@ interface YoutubeDrawerProps {
   onOpen?: () => void;
   onNotesChange?: (notes: string) => void;
   // Navegação dentro da coleção, sem fechar o drawer. Ausente em vídeo avulso.
-  nav?: { index: number; total: number; onPrev?: () => void; onNext?: () => void };
-}
-
-// Setas dentro de campo de texto movem o cursor — o NotesBlock é uma textarea.
-function isTyping(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+  nav?: DrawerNavProps;
 }
 
 function formatPublished(date: string | null): string {
@@ -31,67 +27,24 @@ function formatPublished(date: string | null): string {
 }
 
 export function YoutubeDrawer({ entry, onClose, onOpen, onNotesChange, nav }: YoutubeDrawerProps) {
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-        return;
-      }
-      if (isTyping(e.target)) return;
-      if (e.key === "ArrowLeft") nav?.onPrev?.();
-      else if (e.key === "ArrowRight") nav?.onNext?.();
-    },
-    [onClose, nav]
-  );
+  useDrawerKeys(onClose, nav);
 
+  // Por vídeo, não por montagem: o drawer NÃO é mais remontado ao navegar (é o
+  // que preserva a tela cheia), então quem marca "abriu" é a troca de id. O
+  // callback vai por ref porque é arrow inline na página e mudaria a cada render.
+  const onOpenRef = useRef(onOpen);
   useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
-    };
-  }, [handleKeyDown]);
-
-  // Efeito só de montagem: o de cima re-roda a cada render (onClose é arrow
-  // inline na página) e registraria o acesso repetidamente. A página remonta o
-  // drawer por vídeo (`key`), então montar = abrir.
+    onOpenRef.current = onOpen;
+  });
   useEffect(() => {
-    onOpen?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    onOpenRef.current?.();
+  }, [entry.id]);
 
   return (
     <>
       <div className={styles.overlay} onClick={onClose} />
       <div className={styles.drawer}>
         <button className={styles.closeButton} onClick={onClose} title="Fechar (Esc)">✕</button>
-
-        {nav && (
-          <div className={styles.nav}>
-            <button
-              className={styles.navButton}
-              onClick={nav.onPrev}
-              disabled={!nav.onPrev}
-              title="Vídeo anterior (←)"
-              aria-label="Vídeo anterior"
-            >
-              ‹
-            </button>
-            <span className={styles.navPosition}>
-              {nav.index + 1} / {nav.total}
-            </span>
-            <button
-              className={styles.navButton}
-              onClick={nav.onNext}
-              disabled={!nav.onNext}
-              title="Próximo vídeo (→)"
-              aria-label="Próximo vídeo"
-            >
-              ›
-            </button>
-          </div>
-        )}
 
         {entry.thumbnail ? (
           <img className={styles.banner} src={entry.thumbnail} alt="" />
@@ -112,7 +65,11 @@ export function YoutubeDrawer({ entry, onClose, onOpen, onNotesChange, nav }: Yo
         </div>
 
         <div className={styles.content}>
-          <TrailerEmbed youtubeId={entry.videoId} />
+          <TrailerEmbed
+            youtubeId={entry.videoId}
+            overlay={nav && <DrawerNav {...nav} variant="float" />}
+            autoPlay
+          />
 
           <div className={styles.infoGrid}>
             <div className={styles.infoItem}>
@@ -142,7 +99,12 @@ export function YoutubeDrawer({ entry, onClose, onOpen, onNotesChange, nav }: Yo
 
           {entry.description && <div className={styles.description}>{entry.description}</div>}
 
-          {onNotesChange && <NotesBlock value={entry.notes} onSave={onNotesChange} />}
+          {onNotesChange && (
+            // key por vídeo: o NotesBlock guarda o texto em estado interno e
+            // descarrega o pendente ao desmontar. Sem isto, navegar levaria a
+            // anotação de um vídeo para o outro.
+            <NotesBlock key={entry.id} value={entry.notes} onSave={onNotesChange} />
+          )}
         </div>
       </div>
     </>

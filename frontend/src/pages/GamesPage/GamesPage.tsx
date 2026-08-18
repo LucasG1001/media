@@ -18,6 +18,7 @@ import { MONTH_PT } from "../../utils/month";
 import { getCurrentYear, getRecentYears } from "../../utils/year";
 import { buildGameCollectionGroups, releaseTimeOf } from "../../utils/gameCollectionGroups";
 import { gameLibraryEntryToCard } from "../../utils/gameLibraryEntryToCard";
+import { collectionNav } from "../../utils/collectionNav";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
@@ -193,6 +194,17 @@ export function GamesPage() {
 
   const drawerEntry = selectedGameId !== null ? findByIgdbId(selectedGameId) : undefined;
 
+  // Navegar pela coleção sem fechar o drawer. A sequência é a que está na tela
+  // (os grupos já vêm filtrados e ordenados). Só na biblioteca: no catálogo a
+  // lista exibida é outra, e navegar pela coleção ali seria desorientador.
+  const drawerNav = useMemo(
+    () =>
+      drawerEntry && activeTab === "library"
+        ? collectionNav(collectionGroups, (m) => m.id === drawerEntry.id)
+        : null,
+    [drawerEntry, collectionGroups, activeTab]
+  );
+
   return (
     <div className={styles.page}>
       <h1 className={styles.srOnly}>Jogos</h1>
@@ -336,6 +348,16 @@ export function GamesPage() {
 
       {selectedGameId !== null && (
         <GameDrawer
+          nav={
+            drawerNav
+              ? {
+                  index: drawerNav.index,
+                  total: drawerNav.total,
+                  onPrev: drawerNav.prev ? () => setSelectedGameId(drawerNav.prev!.igdbId) : undefined,
+                  onNext: drawerNav.next ? () => setSelectedGameId(drawerNav.next!.igdbId) : undefined,
+                }
+              : undefined
+          }
           gameId={selectedGameId}
           onClose={() => setSelectedGameId(null)}
           onGameLoad={handleGameLoad}

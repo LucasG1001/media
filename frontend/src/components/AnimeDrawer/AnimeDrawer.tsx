@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { AnimeDetail } from "../../types/anime";
 import { fetchAnimeById } from "../../services/animeService";
 import { TrailerEmbed } from "../TrailerEmbed/TrailerEmbed";
 import { NotesBlock } from "../NotesBlock/NotesBlock";
+import { DrawerNav, type DrawerNavProps } from "../DrawerNav/DrawerNav";
+import { useDrawerKeys } from "../../hooks/useDrawerKeys";
 import styles from "./AnimeDrawer.module.css";
 
 // notes/onNotesChange só vêm quando o item está na biblioteca — no catálogo o
@@ -11,6 +13,8 @@ interface AnimeDrawerProps {
   animeId: number;
   onClose: () => void;
   onAnimeLoad?: (anime: AnimeDetail) => void;
+  // Navegação entre os itens da coleção, sem fechar o drawer.
+  nav?: DrawerNavProps;
   notes?: string | null;
   onNotesChange?: (notes: string) => void;
 }
@@ -34,7 +38,7 @@ function formatDate(timestamp: number): string {
   });
 }
 
-export function AnimeDrawer({ animeId, onClose, onAnimeLoad, notes, onNotesChange }: AnimeDrawerProps) {
+export function AnimeDrawer({ animeId, onClose, onAnimeLoad, notes, onNotesChange, nav }: AnimeDrawerProps) {
   const [anime, setAnime] = useState<AnimeDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -64,18 +68,7 @@ export function AnimeDrawer({ animeId, onClose, onAnimeLoad, notes, onNotesChang
     };
   }, [animeId]);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-  }, [onClose]);
-
-  useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
-    };
-  }, [handleKeyDown]);
+  useDrawerKeys(onClose, nav);
 
   const streamingLinks = anime?.externalLinks.filter((l) => l.type === "STREAMING") ?? [];
 
@@ -84,6 +77,7 @@ export function AnimeDrawer({ animeId, onClose, onAnimeLoad, notes, onNotesChang
       <div className={styles.overlay} onClick={onClose} />
       <div className={styles.drawer}>
         <button className={styles.closeButton} onClick={onClose}>✕</button>
+        {nav && <DrawerNav {...nav} />}
 
         {loading ? (
           <div className={styles.loading}>Carregando...</div>

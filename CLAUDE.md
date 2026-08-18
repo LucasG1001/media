@@ -166,6 +166,28 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   `NotesBlock` (bloco de anotação livre no fim do `content` dos drawers: textarea auto-grow com
   autosave por debounce de 1 s + flush no unmount, já que fechar o drawer desmonta antes do timer).
   Config visual por mídia em **`config/cards.tsx`**.
+- **Drawers — navegação e teclado (todas as mídias):** `hooks/useDrawerKeys.ts` centraliza Escape +
+  trava de scroll + setas ← → dos seis drawers (antes cada um repetia o efeito). Escape **não fecha
+  em tela cheia** — ali ele é do navegador, para sair dela; as setas são ignoradas com o foco em
+  campo de texto (o `NotesBlock` é textarea). O componente é o `DrawerNav` (‹ contador ›), no canto
+  superior do drawer (`variant="corner"`) ou sobreposto ao player (`"float"`). A sequência sai de
+  `utils/collectionNav.ts` (`collectionNav`), genérico sobre os grupos **já filtrados e ordenados**
+  pela página — a ordem é sempre a que está na tela. Devolve `null` para item fora de coleção ou
+  coleção de 1, e só é ligado na aba **biblioteca** (no catálogo a lista exibida é outra). Em séries
+  a coleção são as **temporadas**, então navega entre elas.
+- **`TrailerEmbed` tem tela cheia própria** (`fs=0` no embed + botão que expande o **wrapper**, não o
+  iframe): em tela cheia só o elemento fullscreen e seus descendentes são pintados, e nada pode ser
+  injetado num iframe de outra origem — expandindo o iframe, qualquer sobreposição sumiria. Os
+  controles são revelados por `:hover` **em CSS**, nunca por JS: o iframe engole os eventos de mouse,
+  mas hover sobre ele mantém os ancestrais em `:hover`. Sempre visíveis em `@media (hover: none)`. O
+  botão de tela cheia não aparece onde `document.fullscreenEnabled` é falso (iOS não tem tela cheia
+  de elemento). O slot `overlay` fica **fora** do grupo de opacidade dos controles: no `variant="float"`
+  do `DrawerNav` cada seta se revela pelo hover **dela** (opacidade 0 não tira o elemento do
+  hit-test, então não é preciso zona invisível roubando clique do player), encostada na borda e sem
+  contador — em cima do vídeo, controle que aparece a cada passada de mouse atrapalha. Na ponta da
+  coleção a seta **some** em vez de ficar desabilitada. `autoPlay` é **opt-in** (só o YouTube, onde o
+  vídeo é o conteúdo): o clique que abriu o drawer vale como gesto do usuário, então o autoplay
+  costuma passar.
 - **Anotações**: o drawer não conhece a biblioteca (recebe só o ID externo e busca na API externa),
   então `notes`/`onNotesChange` são props **opcionais** que a página passa só quando acha a entry —
   é isso que esconde o bloco no catálogo. Séries são a exceção: a anotação é da **temporada**
@@ -280,13 +302,14 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     dados, sem tabela. Contado **por coleção** (`byCollection` na página → `youtubeTagContext`):
     `allTagsFor`, `rankFor` e `recommendFor` recebem todos o `collectionId`. A mesma palavra em duas
     coleções são dois vocabulários independentes.
-  - **Dentro da coleção o drawer navega entre os vídeos** (setas ‹ › no topo + ← →, com contador
-    "3 / 12"), sem fechar e reabrir. A sequência é a **que está na tela**: mesma ordenação da grade e
-    mesmo filtro de tag da expansão — daí `utils/youtubeTagFilter.ts` (`visibleMembers`) ser
-    compartilhado com o `renderExpansion`, senão o "próximo" levaria a um vídeo fora de vista. Vídeo
-    avulso é grupo de 1 e não ganha navegação. Trocar de vídeo troca o `key` do drawer, que remonta e
-    já registra o acesso do novo. As setas são ignoradas com o foco em campo de texto (o `NotesBlock`
-    é uma textarea); Escape fecha de qualquer forma.
+  - A navegação da coleção (ver **Drawers** abaixo) aqui vai **sobre o player** (`overlay` do
+    `TrailerEmbed`), não no canto: o vídeo é o conteúdo, não um extra. A sequência usa
+    `utils/youtubeTagFilter.ts` (`visibleMembers`), o mesmo do `renderExpansion` — senão o "próximo"
+    levaria a um vídeo que o filtro de tag tirou de vista. O drawer **não** tem `key` por vídeo:
+    remontá-lo destruiria o elemento em tela cheia e o navegador sairia dela a cada troca. Por isso o
+    acesso é registrado por mudança de `entry.id` (não por montagem) e quem remonta por vídeo é só o
+    `NotesBlock` — ele guarda o texto em estado interno e descarrega o pendente ao desmontar, então
+    sem `key` a anotação de um vídeo vazaria para o outro.
   - **O filtro de tag vive dentro da expansão**, via `renderExpansion` do `FranchiseGrid` — inversão
     de controle: a página decide o que vai antes dos cards e **quais membros** volta para o
     `renderMembers`. É isso que faz o filtro reduzir **só a expansão**: a capa e o badge

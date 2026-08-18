@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { MovieDetail } from "../../types/movie";
 import { fetchMovieById } from "../../services/movieService";
 import { TrailerEmbed } from "../TrailerEmbed/TrailerEmbed";
 import { NotesBlock } from "../NotesBlock/NotesBlock";
+import { DrawerNav, type DrawerNavProps } from "../DrawerNav/DrawerNav";
+import { useDrawerKeys } from "../../hooks/useDrawerKeys";
 import styles from "./MovieDrawer.module.css";
 
 // notes/onNotesChange só vêm quando o item está na biblioteca — no catálogo o
@@ -11,6 +13,8 @@ interface MovieDrawerProps {
   movieId: number;
   onClose: () => void;
   onMovieLoad?: (movie: MovieDetail) => void;
+  // Navegação entre os itens da coleção, sem fechar o drawer.
+  nav?: DrawerNavProps;
   notes?: string | null;
   onNotesChange?: (notes: string) => void;
 }
@@ -40,7 +44,7 @@ function formatReleaseDate(date: string | null): string {
   });
 }
 
-export function MovieDrawer({ movieId, onClose, onMovieLoad, notes, onNotesChange }: MovieDrawerProps) {
+export function MovieDrawer({ movieId, onClose, onMovieLoad, notes, onNotesChange, nav }: MovieDrawerProps) {
   const [movie, setMovie] = useState<MovieDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -70,24 +74,14 @@ export function MovieDrawer({ movieId, onClose, onMovieLoad, notes, onNotesChang
     };
   }, [movieId]);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-  }, [onClose]);
-
-  useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
-    };
-  }, [handleKeyDown]);
+  useDrawerKeys(onClose, nav);
 
   return (
     <>
       <div className={styles.overlay} onClick={onClose} />
       <div className={styles.drawer}>
         <button className={styles.closeButton} onClick={onClose}>✕</button>
+        {nav && <DrawerNav {...nav} />}
 
         {loading ? (
           <div className={styles.loading}>Carregando...</div>

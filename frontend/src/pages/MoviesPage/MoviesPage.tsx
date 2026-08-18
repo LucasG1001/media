@@ -18,6 +18,7 @@ import { MONTH_PT } from "../../utils/month";
 import { getCurrentYear, getRecentYears } from "../../utils/year";
 import { buildMovieCollectionGroups, releaseTimeOf } from "../../utils/movieCollectionGroups";
 import { movieLibraryEntryToCard } from "../../utils/movieLibraryEntryToCard";
+import { collectionNav } from "../../utils/collectionNav";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
@@ -182,6 +183,17 @@ export function MoviesPage() {
 
   const drawerEntry = selectedMovieId !== null ? findByTmdbId(selectedMovieId) : undefined;
 
+  // Navegar pela coleção sem fechar o drawer. A sequência é a que está na tela
+  // (os grupos já vêm filtrados e ordenados). Só na biblioteca: no catálogo a
+  // lista exibida é outra, e navegar pela coleção ali seria desorientador.
+  const drawerNav = useMemo(
+    () =>
+      drawerEntry && activeTab === "library"
+        ? collectionNav(collectionGroups, (m) => m.id === drawerEntry.id)
+        : null,
+    [drawerEntry, collectionGroups, activeTab]
+  );
+
   return (
     <div className={styles.page}>
       <h1 className={styles.srOnly}>Filmes</h1>
@@ -317,6 +329,16 @@ export function MoviesPage() {
 
       {selectedMovieId !== null && (
         <MovieDrawer
+          nav={
+            drawerNav
+              ? {
+                  index: drawerNav.index,
+                  total: drawerNav.total,
+                  onPrev: drawerNav.prev ? () => setSelectedMovieId(drawerNav.prev!.tmdbId) : undefined,
+                  onNext: drawerNav.next ? () => setSelectedMovieId(drawerNav.next!.tmdbId) : undefined,
+                }
+              : undefined
+          }
           movieId={selectedMovieId}
           onClose={() => setSelectedMovieId(null)}
           onMovieLoad={handleMovieLoad}

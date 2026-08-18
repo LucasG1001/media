@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { SeasonDetail, SeriesDetail } from "../../types/series";
 import { fetchSeasonById, fetchSeriesById } from "../../services/seriesService";
 import { SeriesDetailBody } from "../SeriesDrawer/SeriesDetailBody";
 import { NotesBlock } from "../NotesBlock/NotesBlock";
 import { formatAirDate } from "../../utils/seriesFormat";
 import drawer from "../SeriesDrawer/SeriesDrawer.module.css";
+import { DrawerNav, type DrawerNavProps } from "../DrawerNav/DrawerNav";
+import { useDrawerKeys } from "../../hooks/useDrawerKeys";
 import styles from "./SeasonDrawer.module.css";
 
 // notes/onNotesChange só vêm quando a série está na biblioteca — a anotação é da
@@ -14,6 +16,8 @@ interface SeasonDrawerProps {
   seasonNumber: number;
   onClose: () => void;
   onSeriesLoad?: (series: SeriesDetail) => void;
+  // Navegação entre os itens da coleção, sem fechar o drawer.
+  nav?: DrawerNavProps;
   notes?: string | null;
   onNotesChange?: (notes: string) => void;
 }
@@ -25,6 +29,7 @@ export function SeasonDrawer({
   onSeriesLoad,
   notes,
   onNotesChange,
+  nav,
 }: SeasonDrawerProps) {
   const [data, setData] = useState<{ series: SeriesDetail; season: SeasonDetail } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,18 +59,7 @@ export function SeasonDrawer({
     };
   }, [seriesId, seasonNumber]);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-  }, [onClose]);
-
-  useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
-    };
-  }, [handleKeyDown]);
+  useDrawerKeys(onClose, nav);
 
   const seasonLabel = data?.season.name || `Temporada ${seasonNumber}`;
 
@@ -74,6 +68,7 @@ export function SeasonDrawer({
       <div className={drawer.overlay} onClick={onClose} />
       <div className={drawer.drawer}>
         <button className={drawer.closeButton} onClick={onClose}>✕</button>
+        {nav && <DrawerNav {...nav} />}
 
         {loading ? (
           <div className={drawer.loading}>Carregando...</div>

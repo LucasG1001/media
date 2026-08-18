@@ -17,6 +17,7 @@ import { BOOK_LIBRARY_STATUS_LABELS } from "../../types/bookLibrary";
 import { BOOK_GENRES } from "../../utils/bookGenres";
 import { buildBookCollectionGroups, pubTimeOf, readTimeOf } from "../../utils/bookCollectionGroups";
 import { bookLibraryEntryToCard } from "../../utils/bookLibraryEntryToCard";
+import { collectionNav } from "../../utils/collectionNav";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
@@ -184,6 +185,17 @@ export function BooksPage() {
 
   const drawerEntry = selectedBookId !== null ? findByHardcoverId(selectedBookId) : undefined;
 
+  // Navegar pela coleção sem fechar o drawer. A sequência é a que está na tela
+  // (os grupos já vêm filtrados e ordenados). Só na biblioteca: no catálogo a
+  // lista exibida é outra, e navegar pela coleção ali seria desorientador.
+  const drawerNav = useMemo(
+    () =>
+      drawerEntry && activeTab === "library"
+        ? collectionNav(collectionGroups, (m) => m.id === drawerEntry.id)
+        : null,
+    [drawerEntry, collectionGroups, activeTab]
+  );
+
   return (
     <div className={styles.page}>
       <h1 className={styles.srOnly}>Livros</h1>
@@ -308,6 +320,16 @@ export function BooksPage() {
 
       {selectedBookId !== null && (
         <BookDrawer
+          nav={
+            drawerNav
+              ? {
+                  index: drawerNav.index,
+                  total: drawerNav.total,
+                  onPrev: drawerNav.prev ? () => setSelectedBookId(drawerNav.prev!.hardcoverId) : undefined,
+                  onNext: drawerNav.next ? () => setSelectedBookId(drawerNav.next!.hardcoverId) : undefined,
+                }
+              : undefined
+          }
           bookId={selectedBookId}
           onClose={() => setSelectedBookId(null)}
           onBookLoad={handleBookLoad}

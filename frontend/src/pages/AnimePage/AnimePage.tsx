@@ -19,6 +19,7 @@ import { SEASON_PT, getCurrentRealSeason, getSurroundingSeasons } from "../../ut
 import { getRecentYears } from "../../utils/year";
 import { buildFranchiseGroups, seasonYearOf } from "../../utils/franchiseGroups";
 import { libraryEntryToCard } from "../../utils/libraryEntryToCard";
+import { collectionNav } from "../../utils/collectionNav";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
@@ -185,6 +186,17 @@ export function AnimePage() {
 
   const drawerEntry = selectedAnimeId !== null ? findByAnilistId(selectedAnimeId) : undefined;
 
+  // Navegar pela coleção sem fechar o drawer. A sequência é a que está na tela
+  // (os grupos já vêm filtrados e ordenados). Só na biblioteca: no catálogo a
+  // lista exibida é outra, e navegar pela coleção ali seria desorientador.
+  const drawerNav = useMemo(
+    () =>
+      drawerEntry && activeTab === "library"
+        ? collectionNav(franchiseGroups, (m) => m.id === drawerEntry.id)
+        : null,
+    [drawerEntry, franchiseGroups, activeTab]
+  );
+
   return (
     <div className={styles.page}>
       <h1 className={styles.srOnly}>Anime</h1>
@@ -323,6 +335,16 @@ export function AnimePage() {
 
       {selectedAnimeId !== null && (
         <AnimeDrawer
+          nav={
+            drawerNav
+              ? {
+                  index: drawerNav.index,
+                  total: drawerNav.total,
+                  onPrev: drawerNav.prev ? () => setSelectedAnimeId(drawerNav.prev!.anilistId) : undefined,
+                  onNext: drawerNav.next ? () => setSelectedAnimeId(drawerNav.next!.anilistId) : undefined,
+                }
+              : undefined
+          }
           animeId={selectedAnimeId}
           onClose={() => setSelectedAnimeId(null)}
           onAnimeLoad={handleAnimeLoad}

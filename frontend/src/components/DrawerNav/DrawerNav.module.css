@@ -1,0 +1,91 @@
+/* Espelha o botão de fechar, do outro lado do topo do drawer. */
+.corner {
+  position: absolute;
+  top: var(--spacing-base);
+  left: var(--spacing-base);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 0 var(--spacing-xs);
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+}
+
+.button {
+  width: 30px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.button:hover:not(:disabled) {
+  color: var(--color-accent);
+}
+
+.button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.position {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---- sobre o player ---- */
+
+/* O próprio botão é a área de hover: opacidade zero não tira o elemento do
+   hit-test, então ele se revela ao ser apontado sem precisar de zona invisível
+   roubando clique do player. */
+.floatButton {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  border: none;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-2xl);
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast), background var(--transition-fast);
+}
+
+.floatButton:hover,
+.floatButton:focus-visible {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+/* Sem hover não há como revelar. */
+@media (hover: none) {
+  .floatButton {
+    opacity: 1;
+  }
+}
+
+.floatPrev {
+  left: var(--spacing-sm);
+}
+
+.floatNext {
+  right: var(--spacing-sm);
+}

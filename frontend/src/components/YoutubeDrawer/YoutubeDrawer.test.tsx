@@ -33,26 +33,29 @@ function setup(nav?: { index: number; total: number; onPrev?: () => void; onNext
 describe("YoutubeDrawer — navegação na coleção", () => {
   it("não mostra navegação sem nav (vídeo avulso)", () => {
     setup();
-    expect(screen.queryByLabelText("Próximo vídeo")).toBeNull();
+    expect(screen.queryByLabelText("Próximo item")).toBeNull();
   });
 
-  it("mostra a posição na coleção", () => {
+  it("mostra as duas setas no meio da coleção", () => {
     setup({ index: 2, total: 12, onPrev: vi.fn(), onNext: vi.fn() });
-    expect(screen.getByText("3 / 12")).toBeTruthy();
+    expect(screen.getByLabelText("Item anterior")).toBeTruthy();
+    expect(screen.getByLabelText("Próximo item")).toBeTruthy();
   });
 
-  it("desabilita as pontas", () => {
+  // Sobre o vídeo a seta das pontas some em vez de ficar desabilitada: o que não
+  // leva a lugar nenhum não deve ocupar espaço em cima do conteúdo.
+  it("omite a seta na ponta da coleção", () => {
     setup({ index: 0, total: 3, onNext: vi.fn() });
-    expect(screen.getByLabelText("Vídeo anterior")).toHaveProperty("disabled", true);
-    expect(screen.getByLabelText("Próximo vídeo")).toHaveProperty("disabled", false);
+    expect(screen.queryByLabelText("Item anterior")).toBeNull();
+    expect(screen.getByLabelText("Próximo item")).toBeTruthy();
   });
 
   it("navega pelos botões", () => {
     const onNext = vi.fn();
     const onPrev = vi.fn();
     setup({ index: 1, total: 3, onPrev, onNext });
-    fireEvent.click(screen.getByLabelText("Próximo vídeo"));
-    fireEvent.click(screen.getByLabelText("Vídeo anterior"));
+    fireEvent.click(screen.getByLabelText("Próximo item"));
+    fireEvent.click(screen.getByLabelText("Item anterior"));
     expect(onNext).toHaveBeenCalledTimes(1);
     expect(onPrev).toHaveBeenCalledTimes(1);
   });
@@ -85,5 +88,36 @@ describe("YoutubeDrawer — navegação na coleção", () => {
     fireEvent.keyDown(textarea, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
     textarea.remove();
+  });
+});
+
+// O drawer deixou de ser remontado por vídeo (é o que preserva a tela cheia ao
+// navegar), então o que antes vinha da montagem passou a depender do id.
+describe("YoutubeDrawer — troca de vídeo sem remontar", () => {
+  const outro = { ...entry, id: "uuid-2", videoId: "def456", notes: "nota do outro" } as YoutubeLibraryEntry;
+
+  it("registra acesso a cada vídeo aberto", () => {
+    const onOpen = vi.fn();
+    const view = render(<YoutubeDrawer entry={entry} onClose={vi.fn()} onOpen={onOpen} />);
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    view.rerender(<YoutubeDrawer entry={outro} onClose={vi.fn()} onOpen={onOpen} />);
+    expect(onOpen).toHaveBeenCalledTimes(2);
+  });
+
+  it("não registra acesso de novo em re-render do mesmo vídeo", () => {
+    const onOpen = vi.fn();
+    const view = render(<YoutubeDrawer entry={entry} onClose={vi.fn()} onOpen={onOpen} />);
+    view.rerender(<YoutubeDrawer entry={entry} onClose={vi.fn()} onOpen={onOpen} />);
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  // O NotesBlock guarda o texto em estado interno: sem key por vídeo, a anotação
+  // de um vazaria para o outro.
+  it("troca a anotação ao mudar de vídeo", () => {
+    const comNota = { ...entry, notes: "nota do primeiro" } as YoutubeLibraryEntry;
+    const view = render(<YoutubeDrawer entry={comNota} onClose={vi.fn()} onNotesChange={vi.fn()} />);
+    expect(screen.getByRole("textbox")).toHaveProperty("value", "nota do primeiro");
+    view.rerender(<YoutubeDrawer entry={outro} onClose={vi.fn()} onNotesChange={vi.fn()} />);
+    expect(screen.getByRole("textbox")).toHaveProperty("value", "nota do outro");
   });
 });
