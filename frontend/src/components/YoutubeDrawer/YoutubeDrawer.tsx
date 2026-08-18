@@ -13,6 +13,14 @@ interface YoutubeDrawerProps {
   // Abrir o drawer é o que conta como acesso no YouTube.
   onOpen?: () => void;
   onNotesChange?: (notes: string) => void;
+  // Navegação dentro da coleção, sem fechar o drawer. Ausente em vídeo avulso.
+  nav?: { index: number; total: number; onPrev?: () => void; onNext?: () => void };
+}
+
+// Setas dentro de campo de texto movem o cursor — o NotesBlock é uma textarea.
+function isTyping(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
 }
 
 function formatPublished(date: string | null): string {
@@ -22,12 +30,18 @@ function formatPublished(date: string | null): string {
   return parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export function YoutubeDrawer({ entry, onClose, onOpen, onNotesChange }: YoutubeDrawerProps) {
+export function YoutubeDrawer({ entry, onClose, onOpen, onNotesChange, nav }: YoutubeDrawerProps) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (isTyping(e.target)) return;
+      if (e.key === "ArrowLeft") nav?.onPrev?.();
+      else if (e.key === "ArrowRight") nav?.onNext?.();
     },
-    [onClose]
+    [onClose, nav]
   );
 
   useEffect(() => {
@@ -51,7 +65,33 @@ export function YoutubeDrawer({ entry, onClose, onOpen, onNotesChange }: Youtube
     <>
       <div className={styles.overlay} onClick={onClose} />
       <div className={styles.drawer}>
-        <button className={styles.closeButton} onClick={onClose}>✕</button>
+        <button className={styles.closeButton} onClick={onClose} title="Fechar (Esc)">✕</button>
+
+        {nav && (
+          <div className={styles.nav}>
+            <button
+              className={styles.navButton}
+              onClick={nav.onPrev}
+              disabled={!nav.onPrev}
+              title="Vídeo anterior (←)"
+              aria-label="Vídeo anterior"
+            >
+              ‹
+            </button>
+            <span className={styles.navPosition}>
+              {nav.index + 1} / {nav.total}
+            </span>
+            <button
+              className={styles.navButton}
+              onClick={nav.onNext}
+              disabled={!nav.onNext}
+              title="Próximo vídeo (→)"
+              aria-label="Próximo vídeo"
+            >
+              ›
+            </button>
+          </div>
+        )}
 
         {entry.thumbnail ? (
           <img className={styles.banner} src={entry.thumbnail} alt="" />

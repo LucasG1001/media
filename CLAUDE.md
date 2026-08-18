@@ -123,8 +123,10 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   endpoint próprio). `utils/agenda.ts` cobre o que **vai** lançar; `utils/recentReleases.ts` cobre o
   que **já** saiu, em dois carrosséis (`ReleaseCarousel`, card com a anatomia do `MediaCard` — capa
   com título por cima e a data relativa numa pílula acima dele, mesma largura do `MediaGrid`;
-  navega por arrasto via `hooks/useDragScroll.ts`, só no mouse — no touch a rolagem nativa já tem
-  inércia — que engole o clique do fim do arrasto para não abrir o drawer):
+  navega por arrasto via `hooks/useDragScroll.ts`, só no mouse — no touch a rolagem nativa já
+  resolve —, com deslize por atrito ao soltar e engolindo o clique do fim do arrasto para não abrir
+  o drawer. A faixa **não** usa `scroll-snap`: ele brigava com o `scrollLeft` do arrasto e travava o
+  movimento ao soltar, puxando para o card mais próximo):
   - **Finalizados recentemente** (`buildRecentReleases`, todas as mídias) — fila de "já dá para
     consumir": só entra item em `plan_to_*`, então marcar como concluído tira o item de lá.
   - **Episódios recentes** (`buildRecentEpisodes`, só anime e séries — filme/jogo/livro não têm
@@ -278,6 +280,13 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     dados, sem tabela. Contado **por coleção** (`byCollection` na página → `youtubeTagContext`):
     `allTagsFor`, `rankFor` e `recommendFor` recebem todos o `collectionId`. A mesma palavra em duas
     coleções são dois vocabulários independentes.
+  - **Dentro da coleção o drawer navega entre os vídeos** (setas ‹ › no topo + ← →, com contador
+    "3 / 12"), sem fechar e reabrir. A sequência é a **que está na tela**: mesma ordenação da grade e
+    mesmo filtro de tag da expansão — daí `utils/youtubeTagFilter.ts` (`visibleMembers`) ser
+    compartilhado com o `renderExpansion`, senão o "próximo" levaria a um vídeo fora de vista. Vídeo
+    avulso é grupo de 1 e não ganha navegação. Trocar de vídeo troca o `key` do drawer, que remonta e
+    já registra o acesso do novo. As setas são ignoradas com o foco em campo de texto (o `NotesBlock`
+    é uma textarea); Escape fecha de qualquer forma.
   - **O filtro de tag vive dentro da expansão**, via `renderExpansion` do `FranchiseGrid` — inversão
     de controle: a página decide o que vai antes dos cards e **quais membros** volta para o
     `renderMembers`. É isso que faz o filtro reduzir **só a expansão**: a capa e o badge

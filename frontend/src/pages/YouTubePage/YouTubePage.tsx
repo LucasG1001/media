@@ -25,6 +25,7 @@ import {
 import { sortGroupsByName, sortGroupsByMemberDate, sortGroupsBySumViews } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
 import { youtubeLibraryEntryToCard } from "../../utils/youtubeLibraryEntryToCard";
+import { visibleMembers } from "../../utils/youtubeTagFilter";
 import { formatDurationLong } from "../../utils/formatDuration";
 import { formatViews } from "../../utils/formatViews";
 import styles from "./YouTubePage.module.css";
@@ -222,6 +223,26 @@ export function YouTubePage() {
   const drawerEntry = drawerVideoId ? findByVideoId(drawerVideoId) : undefined;
   const modalEntry = modalVideoId ? findByVideoId(modalVideoId) : undefined;
 
+  // Navegação entre os vídeos da coleção sem fechar o drawer. A sequência é a
+  // que está na tela: mesma ordenação da grade e mesmo filtro de tag da
+  // expansão (daí o visibleMembers compartilhado) — navegar por uma ordem
+  // diferente da visível seria confuso. Vídeo avulso é grupo de um só e não
+  // ganha navegação.
+  const drawerNav = useMemo(() => {
+    if (!drawerEntry) return null;
+    const group = groups.find((g) => g.members.some((m) => m.id === drawerEntry.id));
+    if (!group || group.representative.collectionId == null) return null;
+    const list = visibleMembers(group.members, tagFilter[group.key] ?? []);
+    const index = list.findIndex((m) => m.id === drawerEntry.id);
+    if (index === -1 || list.length < 2) return null;
+    return {
+      index,
+      total: list.length,
+      prev: list[index - 1] ?? null,
+      next: list[index + 1] ?? null,
+    };
+  }, [drawerEntry, groups, tagFilter]);
+
   // No modo remover, só faz sentido oferecer tag que os selecionados têm.
   const bulkTags = useMemo(() => {
     if (!bulk) return [];
@@ -247,12 +268,8 @@ export function YouTubePage() {
       if (group.representative.collectionId == null) return renderMembers(group.members);
 
       const selected = tagFilter[group.key] ?? [];
-      // "Sem tag" é exclusivo: combinar com tag real daria conjunto vazio sempre,
-      // então ou o filtro é ele, ou é uma lista de tags de verdade.
       const untagged = selected[0] === NO_TAG;
-      const visible = untagged
-        ? group.members.filter((m) => m.tags.length === 0)
-        : group.members.filter((m) => selected.every((t) => m.tags.includes(t)));
+      const visible = visibleMembers(group.members, selected);
 
       const counts = new Map<string, number>();
       for (const m of visible) for (const tag of m.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
@@ -418,6 +435,16 @@ export function YouTubePage() {
           onClose={() => setDrawerVideoId(null)}
           onOpen={() => { void registerAccess(drawerEntry.id); }}
           onNotesChange={(notes) => { void updateEntry(drawerEntry.id, { notes }); }}
+          nav={
+            drawerNav
+              ? {
+                  index: drawerNav.index,
+                  total: drawerNav.total,
+                  onPrev: drawerNav.prev ? () => setDrawerVideoId(drawerNav.prev!.videoId) : undefined,
+                  onNext: drawerNav.next ? () => setDrawerVideoId(drawerNav.next!.videoId) : undefined,
+                }
+              : undefined
+          }
         />
       )}
 
