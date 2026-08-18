@@ -148,9 +148,69 @@ export function buildRecentReleases(
     });
   }
 
+  return applyWindow(items);
+}
+
+// Recorte comum aos dois carrosséis: o que caiu na janela recente, completado
+// com os mais recentes de fora dela quando sobra pouca coisa.
+function applyWindow(items: ReleaseItem[]): ReleaseItem[] {
   const sorted = items.sort((a, b) => b.when - a.when);
   const floor = startOfToday() - WINDOW_DAYS * DAY_MS;
   const inWindow = sorted.filter((item) => item.when >= floor);
   // Já ordenado por data desc, então completar é só pegar um prefixo maior.
   return inWindow.length >= MIN_ITEMS ? inWindow : sorted.slice(0, MIN_ITEMS);
+}
+
+// O outro lado da moeda: episódio solto de coisa que ainda está no ar. É
+// complementar ao buildRecentReleases por construção — lá entra o que fechou
+// (anime FINISHED, temporada encerrada), aqui o que segue saindo. Filme, jogo e
+// livro não têm episódio e por isso não aparecem.
+//
+// Aqui o recorte por status é só "não abandonado", e não "falta consumir" como
+// no outro: episódio novo de série em que você está em dia é justamente o que se
+// quer ver. É a mesma regra da notificação de novo episódio (detectAndNotify).
+export function buildRecentEpisodes(
+  animes: LibraryEntry[],
+  series: SeriesLibraryEntry[]
+): ReleaseItem[] {
+  const ceiling = startOfToday() + DAY_MS - 1;
+  const items: ReleaseItem[] = [];
+
+  for (const a of animes) {
+    if (a.status === "dropped" || a.animeStatus !== "RELEASING") continue;
+    if (!a.lastAiredEpisode) continue;
+    const when = a.lastAiredEpisode.airingAt * 1000;
+    if (when > ceiling) continue;
+    items.push({
+      media: "anime",
+      externalId: a.anilistId,
+      title: a.title,
+      poster: a.coverImage,
+      when,
+      detail: `Ep. ${a.lastAiredEpisode.episode}`,
+    });
+  }
+
+  for (const s of series) {
+    if (s.status === "dropped") continue;
+    const last = s.lastAiredEpisode;
+    // Temporada encerrada é assunto do outro carrossel.
+    if (!last || endedSeasonOf(s) !== null) continue;
+    const state = s.seasonStates?.[String(last.season)];
+    if (state?.status === "dropped") continue;
+    const when = dateOnlyToMs(last.airDate);
+    if (when == null || when > ceiling) continue;
+    const poster = s.seasonList?.find((meta) => meta.number === last.season)?.poster ?? s.posterImage;
+    items.push({
+      media: "series",
+      externalId: s.tmdbId,
+      title: s.title,
+      poster,
+      when,
+      detail: last.season === 0 ? `Especiais · Ep. ${last.episode}` : `T${last.season} · Ep. ${last.episode}`,
+      seasonNumber: last.season,
+    });
+  }
+
+  return applyWindow(items);
 }

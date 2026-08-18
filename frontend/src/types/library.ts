@@ -1,5 +1,11 @@
 import type { AnimeNextAiringEpisode, AnimeExternalLink } from "./anime";
 
+// Episódio já exibido. Distinto do próximo episódio, que é o que ainda vai ao ar.
+export interface AnimeAiredEpisode {
+  episode: number;
+  airingAt: number;
+}
+
 export type LibraryStatus = "plan_to_watch" | "watched" | "dropped";
 
 export interface LibraryEntry {
@@ -19,6 +25,8 @@ export interface LibraryEntry {
   // Data do último episódio exibido (ISO); null = a AniList não sabe. É o
   // "terminou de lançar" do anime.
   endDate: string | null;
+  // Último episódio já exibido; só preenchido enquanto o anime está RELEASING.
+  lastAiredEpisode: AnimeAiredEpisode | null;
   streamingLinks: AnimeExternalLink[];
   syncedAt: string | null;
   notes: string | null;

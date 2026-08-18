@@ -2,8 +2,22 @@
   display: flex;
   gap: var(--spacing-xl);
   overflow-x: auto;
-  scroll-snap-type: x proximity;
   padding-bottom: var(--spacing-sm);
+  cursor: grab;
+}
+
+/* Sem scroll-snap de propósito: ele brigava com o scrollLeft do arrasto e, ao
+   soltar, puxava a faixa para o card mais próximo — o movimento travava bem no
+   fim do gesto. A rolagem aqui é livre, com inércia dada pelo useDragScroll. */
+
+/* :active dura exatamente o arrasto, então serve de estado sem re-render. */
+.track:active {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.track:active .card {
+  cursor: grabbing;
 }
 
 /* Mesma anatomia do MediaCard (capa + overlay com o título por cima), só que em
@@ -11,7 +25,6 @@
 .card {
   /* Mesma largura dos cards de biblioteca (MediaGrid). */
   flex: 0 0 200px;
-  scroll-snap-align: start;
   position: relative;
   padding: 0;
   border-radius: var(--radius-lg);

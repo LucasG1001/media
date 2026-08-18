@@ -1,4 +1,4 @@
-import type { AniListNextAiringEpisode, AniListExternalLink } from "./anime.js";
+import type { AniListNextAiringEpisode, AniListAiredEpisode, AniListExternalLink } from "./anime.js";
 
 export interface LibraryEntry {
   id: string;
@@ -16,6 +16,8 @@ export interface LibraryEntry {
   nextAiringEpisode: AniListNextAiringEpisode | null;
   // Data do último episódio exibido (ISO); null = desconhecida.
   endDate: string | null;
+  // Último episódio já exibido; só preenchido enquanto o anime está RELEASING.
+  lastAiredEpisode: AniListAiredEpisode | null;
   streamingLinks: AniListExternalLink[];
   syncedAt: string | null;
   notes: string | null;
@@ -79,6 +81,7 @@ export interface LibraryRow {
   season_year: number | null;
   next_airing_episode: AniListNextAiringEpisode | null;
   end_date: string | null;
+  last_aired_episode: AniListAiredEpisode | null;
   streaming_links: AniListExternalLink[];
   synced_at: string | null;
   notes: string | null;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildRecentReleases } from "./recentReleases";
+import { buildRecentReleases, buildRecentEpisodes } from "./recentReleases";
 import type { LibraryEntry } from "../types/library";
 import type { MovieLibraryEntry } from "../types/movieLibrary";
 import type { SeriesLibraryEntry } from "../types/seriesLibrary";
@@ -30,6 +30,7 @@ function anime(over: Partial<LibraryEntry> = {}): LibraryEntry {
     seasonYear: null,
     nextAiringEpisode: null,
     endDate: isoDaysAgo(10),
+    lastAiredEpisode: null,
     streamingLinks: [],
     syncedAt: null,
     notes: null,
@@ -268,6 +269,12 @@ describe("buildRecentReleases", () => {
     });
   });
 
+  it("nao mistura com o carrossel de episodios", () => {
+    // Anime FINISHED e temporada encerrada sao do carrossel de finalizados; nada
+    // deles pode vazar para o de episodios.
+    expect(buildRecentEpisodes([anime()], [series()])).toEqual([]);
+  });
+
   it("junta as cinco midias", () => {
     const items = build({
       animes: [anime()],
@@ -277,5 +284,66 @@ describe("buildRecentReleases", () => {
       books: [book()],
     });
     expect(items.map((i) => i.media).sort()).toEqual(["anime", "book", "game", "movie", "series"]);
+  });
+});
+
+describe("buildRecentEpisodes", () => {
+  const emExibicao = (over: Partial<LibraryEntry> = {}) =>
+    anime({
+      animeStatus: "RELEASING",
+      lastAiredEpisode: { episode: 7, airingAt: Math.floor((Date.now() - 2 * DAY) / 1000) },
+      ...over,
+    });
+
+  // Temporada em andamento: ha proximo episodio na mesma temporada.
+  const noAr = (over: Partial<SeriesLibraryEntry> = {}) =>
+    series({ nextAiringEpisode: { episode: 11, airingAt: 0, season: 2 }, ...over });
+
+  it("mostra o ultimo episodio de anime em exibicao", () => {
+    const items = buildRecentEpisodes([emExibicao()], []);
+    expect(items).toHaveLength(1);
+    expect(items[0].detail).toBe("Ep. 7");
+  });
+
+  it("ignora anime que ja terminou de lancar", () => {
+    expect(buildRecentEpisodes([emExibicao({ animeStatus: "FINISHED" })], [])).toEqual([]);
+  });
+
+  it("ignora anime sem ultimo episodio conhecido", () => {
+    expect(buildRecentEpisodes([emExibicao({ lastAiredEpisode: null })], [])).toEqual([]);
+  });
+
+  it("ignora abandonado", () => {
+    expect(buildRecentEpisodes([emExibicao({ status: "dropped" })], [])).toEqual([]);
+  });
+
+  // Diferente do carrossel de finalizados: estar em dia nao esconde episodio novo.
+  it("mantem o que ja foi assistido", () => {
+    expect(buildRecentEpisodes([emExibicao({ status: "watched" })], [])).toHaveLength(1);
+  });
+
+  it("mostra o episodio da temporada em andamento", () => {
+    const items = buildRecentEpisodes([], [noAr()]);
+    expect(items).toHaveLength(1);
+    expect(items[0].detail).toBe("T2 · Ep. 10");
+    expect(items[0].seasonNumber).toBe(2);
+  });
+
+  it("ignora temporada ja encerrada", () => {
+    expect(buildRecentEpisodes([], [series()])).toEqual([]);
+  });
+
+  it("ignora temporada abandonada", () => {
+    const entry = noAr({ seasonStates: { "2": { status: "dropped", score: 0 } } });
+    expect(buildRecentEpisodes([], [entry])).toEqual([]);
+  });
+
+  it("ordena do mais recente para o mais antigo", () => {
+    const antigo = emExibicao({
+      title: "Antigo",
+      lastAiredEpisode: { episode: 3, airingAt: Math.floor((Date.now() - 20 * DAY) / 1000) },
+    });
+    const novo = emExibicao({ title: "Novo" });
+    expect(buildRecentEpisodes([antigo, novo], []).map((i) => i.title)).toEqual(["Novo", "Antigo"]);
   });
 });

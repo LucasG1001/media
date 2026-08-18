@@ -1,7 +1,7 @@
 import { chunk } from "../lib/chunk.js";
 import * as libraryModel from "../models/libraryModel.js";
 import { findSeriesWithoutLastAired, updateSeriesSyncData } from "../models/seriesLibraryModel.js";
-import { fetchAnimesByIds } from "./anilistService.js";
+import { fetchAnimesByIds, fetchLastAiredEpisodes } from "./anilistService.js";
 import { fetchSeriesSyncData } from "./tmdbSeriesService.js";
 import { notifyError } from "./notifyService.js";
 
@@ -82,9 +82,30 @@ async function backfillSeriesLastAired(): Promise<number> {
   return updated;
 }
 
-export async function backfillReleaseDates(): Promise<{ anime: number; series: number }> {
+// Último episódio exibido do anime em exibição. Em regime quem mantém isso é o
+// refresh horário; aqui é só para a coluna não nascer vazia (a linha só entra no
+// refresh depois de ficar stale, e até lá o carrossel de episódios fica sem
+// anime nenhum). Uma requisição por lote de 25.
+async function backfillAnimeLastAired(): Promise<number> {
+  const ids = await libraryModel.findReleasingWithoutLastAired();
+  if (ids.length === 0) return 0;
+
+  try {
+    const latest = await fetchLastAiredEpisodes(ids);
+    for (const [anilistId, aired] of latest) {
+      await libraryModel.setLastAiredEpisode(anilistId, aired);
+    }
+    return latest.size;
+  } catch (error) {
+    await notifyError("releaseDateBackfillService.animeLastAired", error, { total: String(ids.length) });
+    return 0;
+  }
+}
+
+export async function backfillReleaseDates(): Promise<{ anime: number; animeLastAired: number; series: number }> {
   return {
     anime: await backfillAnimeEndDate(),
+    animeLastAired: await backfillAnimeLastAired(),
     series: await backfillSeriesLastAired(),
   };
 }

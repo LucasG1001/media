@@ -53,6 +53,14 @@ export async function migrate(): Promise<void> {
     ADD COLUMN IF NOT EXISTS end_date TEXT;
   `);
 
+  // Último episódio já exibido ({episode, airingAt}), do airingSchedules da
+  // AniList. Só é gravado enquanto o anime está RELEASING — é o que alimenta o
+  // carrossel de episódios recentes. NULL = nunca buscado.
+  await pool.query(`
+    ALTER TABLE anime_library
+    ADD COLUMN IF NOT EXISTS last_aired_episode JSONB;
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS movie_library (
       id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),

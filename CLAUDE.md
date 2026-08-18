@@ -120,13 +120,23 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 - **`App.tsx`** — BrowserRouter + Sidebar; páginas `Dashboard`, `Anime`, `Movies`, `Series`,
   `Games`, `Books`, `YouTube`, `Settings`.
 - **Dashboard** — agrega no cliente, sobre as 5 bibliotecas que os stores já carregam (nenhum
-  endpoint próprio). Duas listas espelhadas: `utils/agenda.ts` (o que **vai** lançar) e
-  `utils/recentReleases.ts` (o que **já** lançou, no `ReleaseCarousel`). O carrossel é uma fila de
-  "já dá para consumir": só entra item em `plan_to_*` — marcar como concluído tira o item de lá —,
-  janela de 90 dias completada até um mínimo de 10 itens para não ficar vazio em período parado.
-  Em séries o evento é a **temporada** encerrada (`last_aired_episode` vs `next_airing_episode`,
-  status lido de `season_states`, clique abre o `SeasonDrawer`); linha antiga sem `season` no
-  próximo episódio degrada para menos itens, nunca para a temporada errada.
+  endpoint próprio). `utils/agenda.ts` cobre o que **vai** lançar; `utils/recentReleases.ts` cobre o
+  que **já** saiu, em dois carrosséis (`ReleaseCarousel`, card com a anatomia do `MediaCard` — capa
+  com título por cima e a data relativa numa pílula acima dele, mesma largura do `MediaGrid`;
+  navega por arrasto via `hooks/useDragScroll.ts`, só no mouse — no touch a rolagem nativa já tem
+  inércia — que engole o clique do fim do arrasto para não abrir o drawer):
+  - **Finalizados recentemente** (`buildRecentReleases`, todas as mídias) — fila de "já dá para
+    consumir": só entra item em `plan_to_*`, então marcar como concluído tira o item de lá.
+  - **Episódios recentes** (`buildRecentEpisodes`, só anime e séries — filme/jogo/livro não têm
+    episódio) — o que segue saindo. Aqui o recorte é só "não abandonado", e **não** "falta
+    consumir": episódio novo de série em que você está em dia é justamente o que se quer ver (mesma
+    regra da notificação de novo episódio).
+  Os dois são **complementares por construção**: anime `FINISHED`/temporada encerrada vão para o
+  primeiro, anime `RELEASING`/temporada em andamento para o segundo. Ambos usam a mesma janela
+  (`applyWindow`): 90 dias, completada até um mínimo de 10 itens para não ficar vazio em período
+  parado. Em séries o item é a **temporada** (status lido de `season_states`, clique abre o
+  `SeasonDrawer`); linha antiga sem `season` no próximo episódio degrada para menos itens, nunca
+  para a temporada errada.
 - **Componentes compartilhados**: `MediaCard`/`MediaGrid` (catálogo), `FranchiseGrid` (biblioteca
   agrupada por franquia/coleção; aceita `renderExpansion` — inversão de controle da expansão — e
   `extraActions`, ações extra repassadas à `SelectionBar` com os ids selecionados, habilitadas só com
@@ -398,6 +408,13 @@ não fica registrado. Quem guarda a data são `anime_library.end_date` (`endDate
 `NULL` = desconhecida ou incompleta) e `series_library.last_aired_episode` (JSONB
 `{season, episode, airDate}`, do `last_episode_to_air` do TMDB). As duas vêm de campos que as APIs
 já devolvem nas requisições que os jobs fazem, então custam zero requisição.
+**Qual foi o último episódio exibido** é uma terceira coisa: `anime_library.last_aired_episode`
+(JSONB `{episode, airingAt}`) — o `nextAiringEpisode` diz o que vem, não o que passou, e a data do
+anterior não é dedutível (nem toda exibição é semanal). Vem do `Page.airingSchedules`
+(`fetchLastAiredEpisodes`, consulta separada, em lote, ordenada por tempo desc — a primeira
+ocorrência de cada `mediaId` é o episódio mais recente dele) e é gravada **só para anime
+`RELEASING`**, que o refresh revisita de hora em hora. Tem backfill de boot mesmo assim: a linha só
+entra no refresh depois de ficar stale, então sem ele o carrossel de episódios nasce vazio.
 `synced_at` (todas as cinco tabelas) guarda o
 último refresh; `NULL` entra na próxima execução do job. **`book_status` não usa o `deriveStatus` do
 TMDB**: lá data nula significa "sem data marcada" e cai em `UPCOMING`, mas na Hardcover data nula é

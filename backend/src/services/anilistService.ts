@@ -2,7 +2,7 @@ import axios from "axios";
 import { cachedRequest } from "../lib/httpClient.js";
 import { createRateLimiter } from "../lib/rateLimiter.js";
 import { chunk } from "../lib/chunk.js";
-import type { AniListAnime, AniListResponse, AniListSingleResponse, AnimeCard, AnimeDetail, AniListExternalLink, AniListFuzzyDate, AniListFranchiseNode, AniListFranchiseResponse } from "../types/anime.js";
+import type { AniListAnime, AniListResponse, AniListSingleResponse, AniListAiringResponse, AniListAiredEpisode, AnimeCard, AnimeDetail, AniListExternalLink, AniListFuzzyDate, AniListFranchiseNode, AniListFranchiseResponse } from "../types/anime.js";
 
 export class AniListError extends Error {
   constructor(message: string, readonly status: number) {
@@ -230,6 +230,64 @@ export async function fetchAnimesByIds(ids: number[]): Promise<AnimeCard[]> {
   }
 
   return results;
+}
+
+// Janela de busca do último episódio exibido. Curta de propósito: o refresh de
+// anime em exibição roda de hora em hora, então basta cobrir o intervalo entre
+// episódios. Janela longa faria um anime de exibição semanal devolver dezenas de
+// entradas e empurrar os outros para fora da página.
+const AIRED_WINDOW_DAYS = 30;
+// Com a janela acima, um lote deste tamanho cabe folgado numa página.
+const AIRED_CHUNK_SIZE = 25;
+const AIRED_MAX_PAGES = 3;
+
+// Último episódio já exibido de cada anime. O nextAiringEpisode do Media diz o
+// que vem, não o que passou, e a data do anterior não é dedutível (nem toda
+// exibição é semanal) — daí a consulta separada ao airingSchedules.
+//
+// Os resultados vêm ordenados por tempo decrescente, então a PRIMEIRA ocorrência
+// de cada mediaId já é o episódio mais recente dele. Anime sem episódio na
+// janela simplesmente não entra no mapa e mantém o valor guardado.
+export async function fetchLastAiredEpisodes(
+  ids: number[]
+): Promise<Map<number, AniListAiredEpisode>> {
+  const latest = new Map<number, AniListAiredEpisode>();
+  if (ids.length === 0) return latest;
+
+  const query = `
+    query ($ids: [Int], $since: Int, $page: Int, $perPage: Int) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo { hasNextPage }
+        airingSchedules(mediaId_in: $ids, airingAt_greater: $since, notYetAired: false, sort: TIME_DESC) {
+          mediaId
+          episode
+          airingAt
+        }
+      }
+    }
+  `;
+
+  const since = Math.floor(Date.now() / 1000) - AIRED_WINDOW_DAYS * 86400;
+
+  for (const batch of chunk(ids, AIRED_CHUNK_SIZE)) {
+    const pending = new Set(batch);
+    for (let page = 1; page <= AIRED_MAX_PAGES && pending.size > 0; page += 1) {
+      const data = await queryAniList<AniListAiringResponse>(query, {
+        ids: batch,
+        since,
+        page,
+        perPage: 50,
+      });
+      for (const node of data.data.Page.airingSchedules) {
+        if (!pending.has(node.mediaId)) continue;
+        pending.delete(node.mediaId);
+        latest.set(node.mediaId, { episode: node.episode, airingAt: node.airingAt });
+      }
+      if (!data.data.Page.pageInfo.hasNextPage) break;
+    }
+  }
+
+  return latest;
 }
 
 export async function fetchAnimeById(id: number): Promise<AnimeDetail> {

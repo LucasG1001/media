@@ -23,6 +23,13 @@ export interface AniListNextAiringEpisode {
   airingAt: number;
 }
 
+// Episódio já exibido, do airingSchedules. Distinto do nextAiringEpisode, que é
+// o que ainda vai ao ar.
+export interface AniListAiredEpisode {
+  episode: number;
+  airingAt: number;
+}
+
 // A AniList devolve as partes separadamente e qualquer uma pode vir nula.
 export interface AniListFuzzyDate {
   year: number | null;
@@ -85,6 +92,15 @@ export interface AniListPage {
 export interface AniListResponse {
   data: {
     Page: AniListPage;
+  };
+}
+
+export interface AniListAiringResponse {
+  data: {
+    Page: {
+      pageInfo: { hasNextPage: boolean };
+      airingSchedules: Array<{ mediaId: number; episode: number; airingAt: number }>;
+    };
   };
 }
 

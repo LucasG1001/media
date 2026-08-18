@@ -17,6 +17,7 @@ export const animeLibraryModel = createLibraryModel<LibraryEntry, CreateLibraryE
     { column: "season_year", field: "seasonYear", default: null },
     { column: "next_airing_episode", field: "nextAiringEpisode", default: null },
     { column: "end_date", field: "endDate", default: null, readonly: true },
+    { column: "last_aired_episode", field: "lastAiredEpisode", default: null, readonly: true },
     { column: "streaming_links", field: "streamingLinks", default: [] },
     { column: "synced_at", field: "syncedAt", default: null },
     { column: "is_cover", field: "isCover", default: false, readonly: true },
@@ -54,6 +55,7 @@ function toLibraryEntry(row: LibraryRow): LibraryEntry {
     seasonYear: row.season_year,
     nextAiringEpisode: row.next_airing_episode,
     endDate: row.end_date,
+    lastAiredEpisode: row.last_aired_episode,
     streamingLinks: row.streaming_links ?? [],
     syncedAt: row.synced_at,
     notes: row.notes,
@@ -77,6 +79,32 @@ export async function findStale(nonFinishedTtlHours: number, finishedTtlHours: n
     [nonFinishedTtlHours, finishedTtlHours]
   );
   return result.rows.map(toLibraryEntry);
+}
+
+// Anime em exibição que ainda não teve o último episódio buscado. O refresh
+// horário cobre isso em regime, mas só depois que a linha fica stale — sem o
+// backfill de boot o carrossel de episódios nasce vazio por até uma hora.
+export async function findReleasingWithoutLastAired(): Promise<number[]> {
+  const result = await pool.query<{ anilist_id: number }>(
+    `SELECT anilist_id FROM anime_library
+     WHERE last_aired_episode IS NULL
+       AND anime_status = 'RELEASING'
+       AND status != 'dropped'`
+  );
+  return result.rows.map((row) => row.anilist_id);
+}
+
+// Gravado só pelo refresh, a partir do airingSchedules da AniList. Sem
+// COALESCE: quando a consulta não acha o anime na janela, o refresh nem chama —
+// então chegar aqui significa ter um episódio mais recente que o guardado.
+export async function setLastAiredEpisode(
+  anilistId: number,
+  value: { episode: number; airingAt: number }
+): Promise<void> {
+  await pool.query(
+    `UPDATE anime_library SET last_aired_episode = $2::jsonb WHERE anilist_id = $1`,
+    [anilistId, JSON.stringify(value)]
+  );
 }
 
 // Anime já concluído na AniList e ainda sem a data de fim (coluna nunca

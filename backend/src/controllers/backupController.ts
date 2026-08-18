@@ -39,6 +39,7 @@ const TABLES: TableSpec[] = [
       { column: "season_year", get: (e) => e.seasonYear ?? null },
       { column: "next_airing_episode", get: (e) => e.nextAiringEpisode ?? null, json: true },
       { column: "end_date", get: (e) => e.endDate ?? null },
+      { column: "last_aired_episode", get: (e) => e.lastAiredEpisode ?? null, json: true },
       { column: "streaming_links", get: (e) => e.streamingLinks ?? [], json: true },
       { column: "franchise_id", get: (e) => e.franchiseId ?? null },
       { column: "format", get: (e) => e.format ?? null },

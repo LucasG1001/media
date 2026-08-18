@@ -269,7 +269,17 @@ fazer requisição nenhuma.
 | `backfillGameModes` | `game_modes IS NULL` | Lotes de 200 na IGDB. `NULL` = nunca buscado; `[]` = jogo sem modo conhecido. A distinção é o que impede o reprocessamento eterno. |
 | `backfillSeriesSeasons` | `season_list IS NULL` | Uma chamada de detalhe TMDB por série, **sequencial**. |
 | `backfillReleaseDates` (anime) | `end_date IS NULL AND anime_status = 'FINISHED'` | Lotes de 50 na AniList, reaproveitando o `updateSyncData`. |
+| `backfillReleaseDates` (anime, último ep.) | `last_aired_episode IS NULL` e `anime_status = 'RELEASING'` não abandonado | Uma requisição por lote de 25 (`fetchLastAiredEpisodes`). Em regime quem mantém é o refresh horário; o backfill existe porque a linha só entra no refresh **depois** de ficar stale — sem ele o carrossel de episódios nasce vazio por até uma hora após subir. |
 | `backfillReleaseDates` (séries) | `last_aired_episode IS NULL` e já estreada (`first_air_date <= hoje`) | Uma chamada de detalhe TMDB por série, concorrência 10. O recorte por data de estreia é o que dá saída garantida: série já estreada sempre tem `last_episode_to_air`. |
+
+**Último episódio exibido do anime:** o refresh faz uma consulta extra ao `Page.airingSchedules`
+(`fetchLastAiredEpisodes`) para os animes do lote que estão `RELEASING` e não foram abandonados —
+o `nextAiringEpisode` do `Media` diz o que vem, não o que passou, e a data do anterior não é
+dedutível (nem toda exibição é semanal). Vai em lotes de 25 ids com janela de 30 dias e no máximo
+3 páginas, parando assim que todos os ids do lote forem encontrados; na prática é 1 requisição por
+lote. Tem `try/catch` próprio: falhar aqui não desfaz o refresh do lote. Anime sem episódio na
+janela não entra no resultado e **mantém** o valor guardado. Não precisa de backfill para
+se manter em dia (TTL de 1 h), mas **precisa** do backfill de boot para não começar vazio.
 
 **Limitação conhecida do `backfillReleaseDates` (anime):** a AniList devolve `endDate` incompleta
 (sem dia ou mês) para alguns títulos antigos, e essas linhas ficam com `end_date` nulo — logo voltam
@@ -296,6 +306,7 @@ Colunas alimentadas por API externa. As demais (`status`, `score`, `is_cover`, `
 | data de lançamento/estreia | ✅ | ✅ | ✅ | só em item novo |
 | `next_airing_episode` | — | — | ✅ | — |
 | `last_aired_episode` (séries) | — | — | ✅ | — |
+| `last_aired_episode` (anime) | — | — | ✅ (só `RELEASING`) | — |
 | `end_date` (anime) | — | — | ✅ | ✅ (`COALESCE`) |
 | `streaming_links`, `season_year`, `format` (anime) | ✅ | — | ✅ | ✅ (`COALESCE`) |
 | `season_list` (séries) | ✅ | — | ✅ | — |

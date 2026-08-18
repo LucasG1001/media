@@ -14,7 +14,7 @@ import { SeasonDrawer } from "../../components/SeasonDrawer/SeasonDrawer";
 import { ReleaseCarousel } from "../../components/ReleaseCarousel/ReleaseCarousel";
 import { AnimeIcon, MovieIcon, SeriesIcon, BookIcon, GameIcon } from "../../components/Sidebar/Sidebar.icons";
 import { buildAgenda, splitAgenda, groupByDay, groupByMonth, type AgendaItem, type AgendaGroup } from "../../utils/agenda";
-import { buildRecentReleases, type ReleaseItem } from "../../utils/recentReleases";
+import { buildRecentReleases, buildRecentEpisodes, type ReleaseItem } from "../../utils/recentReleases";
 import styles from "./DashboardPage.module.css";
 
 const MEDIA_ICON: Record<AgendaItem["media"], typeof AnimeIcon> = {
@@ -118,6 +118,8 @@ export function DashboardPage() {
     [animes, movies, series, games, books]
   );
 
+  const episodes = useMemo(() => buildRecentEpisodes(animes, series), [animes, series]);
+
   const openItem = (item: AgendaItem | ReleaseItem) => {
     if (item.media === "anime") setSelectedAnimeId(item.externalId as number);
     else if (item.media === "movie") setSelectedMovieId(item.externalId as number);
@@ -193,8 +195,15 @@ export function DashboardPage() {
 
       {releases.length > 0 && (
         <section className={styles.block}>
-          <div className={styles.blockTitle}>Saiu recentemente</div>
+          <div className={styles.blockTitle}>Finalizados recentemente</div>
           <ReleaseCarousel items={releases} onSelect={openRelease} />
+        </section>
+      )}
+
+      {episodes.length > 0 && (
+        <section className={styles.block}>
+          <div className={styles.blockTitle}>Episódios recentes</div>
+          <ReleaseCarousel items={episodes} onSelect={openRelease} />
         </section>
       )}
 

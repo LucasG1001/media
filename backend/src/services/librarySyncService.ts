@@ -1,7 +1,7 @@
 import * as libraryModel from "../models/libraryModel.js";
 import { chunk } from "../lib/chunk.js";
 import { singleFlight } from "../lib/singleFlight.js";
-import { fetchAnimesByIds } from "./anilistService.js";
+import { fetchAnimesByIds, fetchLastAiredEpisodes } from "./anilistService.js";
 import { notifyNewEpisode, notifyAnimeFinished, notifyError } from "./notifyService.js";
 import type { AniListNextAiringEpisode } from "../types/anime.js";
 import type { LibraryEntry } from "../types/library.js";
@@ -49,8 +49,14 @@ async function doRefresh(): Promise<void> {
   // transitória num lote (a AniList degrada bastante) descartava também o que
   // os lotes anteriores já tinham trazido, perdendo o ciclo inteiro.
   for (const batch of chunk(stale.map((entry) => entry.anilistId), ANILIST_BATCH_SIZE)) {
+    const releasing: number[] = [];
     try {
       const animes = await fetchAnimesByIds(batch);
+      for (const anime of animes) {
+        if (anime.status === "RELEASING" && byId.get(anime.id)?.status !== "dropped") {
+          releasing.push(anime.id);
+        }
+      }
       await Promise.all(
         animes.map((anime) => {
           const old = byId.get(anime.id);
@@ -72,6 +78,20 @@ async function doRefresh(): Promise<void> {
       );
     } catch (error) {
       await notifyError("librarySyncService.refreshStaleEntries", error, { batchSize: String(batch.length) });
+    }
+
+    // Só anime em exibição: para os demais o último episódio não muda mais, e
+    // quem já terminou aparece no carrossel de finalizados, não no de episódios.
+    // try/catch próprio — falhar aqui não pode desfazer o refresh acima.
+    try {
+      if (releasing.length > 0) {
+        const latest = await fetchLastAiredEpisodes(releasing);
+        for (const [anilistId, aired] of latest) {
+          await libraryModel.setLastAiredEpisode(anilistId, aired);
+        }
+      }
+    } catch (error) {
+      await notifyError("librarySyncService.refreshLastAired", error, { batchSize: String(batch.length) });
     }
   }
 }

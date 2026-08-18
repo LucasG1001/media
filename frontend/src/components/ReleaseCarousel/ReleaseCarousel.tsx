@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import type { ReleaseItem } from "../../utils/recentReleases";
 import { AnimeIcon, MovieIcon, SeriesIcon, BookIcon, GameIcon } from "../Sidebar/Sidebar.icons";
 import { formatLastAccess, formatLastAccessExact } from "../../utils/lastAccess";
+import { useDragScroll } from "../../hooks/useDragScroll";
 import styles from "./ReleaseCarousel.module.css";
 
 const MEDIA_ICON: Record<ReleaseItem["media"], typeof AnimeIcon> = {
@@ -26,8 +27,10 @@ interface ReleaseCarouselProps {
 }
 
 export function ReleaseCarousel({ items, onSelect }: ReleaseCarouselProps) {
+  const { ref, handlers } = useDragScroll<HTMLDivElement>();
+
   return (
-    <div className={styles.track}>
+    <div className={styles.track} ref={ref} {...handlers}>
       {items.map((item) => {
         const Icon = MEDIA_ICON[item.media];
         const iso = new Date(item.when).toISOString();
