@@ -12,6 +12,8 @@ import { notifyDueReleases } from "./services/releaseNotifyService.js";
 import { backfillGameModes } from "./services/gameModesBackfillService.js";
 import { backfillSeriesSeasons } from "./services/seasonListBackfillService.js";
 import { backfillReleaseDates } from "./services/releaseDateBackfillService.js";
+import { warmupImages } from "./services/imageWarmupService.js";
+import { backfillDetailCache } from "./services/detailCacheBackfillService.js";
 import { animeRoutes } from "./routes/animeRoutes.js";
 import { libraryRoutes } from "./routes/libraryRoutes.js";
 import { movieRoutes } from "./routes/movieRoutes.js";
@@ -24,6 +26,7 @@ import { bookRoutes } from "./routes/bookRoutes.js";
 import { bookLibraryRoutes } from "./routes/bookLibraryRoutes.js";
 import { youtubeLibraryRoutes } from "./routes/youtubeLibraryRoutes.js";
 import { backupRoutes } from "./routes/backupRoutes.js";
+import { imageRoutes } from "./routes/imageRoutes.js";
 import { notFoundHandler, errorHandler } from "./middleware/errorHandler.js";
 import { notifyError } from "./services/notifyService.js";
 
@@ -49,6 +52,12 @@ function scheduleDailyAt(hour: number, minute: number, task: () => void): void {
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
+// Sonda de alcance do servidor. Existe porque navigator.onLine no browser dá
+// falso-positivo com o Wi-Fi no ar e a VPN caída — o app só alcança a VPS pela VPN.
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true });
+});
+
 app.use("/api/anime", animeRoutes);
 app.use("/api/library", libraryRoutes);
 app.use("/api/movie", movieRoutes);
@@ -61,6 +70,7 @@ app.use("/api/book", bookRoutes);
 app.use("/api/book-library", bookLibraryRoutes);
 app.use("/api/youtube-library", youtubeLibraryRoutes);
 app.use("/api/backup", backupRoutes);
+app.use("/api/img", imageRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
@@ -85,6 +95,8 @@ async function start(): Promise<void> {
     refreshStaleMovies().catch((error) => void notifyError("Job refreshStaleMovies", error));
     refreshStaleGames().catch((error) => void notifyError("Job refreshStaleGames", error));
     refreshStaleBooks().catch((error) => void notifyError("Job refreshStaleBooks", error));
+    backfillDetailCache().catch((error) => void notifyError("Job backfillDetailCache", error));
+    warmupImages().catch((error) => void notifyError("Job warmupImages", error));
   };
   runSyncTick();
   setInterval(runSyncTick, SYNC_INTERVAL_MS);

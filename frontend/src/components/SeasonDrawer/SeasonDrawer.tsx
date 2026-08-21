@@ -8,6 +8,8 @@ import drawer from "../SeriesDrawer/SeriesDrawer.module.css";
 import { DrawerNav, type DrawerNavProps } from "../DrawerNav/DrawerNav";
 import { useDrawerKeys } from "../../hooks/useDrawerKeys";
 import styles from "./SeasonDrawer.module.css";
+import { CoverImage } from "../CoverImage/CoverImage";
+import { DrawerFallback, type DrawerFallbackData } from "../DrawerFallback/DrawerFallback";
 
 // notes/onNotesChange só vêm quando a série está na biblioteca — a anotação é da
 // temporada, não da série.
@@ -18,6 +20,9 @@ interface SeasonDrawerProps {
   onSeriesLoad?: (series: SeriesDetail) => void;
   // Navegação entre os itens da coleção, sem fechar o drawer.
   nav?: DrawerNavProps;
+  // Dados salvos na biblioteca, usados quando nem a API externa nem o cache dela
+  // responderem (offline sem o item nunca aberto).
+  fallback?: DrawerFallbackData;
   notes?: string | null;
   onNotesChange?: (notes: string) => void;
 }
@@ -30,6 +35,7 @@ export function SeasonDrawer({
   notes,
   onNotesChange,
   nav,
+  fallback,
 }: SeasonDrawerProps) {
   // Guardados junto com a chave a que pertencem, e loading/error derivados daí:
   // navegar entre temporadas troca a chave sem remontar o drawer, e estado solto
@@ -91,7 +97,7 @@ export function SeasonDrawer({
                 <div className={styles.episodes}>
                   {data.season.episodes.map((ep) => (
                     <div key={ep.episodeNumber} className={styles.episode}>
-                      {ep.still && <img className={styles.episodeStill} src={ep.still} alt="" loading="lazy" />}
+                      <CoverImage className={styles.episodeStill} src={ep.still} alt="" />
                       <div className={styles.episodeBody}>
                         <div className={styles.episodeHead}>
                           <span className={styles.episodeNumber}>{ep.episodeNumber}.</span>
@@ -112,6 +118,13 @@ export function SeasonDrawer({
 
             {onNotesChange && <NotesBlock key={key} value={notes ?? null} onSave={onNotesChange} />}
           </SeriesDetailBody>
+        ) : error && fallback ? (
+          <DrawerFallback
+            {...fallback}
+            notes={notes}
+            onNotesChange={onNotesChange}
+            notesKey={key}
+          />
         ) : (
           <div className={drawer.loading}>{error ? "Erro ao carregar detalhes." : ""}</div>
         )}

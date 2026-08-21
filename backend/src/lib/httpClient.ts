@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AxiosError, AxiosRequestConfig } from "axios";
+import type { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 import { cacheGet, cacheSet } from "./cache.js";
 import type { RateLimiter } from "./rateLimiter.js";
 
@@ -34,6 +34,14 @@ function delay(ms: number): Promise<void> {
 }
 
 export async function httpRequest<T>(config: AxiosRequestConfig, options?: RequestOptions): Promise<T> {
+  const response = await httpRequestFull<T>(config, options);
+  return response.data;
+}
+
+export async function httpRequestFull<T>(
+  config: AxiosRequestConfig,
+  options?: RequestOptions
+): Promise<AxiosResponse<T>> {
   const limiter = options?.limiter;
   const maxRetries = options?.maxRetries ?? MAX_RETRIES;
   let attempt = 0;
@@ -42,7 +50,7 @@ export async function httpRequest<T>(config: AxiosRequestConfig, options?: Reque
       if (limiter) await limiter.acquire();
       const response = await axios.request<T>({ timeout: DEFAULT_TIMEOUT_MS, ...config });
       limiter?.observe(response.headers as Record<string, unknown>);
-      return response.data;
+      return response;
     } catch (error) {
       if (attempt >= maxRetries || !isRetriable(error)) throw error;
       const wait = retryDelayMs(error, attempt);

@@ -12,6 +12,7 @@ import { formatDuration } from "../utils/formatDuration";
 import { formatViews } from "../utils/formatViews";
 import cardStyles from "../components/MediaCard/MediaCard.module.css";
 import ytStyles from "./youtubeCard.module.css";
+import { CoverImage } from "../components/CoverImage/CoverImage";
 
 function scoreColorFn(high: number, mid: number): (score: number) => string {
   return (score) => {
@@ -59,17 +60,15 @@ export const animeCardConfig: MediaCardConfig<AnimeCard> = {
         {a.seasonYear ? <span className={cardStyles.year}>{a.seasonYear}</span> : <span />}
         {a.streamingLinks.length > 0 && (
           <div className={cardStyles.streamingIcons}>
-            {a.streamingLinks.slice(0, 3).map((link) =>
-              link.icon ? (
-                <img
-                  key={link.site}
-                  className={cardStyles.streamingIcon}
-                  src={link.icon}
-                  alt={link.site}
-                  title={link.site}
-                />
-              ) : null
-            )}
+            {a.streamingLinks.slice(0, 3).map((link) => (
+              <CoverImage
+                key={link.site}
+                className={cardStyles.streamingIcon}
+                src={link.icon}
+                alt={link.site}
+                title={link.site}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -175,7 +174,7 @@ export const youtubeCardConfig: MediaCardConfig<YoutubeCard> = {
   renderMeta: () => null,
   renderBelow: (v) => (
     <div className={ytStyles.below}>
-      {v.channelThumbnail && <img className={ytStyles.avatar} src={v.channelThumbnail} alt="" loading="lazy" decoding="async" />}
+      <CoverImage className={ytStyles.avatar} src={v.channelThumbnail} alt="" />
       <div className={ytStyles.text}>
         <div className={ytStyles.title} title={v.title}>{v.title}</div>
         {v.channelTitle && <div className={ytStyles.channel}>{v.channelTitle}</div>}

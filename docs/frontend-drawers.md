@@ -3,7 +3,8 @@
 Navegação de coleção dentro do drawer, teclado, tela cheia própria do player e o bloco de
 anotação. Vale para os seis drawers (`AnimeDrawer`, `MovieDrawer`, `SeriesDrawer`, `SeasonDrawer`,
 `GameDrawer`, `BookDrawer`, `YoutubeDrawer`). Consulte antes de mexer em `hooks/useDrawerKeys.ts`,
-`DrawerNav`, `utils/collectionNav.ts`, `TrailerEmbed` ou no bloco de anotação de um drawer.
+`DrawerNav`, `utils/collectionNav.ts`, `TrailerEmbed`, `DrawerFallback` ou no bloco de anotação de um
+drawer.
 
 ---
 
@@ -64,3 +65,22 @@ O drawer não conhece a biblioteca (recebe só o ID externo e busca na API exter
 que esconde o bloco no catálogo. Séries são a exceção: a anotação é da **temporada**
 (`SeasonDrawer` → `saveSeasonNotes` → `PUT /:id/seasons/:n/notes`, endpoint separado do
 `saveSeason`, que exige status/nota válidos); o `SeriesDrawer` não tem bloco.
+
+## 6. Fallback quando o detalhe não vem
+
+O ramo de erro dos drawers mostrava só `"Erro ao carregar detalhes."` num painel vazio — e como o
+`NotesBlock` fica dentro do ramo de sucesso, **a anotação desaparecia junto**, mesmo com o item
+salvo na biblioteca.
+
+Hoje há duas redes, nesta ordem:
+
+1. **O backend responde do `detail_cache`** quando a API externa falha (`X-From-Cache: 1`). Para o
+   drawer isso é indistinguível de sucesso — nenhum componente mudou por causa disso.
+2. **`components/DrawerFallback`**, quando nem o cache existe: banner neutro, capa e título vindos
+   da entrada da biblioteca, aviso de que são os dados salvos e o `NotesBlock`. Os seis drawers
+   recebem `fallback?: DrawerFallbackData` (`title`, `coverImage`, `subtitle`, `placeholder`) e as
+   páginas montam a partir do `drawerEntry` que já tinham para as anotações e o `DrawerNav`. Sem
+   `fallback` o comportamento antigo continua valendo — é o caso do catálogo, onde não há entrada.
+
+O `SeriesDrawer` é o único cujo fallback não tem `NotesBlock`, pelo mesmo motivo da §5: a anotação de
+série vive na temporada. Ver `docs/offline.md`.

@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import { fetchBooksByGenre, searchBooks, fetchBookById } from "../services/hardcoverService.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
+import { serveDetail } from "../lib/detailWithCache.js";
+import { bookDetailCache } from "../models/detailCacheModel.js";
 
 export const getByGenre = asyncHandler("API book/list", "Erro ao buscar livros.", async (req: Request, res: Response) => {
   const genre = String(req.query.genre || "Fiction");
@@ -24,5 +26,5 @@ export const getById = asyncHandler("API book/:id", "Erro ao buscar detalhes do 
     res.status(400).json({ error: "ID inválido." });
     return;
   }
-  res.json(await fetchBookById(id));
+  await serveDetail(res, bookDetailCache, id, () => fetchBookById(id));
 });

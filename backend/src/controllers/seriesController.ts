@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import { fetchPopularSeries, searchSeries, fetchSeriesById, fetchSeasonById } from "../services/tmdbSeriesService.js";
 import { notifyError } from "../services/notifyService.js";
+import { serveDetail } from "../lib/detailWithCache.js";
+import { seriesDetailCache } from "../models/detailCacheModel.js";
 
 export async function getPopular(req: Request, res: Response): Promise<void> {
   try {
@@ -43,8 +45,7 @@ export async function getById(req: Request, res: Response): Promise<void> {
       res.status(400).json({ error: "ID inválido." });
       return;
     }
-    const series = await fetchSeriesById(id);
-    res.json(series);
+    await serveDetail(res, seriesDetailCache, id, () => fetchSeriesById(id));
   } catch (error) {
     void notifyError("API series/:id", error);
     res.status(500).json({ error: "Erro ao buscar detalhes da série." });
@@ -59,8 +60,10 @@ export async function getSeasonById(req: Request, res: Response): Promise<void> 
       res.status(400).json({ error: "ID inválido." });
       return;
     }
-    const season = await fetchSeasonById(id, seasonNumber);
-    res.json(season);
+    await serveDetail(res, seriesDetailCache, id, () => fetchSeasonById(id, seasonNumber), [
+      "seasons",
+      String(seasonNumber),
+    ]);
   } catch (error) {
     void notifyError("API series/:id/season/:seasonNumber", error);
     res.status(500).json({ error: "Erro ao buscar detalhes da temporada." });

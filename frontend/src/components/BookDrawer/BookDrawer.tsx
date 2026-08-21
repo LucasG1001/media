@@ -5,6 +5,8 @@ import { NotesBlock } from "../NotesBlock/NotesBlock";
 import { DrawerNav, type DrawerNavProps } from "../DrawerNav/DrawerNav";
 import { useDrawerKeys } from "../../hooks/useDrawerKeys";
 import styles from "./BookDrawer.module.css";
+import { CoverImage } from "../CoverImage/CoverImage";
+import { DrawerFallback, type DrawerFallbackData } from "../DrawerFallback/DrawerFallback";
 
 // notes/onNotesChange só vêm quando o item está na biblioteca — no catálogo o
 // bloco de anotação não aparece.
@@ -14,6 +16,9 @@ interface BookDrawerProps {
   onBookLoad?: (book: BookDetail) => void;
   // Navegação entre os itens da coleção, sem fechar o drawer.
   nav?: DrawerNavProps;
+  // Dados salvos na biblioteca, usados quando nem a API externa nem o cache dela
+  // responderem (offline sem o item nunca aberto).
+  fallback?: DrawerFallbackData;
   notes?: string | null;
   onNotesChange?: (notes: string) => void;
 }
@@ -27,7 +32,7 @@ function formatPublishedDate(date: string | null, fallbackYear: number | null): 
   return parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export function BookDrawer({ bookId, onClose, onBookLoad, notes, onNotesChange, nav }: BookDrawerProps) {
+export function BookDrawer({ bookId, onClose, onBookLoad, notes, onNotesChange, nav, fallback }: BookDrawerProps) {
   // Guardados junto com o id a que pertencem, e loading/error derivados daí:
   // navegar troca o id sem remontar o drawer, e estado solto seguiria falando do
   // item anterior (mostrando-o enquanto busca, ou grudando um erro antigo).
@@ -75,11 +80,13 @@ export function BookDrawer({ bookId, onClose, onBookLoad, notes, onNotesChange, 
             <div className={styles.bannerPlaceholder} />
 
             <div className={styles.header}>
-              {book.coverImage ? (
-                <img className={styles.coverImage} src={book.coverImage} alt={book.title} />
-              ) : (
-                <div className={styles.coverPlaceholder}>📚</div>
-              )}
+              <CoverImage
+                className={styles.coverImage}
+                src={book.coverImage}
+                alt={book.title}
+                eager
+                fallback={<div className={styles.coverPlaceholder}>📚</div>}
+              />
               <div className={styles.headerInfo}>
                 <div className={styles.title}>{book.title}</div>
                 {book.subtitle && <div className={styles.tagline}>{book.subtitle}</div>}
@@ -140,6 +147,13 @@ export function BookDrawer({ bookId, onClose, onBookLoad, notes, onNotesChange, 
               {onNotesChange && <NotesBlock key={bookId} value={notes ?? null} onSave={onNotesChange} />}
             </div>
           </>
+        ) : error && fallback ? (
+          <DrawerFallback
+            {...fallback}
+            notes={notes}
+            onNotesChange={onNotesChange}
+            notesKey={bookId}
+          />
         ) : (
           <div className={styles.loading}>{error ? "Erro ao carregar detalhes." : ""}</div>
         )}

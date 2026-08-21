@@ -1,4 +1,5 @@
 import { createContext, useContext, useCallback, useEffect } from "react";
+import { failureMessage } from "../services/api";
 
 export interface Slice {
   entries: unknown[];
@@ -74,8 +75,8 @@ export function useLibraryStore<TEntry extends { id: string }, TCreate, TUpdate>
     try {
       const data = await service.fetchLibrary();
       setSlice(media, (p) => ({ ...p, entries: mergeServerEntries(data, p.entries as TEntry[]), loaded: true, loading: false }));
-    } catch {
-      setSlice(media, (p) => ({ ...p, error: "Erro ao carregar biblioteca.", loading: false }));
+    } catch (error) {
+      setSlice(media, (p) => ({ ...p, error: failureMessage(error, "Erro ao carregar biblioteca."), loading: false }));
     }
   }, [media, service, setSlice]);
 
@@ -102,8 +103,8 @@ export function useLibraryStore<TEntry extends { id: string }, TCreate, TUpdate>
         return { ...p, entries: [...list, ...kept] };
       });
       return list[0] ?? null;
-    } catch {
-      setSlice(media, (p) => ({ ...p, entries: (p.entries as TEntry[]).filter((e) => e.id !== tempId), error: "Erro ao adicionar à biblioteca." }));
+    } catch (error) {
+      setSlice(media, (p) => ({ ...p, entries: (p.entries as TEntry[]).filter((e) => e.id !== tempId), error: failureMessage(error, "Erro ao adicionar à biblioteca.") }));
       return null;
     }
   }, [media, service, setSlice]);
@@ -123,8 +124,8 @@ export function useLibraryStore<TEntry extends { id: string }, TCreate, TUpdate>
       const updated = await serverCall();
       setSlice(media, (p) => ({ ...p, entries: (p.entries as TEntry[]).map((e) => (e.id === id ? updated : e)) }));
       return updated;
-    } catch {
-      setSlice(media, (p) => ({ ...p, entries: (p.entries as TEntry[]).map((e) => (e.id === id && previous ? previous : e)), error: "Erro ao atualizar item." }));
+    } catch (error) {
+      setSlice(media, (p) => ({ ...p, entries: (p.entries as TEntry[]).map((e) => (e.id === id && previous ? previous : e)), error: failureMessage(error, "Erro ao atualizar item.") }));
       return null;
     }
   }, [media, setSlice]);
@@ -152,8 +153,8 @@ export function useLibraryStore<TEntry extends { id: string }, TCreate, TUpdate>
       const byId = new Map(updated.map((e) => [e.id, e]));
       setSlice(media, (p) => ({ ...p, entries: (p.entries as TEntry[]).map((e) => byId.get(e.id) ?? e) }));
       return true;
-    } catch {
-      setSlice(media, (p) => ({ ...p, entries: snapshot, error: "Erro ao atualizar itens." }));
+    } catch (error) {
+      setSlice(media, (p) => ({ ...p, entries: snapshot, error: failureMessage(error, "Erro ao atualizar itens.") }));
       return false;
     }
   }, [media, service, setSlice]);
@@ -180,8 +181,8 @@ export function useLibraryStore<TEntry extends { id: string }, TCreate, TUpdate>
       const updated = await service.setCover(id);
       setSlice(media, (p) => ({ ...p, entries: (p.entries as TEntry[]).map((e) => (e.id === id ? updated : e)) }));
       return updated;
-    } catch {
-      setSlice(media, (p) => ({ ...p, entries: snapshot, error: "Erro ao definir capa da coleção." }));
+    } catch (error) {
+      setSlice(media, (p) => ({ ...p, entries: snapshot, error: failureMessage(error, "Erro ao definir capa da coleção.") }));
       return null;
     }
   }, [media, service, setSlice, getCollectionKey]);
@@ -205,12 +206,13 @@ export function useLibraryStore<TEntry extends { id: string }, TCreate, TUpdate>
     try {
       await service.removeFromLibrary(id);
       return true;
-    } catch {
+    } catch (error) {
+      const message = failureMessage(error, "Erro ao remover da biblioteca.");
       setSlice(media, (p) => {
-        if (!removed) return { ...p, error: "Erro ao remover da biblioteca." };
+        if (!removed) return { ...p, error: message };
         const list = [...(p.entries as TEntry[])];
         list.splice(index >= 0 ? index : list.length, 0, removed);
-        return { ...p, entries: list, error: "Erro ao remover da biblioteca." };
+        return { ...p, entries: list, error: message };
       });
       return false;
     }
@@ -227,8 +229,8 @@ export function useLibraryStore<TEntry extends { id: string }, TCreate, TUpdate>
     try {
       await service.removeManyFromLibrary(ids);
       return true;
-    } catch {
-      setSlice(media, (p) => ({ ...p, entries: snapshot, error: "Erro ao remover da biblioteca." }));
+    } catch (error) {
+      setSlice(media, (p) => ({ ...p, entries: snapshot, error: failureMessage(error, "Erro ao remover da biblioteca.") }));
       return false;
     }
   }, [media, service, setSlice]);

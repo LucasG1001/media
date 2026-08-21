@@ -35,6 +35,11 @@ services:
       # onde a notify-api também está plugada).
       NOTIFY_API_URL: http://notify-api:3334
       NOTIFY_API_KEY: ${NOTIFY_API_KEY}
+      # Cache de imagens em disco: sem este volume as capas seriam baixadas de novo a
+      # cada recriação do container e o app ficaria sem as imagens offline.
+      IMAGE_CACHE_DIR: /data/images
+    volumes:
+      - image_cache:/data/images
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,6 +68,7 @@ services:
 
 volumes:
   postgres_data:
+  image_cache:
 
 networks:
   # Rede deste projeto. A notify-api também se pluga nela para receber as chamadas.

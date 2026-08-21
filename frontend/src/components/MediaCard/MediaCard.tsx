@@ -7,6 +7,7 @@ import {
   type LastAccessTone,
 } from "../../utils/lastAccess";
 import styles from "./MediaCard.module.css";
+import { CoverImage } from "../CoverImage/CoverImage";
 
 export type StatusTone = "green" | "blue" | "orange";
 
@@ -130,11 +131,12 @@ export function MediaCard<T, E extends { status: string; score: number; lastAcce
         className={styles.imageWrapper}
         style={config.coverAspect ? { aspectRatio: config.coverAspect } : undefined}
       >
-        {image ? (
-          <img className={styles.coverImage} src={image} alt={title} loading="lazy" decoding="async" />
-        ) : (
-          <div className={styles.coverPlaceholder}>{config.placeholderEmoji ?? "🎬"}</div>
-        )}
+        <CoverImage
+          className={styles.coverImage}
+          src={image}
+          alt={title}
+          fallback={<div className={styles.coverPlaceholder}>{config.placeholderEmoji ?? "🎬"}</div>}
+        />
 
         {selectionMode && (
           <span className={`${styles.selectionCheck} ${selected ? styles.selectionCheckOn : ""}`} aria-hidden="true">

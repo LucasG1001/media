@@ -23,6 +23,7 @@ import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
 import styles from "./GamesPage.module.css";
+import { useOfflineTab } from "../../hooks/useOfflineTab";
 
 const TABS = [
   { id: "popular", label: "Mais Populares" },
@@ -40,7 +41,7 @@ const RELEASE_OPTIONS: [string, string][] = [
 ];
 
 export function GamesPage() {
-  const [activeTab, setActiveTab] = useState("upcoming");
+  const { activeTab, setActiveTab, disabledTabs } = useOfflineTab(TABS, "upcoming");
   const [searchQuery, setSearchQuery] = useState("");
   const [librarySearch, setLibrarySearch] = useState("");
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
@@ -210,7 +211,7 @@ export function GamesPage() {
       <h1 className={styles.srOnly}>Jogos</h1>
 
       <div className={styles.tabWrapper}>
-        <TabNav tabs={TABS} activeTab={activeTab} onTabChange={handleTabChange} />
+        <TabNav tabs={TABS} activeTab={activeTab} onTabChange={handleTabChange} disabledIds={disabledTabs} />
       </div>
 
       {activeTab === "popular" && (
@@ -356,6 +357,11 @@ export function GamesPage() {
                   onPrev: drawerNav.prev ? () => setSelectedGameId(drawerNav.prev!.igdbId) : undefined,
                   onNext: drawerNav.next ? () => setSelectedGameId(drawerNav.next!.igdbId) : undefined,
                 }
+              : undefined
+          }
+          fallback={
+            drawerEntry
+              ? { title: drawerEntry.title, coverImage: drawerEntry.backgroundImage, placeholder: "🎮" }
               : undefined
           }
           gameId={selectedGameId}

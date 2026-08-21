@@ -14,6 +14,11 @@
 		file_server
 	}
 
+	# O service worker e o index.html precisam ser revalidados a cada carga:
+	# servidos de cache, um deploy novo demoraria a chegar no navegador.
+	@no_cache path /sw.js /index.html /manifest.webmanifest
+	header @no_cache Cache-Control "no-cache"
+
 	# SPA: qualquer rota desconhecida cai no index.html (React Router).
 	handle {
 		try_files {path} /index.html

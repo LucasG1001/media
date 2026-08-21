@@ -8,6 +8,7 @@ import { NotesBlock } from "../NotesBlock/NotesBlock";
 import { formatDuration } from "../../utils/formatDuration";
 import { formatViews } from "../../utils/formatViews";
 import styles from "./YoutubeDrawer.module.css";
+import { CoverImage } from "../CoverImage/CoverImage";
 
 interface YoutubeDrawerProps {
   entry: YoutubeLibraryEntry;
@@ -46,18 +47,22 @@ export function YoutubeDrawer({ entry, onClose, onOpen, onNotesChange, nav }: Yo
       <div className={styles.drawer}>
         <button className={styles.closeButton} onClick={onClose} title="Fechar (Esc)">✕</button>
 
-        {entry.thumbnail ? (
-          <img className={styles.banner} src={entry.thumbnail} alt="" />
-        ) : (
-          <div className={styles.bannerPlaceholder} />
-        )}
+        <CoverImage
+          className={styles.banner}
+          src={entry.thumbnail}
+          alt=""
+          eager
+          fallback={<div className={styles.bannerPlaceholder} />}
+        />
 
         <div className={styles.header}>
-          {entry.channelThumbnail ? (
-            <img className={styles.channelAvatar} src={entry.channelThumbnail} alt={entry.channelTitle ?? ""} />
-          ) : (
-            <div className={styles.channelAvatarPlaceholder}>▶️</div>
-          )}
+          <CoverImage
+            className={styles.channelAvatar}
+            src={entry.channelThumbnail}
+            alt={entry.channelTitle ?? ""}
+            eager
+            fallback={<div className={styles.channelAvatarPlaceholder}>▶️</div>}
+          />
           <div className={styles.headerText}>
             <div className={styles.title}>{entry.title}</div>
             {entry.channelTitle && <div className={styles.channel}>{entry.channelTitle}</div>}

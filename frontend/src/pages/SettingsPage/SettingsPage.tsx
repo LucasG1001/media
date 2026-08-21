@@ -6,10 +6,13 @@ import { useSeriesLibrary } from "../../hooks/useSeriesLibrary";
 import { useBookLibrary } from "../../hooks/useBookLibrary";
 import { useGameLibrary } from "../../hooks/useGameLibrary";
 import styles from "./SettingsPage.module.css";
+import { useOnline } from "../../context/connectivityContext";
 
 type Feedback = { type: "success" | "error"; message: string } | null;
 
 export function SettingsPage() {
+  const online = useOnline();
+  const offlineHint = online ? undefined : "Sem conexão — o backup precisa do servidor.";
   const { load: loadAnime } = useLibrary();
   const { load: loadMovies } = useMovieLibrary();
   const { load: loadSeries } = useSeriesLibrary();
@@ -90,17 +93,18 @@ export function SettingsPage() {
         </p>
 
         <div className={styles.actions}>
-          <button type="button" className={styles.button} onClick={handleExport} disabled={busy}>
+          <button type="button" className={styles.button} onClick={handleExport} disabled={busy || !online} title={offlineHint}>
             Exportar JSON
           </button>
-          <button type="button" className={styles.button} onClick={handleExportDump} disabled={busy}>
+          <button type="button" className={styles.button} onClick={handleExportDump} disabled={busy || !online} title={offlineHint}>
             Baixar .dump
           </button>
           <button
             type="button"
             className={styles.buttonSecondary}
             onClick={() => fileRef.current?.click()}
-            disabled={busy}
+            disabled={busy || !online}
+            title={offlineHint}
           >
             Importar backup
           </button>

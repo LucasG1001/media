@@ -144,7 +144,7 @@
   transition: all var(--transition-fast);
 }
 
-.againButton:hover {
+.againButton:hover:not(:disabled) {
   border-color: var(--color-accent);
   color: var(--color-accent);
 }
@@ -167,7 +167,7 @@
   transition: opacity var(--transition-fast);
 }
 
-.saveButton:hover {
+.saveButton:hover:not(:disabled) {
   opacity: 0.9;
 }
 
@@ -182,7 +182,7 @@
   transition: all var(--transition-fast);
 }
 
-.removeButton:hover {
+.removeButton:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.2);
 }
 
@@ -207,4 +207,20 @@
   color: var(--color-accent);
   border-color: var(--color-accent);
   cursor: default;
+}
+
+/* Offline a escrita fica desabilitada; sem isto o botão continuava com a cara
+   de clicável (ver docs/offline.md). */
+.saveButton:disabled,
+.removeButton:disabled,
+.againButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* O :disabled do coverButton já significa "esta é a capa" (mantém o accent), então
+   o estado offline precisa de classe própria. */
+.coverButtonOffline {
+  opacity: 0.4;
+  cursor: not-allowed;
 }

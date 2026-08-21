@@ -30,6 +30,7 @@ import { collectionNav } from "../../utils/collectionNav";
 import { formatDurationLong } from "../../utils/formatDuration";
 import { formatViews } from "../../utils/formatViews";
 import styles from "./YouTubePage.module.css";
+import { useOnline } from "../../context/connectivityContext";
 
 const STATUS_TABS = (Object.entries(YOUTUBE_LIBRARY_STATUS_LABELS) as [YoutubeLibraryStatus, string][]).map(
   ([id, label]) => ({ id, label })
@@ -64,6 +65,7 @@ function matchesSearch(group: YoutubeGroup, query: string): boolean {
 }
 
 export function YouTubePage() {
+  const online = useOnline();
   const [activeStatus, setActiveStatus] = useState<YoutubeLibraryStatus>("liked");
   const [search, setSearch] = useState("");
   const [collectionFilter, setCollectionFilter] = useState<(number | "none")[]>([]);
@@ -321,7 +323,12 @@ export function YouTubePage() {
               if (e.key === "Enter") handleAdd();
             }}
           />
-          <button className={styles.addButton} onClick={handleAdd} disabled={adding || !urlInput.trim()}>
+          <button
+            className={styles.addButton}
+            onClick={handleAdd}
+            disabled={adding || !urlInput.trim() || !online}
+            title={online ? undefined : "Sem conexão — adicionar vídeo precisa de internet."}
+          >
             {adding ? "Adicionando..." : "Adicionar"}
           </button>
         </div>

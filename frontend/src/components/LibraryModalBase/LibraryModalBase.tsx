@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { formatLastAccess, formatLastAccessExact } from "../../utils/lastAccess";
 import styles from "./LibraryModalBase.module.css";
+import { CoverImage } from "../CoverImage/CoverImage";
+import { useOnline } from "../../context/connectivityContext";
 
 // Última vez consumido. `at` nulo = nunca — a linha não aparece.
 interface LastAccessConfig {
@@ -35,6 +37,8 @@ interface LibraryModalBaseProps {
   onRemove: () => void;
 }
 
+const OFFLINE_HINT = "Sem conexão — não dá para salvar agora.";
+
 export function LibraryModalBase({
   title,
   coverImage,
@@ -53,6 +57,8 @@ export function LibraryModalBase({
   onSave,
   onRemove,
 }: LibraryModalBaseProps) {
+  const online = useOnline();
+  const offlineHint = online ? undefined : OFFLINE_HINT;
   const [status, setStatus] = useState(initialStatus);
   const [score, setScore] = useState(initialScore);
   // Vale o status SALVO, não o do seletor: trocando o seletor para concluído sem
@@ -79,11 +85,13 @@ export function LibraryModalBase({
         <button className={styles.closeButton} onClick={onClose}>✕</button>
 
         <div className={styles.header}>
-          {coverImage ? (
-            <img className={styles.coverImage} src={coverImage} alt={title} />
-          ) : (
-            <div className={styles.coverPlaceholder}>{placeholder}</div>
-          )}
+          <CoverImage
+            className={styles.coverImage}
+            src={coverImage}
+            alt={title}
+            eager
+            fallback={<div className={styles.coverPlaceholder}>{placeholder}</div>}
+          />
           <div className={styles.title}>{title}</div>
         </div>
 
@@ -124,7 +132,13 @@ export function LibraryModalBase({
           )}
 
           {showAgain && (
-            <button type="button" className={styles.againButton} onClick={again.onClick}>
+            <button
+              type="button"
+              className={styles.againButton}
+              onClick={again.onClick}
+              disabled={!online}
+              title={offlineHint}
+            >
               {again.label}
             </button>
           )}
@@ -133,18 +147,30 @@ export function LibraryModalBase({
             <button
               className={styles.saveButton}
               onClick={() => onSave({ status, score })}
+              disabled={!online}
+              title={offlineHint}
             >
               Salvar
             </button>
             {hasEntry && (
-              <button className={styles.removeButton} onClick={onRemove}>
+              <button
+                className={styles.removeButton}
+                onClick={onRemove}
+                disabled={!online}
+                title={offlineHint}
+              >
                 Remover
               </button>
             )}
           </div>
 
           {canSetCover && (
-            <button className={styles.coverButton} onClick={onSetCover} disabled={isCover}>
+            <button
+              className={`${styles.coverButton} ${online ? "" : styles.coverButtonOffline}`}
+              onClick={onSetCover}
+              disabled={isCover || !online}
+              title={offlineHint}
+            >
               {isCover ? "✓ Capa da coleção" : "Definir como capa da coleção"}
             </button>
           )}

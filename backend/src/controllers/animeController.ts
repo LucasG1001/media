@@ -1,5 +1,7 @@
 import { fetchSeasonAnimes, fetchPopularAnimes, searchAnimes, fetchAnimeById, getCurrentSeason } from "../services/anilistService.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
+import { serveDetail } from "../lib/detailWithCache.js";
+import { animeDetailCache } from "../models/detailCacheModel.js";
 
 const VALID_SEASONS = new Set(["WINTER", "SPRING", "SUMMER", "FALL"]);
 
@@ -53,6 +55,5 @@ export const getById = asyncHandler("API anime/:id", "Erro ao buscar detalhes do
     res.status(400).json({ error: "ID inválido." });
     return;
   }
-  const anime = await fetchAnimeById(id);
-  res.json(anime);
+  await serveDetail(res, animeDetailCache, id, () => fetchAnimeById(id));
 });

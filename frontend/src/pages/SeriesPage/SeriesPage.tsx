@@ -26,6 +26,7 @@ import { lastAccessTimeOf } from "../../utils/lastAccess";
 import { collectionNav } from "../../utils/collectionNav";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import styles from "./SeriesPage.module.css";
+import { useOfflineTab } from "../../hooks/useOfflineTab";
 
 const TABS = [
   { id: "popular", label: "Mais Populares" },
@@ -37,7 +38,7 @@ const STATUS_OPTIONS = Object.entries(SERIES_LIBRARY_STATUS_LABELS) as [SeriesLi
 const AIR_OPTIONS = Object.entries(SERIES_AIR_GROUP_LABELS) as [SeriesAirGroup, string][];
 
 export function SeriesPage() {
-  const [activeTab, setActiveTab] = useState("popular");
+  const { activeTab, setActiveTab, disabledTabs } = useOfflineTab(TABS, "popular");
   const [searchQuery, setSearchQuery] = useState("");
   const [librarySearch, setLibrarySearch] = useState("");
   const [selectedSeriesId, setSelectedSeriesId] = useState<number | null>(null);
@@ -212,6 +213,7 @@ export function SeriesPage() {
       ? `search-${debouncedSearch}`
       : `popular-${selectedYear}-${selectedMonth}`;
 
+  const seriesDrawerEntry = selectedSeriesId !== null ? findByTmdbId(selectedSeriesId) : undefined;
   const seasonDrawerEntry = selectedSeason ? findByTmdbId(selectedSeason.tmdbId) : undefined;
   const seasonDrawerNumber = selectedSeason?.seasonNumber ?? null;
 
@@ -231,7 +233,7 @@ export function SeriesPage() {
       <h1 className={styles.srOnly}>Séries</h1>
 
       <div className={styles.tabWrapper}>
-        <TabNav tabs={TABS} activeTab={activeTab} onTabChange={handleTabChange} />
+        <TabNav tabs={TABS} activeTab={activeTab} onTabChange={handleTabChange} disabledIds={disabledTabs} />
       </div>
 
       {activeTab === "popular" && (
@@ -363,6 +365,15 @@ export function SeriesPage() {
       {selectedSeriesId !== null && (
         <SeriesDrawer
           seriesId={selectedSeriesId}
+          fallback={
+            seriesDrawerEntry
+              ? {
+                  title: seriesDrawerEntry.title,
+                  coverImage: seriesDrawerEntry.posterImage,
+                  placeholder: "📺",
+                }
+              : undefined
+          }
           onClose={() => setSelectedSeriesId(null)}
           onSeriesLoad={handleSeriesLoad}
         />
@@ -393,6 +404,12 @@ export function SeriesPage() {
           }
           seriesId={selectedSeason.tmdbId}
           seasonNumber={seasonDrawerNumber}
+          fallback={{
+            title: selectedSeason.title,
+            coverImage: selectedSeason.poster,
+            subtitle: seasonDrawerEntry?.title,
+            placeholder: "📺",
+          }}
           onClose={() => setSelectedSeason(null)}
           onSeriesLoad={handleSeriesLoad}
           notes={selectedSeason.notes}

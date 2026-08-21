@@ -3,6 +3,7 @@ import type { SeriesDetail } from "../../types/series";
 import { TrailerEmbed } from "../TrailerEmbed/TrailerEmbed";
 import { getAirStatusLabel, formatAirDate } from "../../utils/seriesFormat";
 import styles from "./SeriesDrawer.module.css";
+import { CoverImage } from "../CoverImage/CoverImage";
 
 // Corpo compartilhado pelo SeriesDrawer e pelo SeasonDrawer: os dados exibidos
 // são sempre os da série; os overrides trocam só o que é próprio da temporada.
@@ -30,18 +31,22 @@ export function SeriesDetailBody({
 
   return (
     <>
-      {series.backdropImage ? (
-        <img className={styles.banner} src={series.backdropImage} alt="" />
-      ) : (
-        <div className={styles.bannerPlaceholder} />
-      )}
+      <CoverImage
+        className={styles.banner}
+        src={series.backdropImage}
+        alt=""
+        eager
+        fallback={<div className={styles.bannerPlaceholder} />}
+      />
 
       <div className={styles.header}>
-        {coverImage ? (
-          <img className={styles.coverImage} src={coverImage} alt={series.title} />
-        ) : (
-          <div className={styles.coverPlaceholder}>📺</div>
-        )}
+        <CoverImage
+          className={styles.coverImage}
+          src={coverImage}
+          alt={series.title}
+          eager
+          fallback={<div className={styles.coverPlaceholder}>📺</div>}
+        />
         <div className={styles.headerInfo}>
           <div className={styles.title}>{series.title}</div>
           {taglineText && <div className={styles.tagline}>{taglineText}</div>}
@@ -99,7 +104,7 @@ export function SeriesDetailBody({
             <div className={styles.providers}>
               {series.watchProviders.map((p) => (
                 <div key={p.name} className={styles.provider}>
-                  {p.logo && <img className={styles.providerLogo} src={p.logo} alt="" />}
+                  <CoverImage className={styles.providerLogo} src={p.logo} alt="" />
                   {p.name}
                 </div>
               ))}

@@ -2,7 +2,7 @@
 
 Props, slots de inversão de controle e comportamento de painel dos componentes que todas as páginas
 de mídia reusam. Consulte antes de mexer em `MediaCard`, `MediaGrid`, `FranchiseGrid`,
-`LibraryModalBase`, `LibraryControls` ou `NotesBlock`.
+`LibraryModalBase`, `LibraryControls`, `CoverImage` ou `NotesBlock`.
 
 Config visual por mídia (cores, ícones, labels de status) fica em **`config/cards.tsx`**.
 
@@ -24,14 +24,29 @@ Biblioteca agrupada por franquia/coleção. Aceita:
 - **`extraActions`** — ações extra repassadas à `SelectionBar` com os ids selecionados, habilitadas
   só com a seleção numa única coleção.
 
-## 3. `LibraryModalBase`
+## 3. Imagem — `CoverImage`
+
+**Todo `<img>` de dado dinâmico passa por aqui — nunca renderize `<img>` cru para URL de terceiro.**
+Ele faz duas coisas que o `<img>` não fazia:
+
+1. aplica `utils/imageUrl.ts` (`proxied`), desviando a URL da CDN para `/api/img`, que serve a imagem
+   do disco da VPS (é o que dá capa offline);
+2. trata **`onError`** caindo no `fallback`. O placeholder antigo só cobria `src == null`, então
+   falha de rede deixava o ícone de imagem quebrada do navegador na tela.
+
+Props: `src`, `alt`, `className`, `fallback` (nó do placeholder), `eager` (troca o `loading="lazy"`
+padrão, para capa/banner acima da dobra) e `title`. Guarda a **URL** que falhou, não um booleano, para
+o erro se desfazer sozinho quando o item muda — os drawers reaproveitam a instância entre itens.
+Ver `docs/offline.md`.
+
+## 4. `LibraryModalBase`
 
 Seletor de status derivado do mapa de labels de cada mídia + linha opcional `lastAccess` — "Última
 vez assistido/jogado" em data relativa, escondida quando nunca houve acesso. A prop `again` (botão
 "🔁 Assisti/Joguei/Li de novo") é regida pelas regras de `last_access_at` no esquema (ver
 `CLAUDE.md`).
 
-## 4. `LibraryControls`
+## 5. `LibraryControls`
 
 Barra de biblioteca: busca + botões Filtros/Ordenação com painel que é bottom-sheet no mobile e
 popover ancorado no desktop + chip de contagem; dirigido por config `filterGroups`/`sort`/`toggle`
@@ -59,7 +74,7 @@ O painel tem `panelWidth`: `"wide"` fixa no teto de 560 px, `"fit"` cresce com o
 teto — `max-content`, porque o painel é absoluto dentro do botão e o shrink-to-fit resolveria pela
 largura dele.
 
-## 5. `NotesBlock`
+## 6. `NotesBlock`
 
 Bloco de anotação livre no fim do `content` dos drawers: textarea auto-grow com autosave por
 debounce de 1 s + flush no unmount, já que fechar o drawer desmonta antes do timer. Quem monta o

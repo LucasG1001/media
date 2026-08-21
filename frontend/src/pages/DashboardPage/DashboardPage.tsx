@@ -166,6 +166,8 @@ export function DashboardPage() {
   const movieDrawerEntry = selectedMovieId !== null ? findMovieByTmdbId(selectedMovieId) : undefined;
   const gameDrawerEntry = selectedGameId !== null ? findByIgdbId(selectedGameId) : undefined;
   const bookDrawerEntry = selectedBookId !== null ? findByHardcoverId(selectedBookId) : undefined;
+  const seriesDrawerEntry =
+    selectedSeriesId !== null ? series.find((e) => e.tmdbId === selectedSeriesId) : undefined;
   const seasonDrawerEntry =
     selectedSeason !== null ? series.find((e) => e.tmdbId === selectedSeason.tmdbId) : undefined;
   const seasonDrawerState = seasonDrawerEntry?.seasonStates?.[String(selectedSeason?.season)];
@@ -231,6 +233,11 @@ export function DashboardPage() {
       {selectedAnimeId !== null && (
         <AnimeDrawer
           animeId={selectedAnimeId}
+          fallback={
+            animeDrawerEntry
+              ? { title: animeDrawerEntry.title, coverImage: animeDrawerEntry.coverImage, placeholder: "🎬" }
+              : undefined
+          }
           onClose={() => setSelectedAnimeId(null)}
           notes={animeDrawerEntry?.notes}
           onNotesChange={
@@ -241,6 +248,11 @@ export function DashboardPage() {
       {selectedMovieId !== null && (
         <MovieDrawer
           movieId={selectedMovieId}
+          fallback={
+            movieDrawerEntry
+              ? { title: movieDrawerEntry.title, coverImage: movieDrawerEntry.posterImage, placeholder: "🎬" }
+              : undefined
+          }
           onClose={() => setSelectedMovieId(null)}
           notes={movieDrawerEntry?.notes}
           onNotesChange={
@@ -249,12 +261,29 @@ export function DashboardPage() {
         />
       )}
       {selectedSeriesId !== null && (
-        <SeriesDrawer seriesId={selectedSeriesId} onClose={() => setSelectedSeriesId(null)} />
+        <SeriesDrawer
+          seriesId={selectedSeriesId}
+          fallback={
+            seriesDrawerEntry
+              ? { title: seriesDrawerEntry.title, coverImage: seriesDrawerEntry.posterImage, placeholder: "📺" }
+              : undefined
+          }
+          onClose={() => setSelectedSeriesId(null)}
+        />
       )}
       {selectedSeason !== null && (
         <SeasonDrawer
           seriesId={selectedSeason.tmdbId}
           seasonNumber={selectedSeason.season}
+          fallback={
+            seasonDrawerEntry
+              ? {
+                  title: `${seasonDrawerEntry.title} — Temporada ${selectedSeason.season}`,
+                  coverImage: seasonDrawerEntry.posterImage,
+                  placeholder: "📺",
+                }
+              : undefined
+          }
           onClose={() => setSelectedSeason(null)}
           notes={seasonDrawerState?.notes}
           onNotesChange={
@@ -267,6 +296,11 @@ export function DashboardPage() {
       {selectedGameId !== null && (
         <GameDrawer
           gameId={selectedGameId}
+          fallback={
+            gameDrawerEntry
+              ? { title: gameDrawerEntry.title, coverImage: gameDrawerEntry.backgroundImage, placeholder: "🎮" }
+              : undefined
+          }
           onClose={() => setSelectedGameId(null)}
           notes={gameDrawerEntry?.notes}
           onNotesChange={
@@ -277,6 +311,11 @@ export function DashboardPage() {
       {selectedBookId !== null && (
         <BookDrawer
           bookId={selectedBookId}
+          fallback={
+            bookDrawerEntry
+              ? { title: bookDrawerEntry.title, coverImage: bookDrawerEntry.coverImage, placeholder: "📚" }
+              : undefined
+          }
           onClose={() => setSelectedBookId(null)}
           notes={bookDrawerEntry?.notes}
           onNotesChange={

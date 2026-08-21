@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import { fetchPopularMovies, fetchNowPlayingMovies, searchMovies, fetchMovieById } from "../services/tmdbService.js";
 import { notifyError } from "../services/notifyService.js";
+import { serveDetail } from "../lib/detailWithCache.js";
+import { movieDetailCache } from "../models/detailCacheModel.js";
 
 export async function getPopular(req: Request, res: Response): Promise<void> {
   try {
@@ -54,8 +56,7 @@ export async function getById(req: Request, res: Response): Promise<void> {
       res.status(400).json({ error: "ID inválido." });
       return;
     }
-    const movie = await fetchMovieById(id);
-    res.json(movie);
+    await serveDetail(res, movieDetailCache, id, () => fetchMovieById(id));
   } catch (error) {
     void notifyError("API movie/:id", error);
     res.status(500).json({ error: "Erro ao buscar detalhes do filme." });

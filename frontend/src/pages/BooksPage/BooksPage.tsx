@@ -22,6 +22,7 @@ import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
 import styles from "./BooksPage.module.css";
+import { useOfflineTab } from "../../hooks/useOfflineTab";
 
 const TABS = [
   { id: "discover", label: "Descobrir" },
@@ -37,7 +38,7 @@ const RELEASE_OPTIONS: [string, string][] = [
 ];
 
 export function BooksPage() {
-  const [activeTab, setActiveTab] = useState("library");
+  const { activeTab, setActiveTab, disabledTabs } = useOfflineTab(TABS, "library");
   const [searchQuery, setSearchQuery] = useState("");
   const [librarySearch, setLibrarySearch] = useState("");
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
@@ -201,7 +202,7 @@ export function BooksPage() {
       <h1 className={styles.srOnly}>Livros</h1>
 
       <div className={styles.tabWrapper}>
-        <TabNav tabs={TABS} activeTab={activeTab} onTabChange={handleTabChange} />
+        <TabNav tabs={TABS} activeTab={activeTab} onTabChange={handleTabChange} disabledIds={disabledTabs} />
       </div>
 
       {activeTab === "discover" && (
@@ -328,6 +329,11 @@ export function BooksPage() {
                   onPrev: drawerNav.prev ? () => setSelectedBookId(drawerNav.prev!.hardcoverId) : undefined,
                   onNext: drawerNav.next ? () => setSelectedBookId(drawerNav.next!.hardcoverId) : undefined,
                 }
+              : undefined
+          }
+          fallback={
+            drawerEntry
+              ? { title: drawerEntry.title, coverImage: drawerEntry.coverImage, placeholder: "📚" }
               : undefined
           }
           bookId={selectedBookId}

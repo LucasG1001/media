@@ -20,7 +20,9 @@ e biblioteca pessoal (CRUD em PostgreSQL):
 Recursos transversais: **Dashboard** agregado, **sync de coleções** (descobre e adiciona novos
 lançamentos de franquias já concluídas), **notificações no Telegram** (novos episódios, itens de
 coleção, lançamentos) via **notify-api** — o app nunca fala com o Telegram diretamente — e
-**backup** export/import.
+**backup** export/import. O app é **offline-first para leitura**: capas ficam em disco na VPS,
+o detalhe de cada item é cacheado no banco e um Service Worker deixa o app abrir sem rede — ver
+`docs/offline.md`.
 
 ## Comandos de desenvolvimento
 
@@ -50,10 +52,11 @@ tocar em algo coberto.
 ### Fluxo de dados
 
 ```
-Browser → Vite dev proxy (ou nginx do container web em prod)
+Browser → Vite dev proxy (ou Caddy do container web em prod)
         → Express (server :3333, /api)
         → PostgreSQL
         → APIs externas: AniList / TMDB / IGDB / Hardcover / YouTube
+        → Cache de imagem em disco (volume image_cache, servido por /api/img)
         → notify-api :3334 → Telegram (só notificações)
 ```
 
@@ -64,7 +67,8 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 
 - **`server.ts`** — Express, registra as rotas de cada mídia (`/api/anime`, `/api/library`,
   `/api/movie`, `/api/movie-library`, `/api/series`, `/api/game`, `/api/book`,
-  `/api/youtube-library`, `/api/backup`, …), roda `migrate()` e agenda os jobs (abaixo).
+  `/api/youtube-library`, `/api/backup`, `/api/img`, `/api/health`, …), roda `migrate()` e agenda os
+  jobs (abaixo).
 - **`lib/` (reutilizáveis — prefira-os a reinventar):**
   - **`createLibraryModel.ts` / `createLibraryController.ts`** — factories que geram o CRUD padrão
     das bibliotecas (findAll/create/update/updateManyStatus/setCover/remove + timestamp de
@@ -76,6 +80,9 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     header (`X-RateLimit-*`); usado só pelo AniList. **`cache.ts`** — cache em memória com TTL.
   - **`chunk.ts`**, **`singleFlight.ts`** (dedupe de job concorrente), **`igdbAuth.ts`** (token
     Twitch), **`asyncHandler.ts`** (try/catch + `notifyError` + mapeia `AniListError.status`).
+  - **`imageStore.ts`** (cache de imagem em disco: hash, allowlist de host, escrita atômica) e
+    **`detailWithCache.ts`** (`serveDetail` — responde a API externa e guarda; com ela fora,
+    responde o `detail_cache`). Ver `docs/offline.md`.
 - **`services/`** — clientes das APIs externas (`anilistService`, `tmdbService`,
   `tmdbSeriesService`, `igdbService`, `hardcoverService`, `youtubeService`) e a lógica de fundo:
   - **`collectionSyncService.ts`** — para franquias/coleções com item concluído, descobre membros
@@ -89,9 +96,13 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     ids é determinístico, então o cache de 1 h faria o tick seguinte só bumpar `synced_at`).
   - **`releaseNotifyService.ts`** — avisa lançamentos de filmes/jogos/livros.
   - **`notifyService.ts`** — envia ao Telegram via notify-api; nunca lança.
+  - **`imageCacheService.ts`** / **`imageWarmupService.ts`** — baixam e servem as capas do disco
+    (dedupe de download concorrente, warm-up e prune) e **`detailCacheBackfillService.ts`** —
+    preenche o `detail_cache` de quem ainda não tem. Ver `docs/offline.md`.
 - **Jobs (agendados em `server.ts`):** refresh de anime, séries, filmes, jogos e livros **no boot e a
   cada 30 min** (`runSyncTick`; rodar na subida evita deixar tudo parado meia hora após um restart —
   todos são `singleFlight`, então execução longa não se sobrepõe ao tick seguinte);
+  **backfill de `detail_cache`** e **warm-up/prune do cache de imagem** no mesmo tick;
   **collection sync** diário (04:00); **notificação de lançamentos** diária (09:00). No boot roda
   também `backfillGameModes` (one-shot): preenche `game_modes` dos jogos com a coluna NULL via
   `fetchGameModes` (IGDB) — idempotente (`NULL` = nunca buscado; `[]` = sem modo conhecido). E
@@ -147,6 +158,10 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   player ou bloco de anotação.
 - **Dashboard**: agrega no cliente sobre as bibliotecas já carregadas, em carrosséis de agenda e de
   lançamentos recentes. **Ver `docs/frontend-dashboard.md`** antes de mexer nele.
+- **Offline**: toda imagem de dado dinâmico passa por `components/CoverImage` (que aplica
+  `utils/imageUrl.ts` e trata `onError`) — **nunca use `<img>` cru para URL de terceiro**. O estado de
+  rede sai de `useOnline` (`context/connectivityContext.ts`) e governa aba inicial, botões de escrita
+  e o `DrawerFallback`. **Ver `docs/offline.md`** antes de mexer em imagem, cache ou Service Worker.
 - **`utils/`** — `buildFranchiseGroups`/`build*CollectionGroups` (agrupam + `memberFilter`),
   `sortGroups.ts` (ordenações por coleção) e `filterGroupsBySearch` montam a lista da biblioteca;
   envolver o pipeline em `useMemo`.
@@ -199,6 +214,14 @@ podada quando fica vazia (`pruneEmptyCollections`). Colunas JSONB são
 escritas com `JSON.stringify` explícito (ver `seriesLibraryModel`); `TEXT[]` vai como **array JS
 direto** (ver `game_modes` e `tags`).
 
+**`detail_cache`** (`JSONB`) + **`detail_cached_at`** — última resposta de detalhe da API externa,
+para o drawer abrir inteiro com ela fora. Existe nas cinco mídias com catálogo (não em
+`youtube_library`, cujo drawer já vem do banco) e é **`readonly` no model**. `NULL` = nunca
+cacheado; `'{}'` = última tentativa falhou. **Única coluna de biblioteca deliberadamente fora do
+`backupController`** — é cache re-derivável. Fora das tabelas de mídia existe **`image_cache`**
+(metadado do cache de capas; os bytes ficam em disco, no volume `image_cache`). As duas coisas estão
+detalhadas em `docs/offline.md`.
+
 **Status vindos da API externa** (todos alimentados pelos jobs de refresh, nunca editáveis pelo
 usuário): `anime_status` (AniList: `RELEASING`/`FINISHED`/`NOT_YET_RELEASED`) e, em filmes/séries/
 jogos/livros, `movie_status`/`series_status`/`game_status`/`book_status`, que são só
@@ -235,7 +258,7 @@ status fica). YouTube usa `liked`/`removed`.
   em português.
 - **TypeScript strict** nos dois lados, sem `any`. Backend `module: NodeNext` → **imports com
   extensão `.js`**. Frontend `moduleResolution: bundler` → sem extensão.
-- **Estilo**: CSS Modules por componente, sem libs de UI. Sempre usar os tokens de
+- **Estilo**: CSS Modules por componente. Sempre usar os tokens de
   `styles/global.css` (tema dark), **nunca** hardcode de cores/tamanhos.
 - **Estado**: só hooks do React (`useState`/`useContext`/`useReducer`) — sem Redux/Zustand.
 - **Sem comentários no código**, exceto quando registram uma restrição não óbvia.
@@ -278,7 +301,9 @@ status fica). YouTube usa `liked`/`removed`.
 
 Backend (`backend/.env`, copiar de `backend/.env.example`):
 `DATABASE_URL`, `PORT` (3333), `TMDB_API_KEY`, `HARDCOVER_API_TOKEN`, `IGDB_CLIENT_ID`,
-`IGDB_CLIENT_SECRET`, `YOUTUBE_API_KEY`, `NOTIFY_API_URL`, `NOTIFY_API_KEY`.
+`IGDB_CLIENT_SECRET`, `YOUTUBE_API_KEY`, `NOTIFY_API_URL`, `NOTIFY_API_KEY`,
+`IMAGE_CACHE_DIR` (onde as capas ficam em disco) e `IMAGE_EXTRA_HOSTS` (sufixos de host extras
+aceitos por `/api/img`).
 
 Docker (`.env` na raiz, copiar de `.env.example`): `POSTGRES_USER/PASSWORD/DB`, `MEDIA_DOMAIN`,
 as chaves das APIs externas e `NOTIFY_API_KEY`.
@@ -286,7 +311,9 @@ as chaves das APIs externas e `NOTIFY_API_KEY`.
 ## Produção (Docker) e proxy
 
 Stack `media-tracker` (`docker-compose.yml`): `postgres` (banco dedicado, volume), `server`
-(Express/API) e `web` (nginx: serve o build do frontend e faz proxy de `/api` → `server:3333`). O
+(Express/API, com o volume `image_cache` em `/data/images` — o cache de capas; sem ele o app perde as
+imagens offline a cada recriação do container) e `web` (Caddy: serve o build do frontend, marca
+`sw.js`/`index.html` como `no-cache` e faz proxy de `/api` → `server:3333`). O
 domínio é roteado pelo **proxy reverso central Caddy** (`caddy-docker-proxy`, stack `./proxy`,
 compartilhado por todos os projetos da VPS): `web` entra na rede externa `proxy-net` com labels
 `caddy: ${MEDIA_DOMAIN}` e o Caddy termina o TLS — por isso `web` não expõe porta no host. A

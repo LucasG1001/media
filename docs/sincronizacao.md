@@ -3,7 +3,9 @@
 Como os dados da biblioteca são mantidos atualizados em relação às APIs externas: o que roda,
 quando roda, o que cada coisa grava e quanto tende a demorar.
 
-O app é online-only e de usuário único. Nada aqui exige ação manual — tudo é agendado no
+O app é de usuário único e **offline-first para leitura**: dois dos jobs abaixo (`warmupImages` e
+`backfillDetailCache`) existem só para que a biblioteca continue completa com as APIs externas fora
+ou sem rede — o desenho está em [offline.md](offline.md). Nada aqui exige ação manual — tudo é agendado no
 `backend/src/server.ts` e roda dentro do processo do Express (não há worker separado nem cron do
 sistema operacional).
 
@@ -15,6 +17,8 @@ sistema operacional).
 |---|---|---|---|
 | Boot + a cada 30 min | `runSyncTick` — refresh das entradas "stale" | Anime, Séries, Filmes, Jogos, Livros | Sim |
 | Boot + a cada 30 min | `notifyDueSeriesEpisodes` | Séries | Não (só banco + Telegram) |
+| Boot + a cada 30 min | `backfillDetailCache` — preenche `detail_cache` | Anime, Filmes, Séries, Jogos, Livros | Sim, só se houver linha pendente |
+| Boot + a cada 30 min | `warmupImages` — baixa capas faltantes e poda o cache | Todas | Sim (só as CDNs de imagem) |
 | Diário 04:00 | `refreshCollections` — sync de coleções | Anime, Filmes, Jogos, Livros | Sim |
 | Boot + diário 09:00 | `notifyDueReleases` | Filmes, Jogos, Livros | Não (só banco + Telegram) |
 | Boot (one-shot) | `backfillGameModes` | Jogos | Sim, só se houver linha pendente |
@@ -193,6 +197,28 @@ marca `last_notified_episode`.
 Existe separado do refresh porque o episódio pode estrear entre dois refreshes: o TTL de 12 h é
 grande demais para servir de relógio de notificação.
 
+### 2.7 `backfillDetailCache` — cache do detalhe (todas as cinco mídias com catálogo)
+
+`services/detailCacheBackfillService.ts`. Preenche `detail_cache` de quem ainda não tem, para o
+drawer abrir inteiro com a API externa fora. Não é um `findStale*`: a query é própria
+(`detail_cache IS NULL`, ou `'{}'` — tentativa que falhou — mais velho que 7 dias), justamente porque
+pendurar coluna nova num `findStale*` tornaria a biblioteca inteira stale de uma vez.
+
+Teto de **50 por mídia** e **10 em anime** (o limiter da AniList é global ao processo — um lote grande
+aqui atrasaria a busca do catálogo). Concorrência 5, `try/catch` por item. Falha carimba
+`detail_cached_at`, então a linha não segura a fila indefinidamente. Grava apenas `detail_cache` e
+`detail_cached_at`, ambos `readonly` no model.
+
+### 2.8 `warmupImages` — cache de capas em disco
+
+`services/imageWarmupService.ts`. Baixa para o disco da VPS toda capa que a biblioteca referencia e
+ainda não está em cache, e depois poda o que não é mais referenciado. Concorrência 6, teto de 300 por
+execução, `try/catch` por item; URL que falhou não é retentada dentro de 24 h. Não escreve em nenhuma
+tabela de mídia — só em `image_cache` e no filesystem.
+
+O detalhe (allowlist de host, dedupe de download, por que o prune precisa da janela de `last_hit_at`)
+está em [offline.md](offline.md).
+
 ---
 
 ## 3. Sync de coleções — diário, 04:00
@@ -257,8 +283,6 @@ imagem é `cover_image`):
 A janela de 3 dias evita que a primeira execução após adicionar um catálogo antigo dispare uma
 avalanche de notificações.
 
----
-
 ## 5. Backfills de boot (one-shot)
 
 Rodam uma vez a cada subida do processo e são idempotentes — se não há linha pendente, saem sem
@@ -312,6 +336,7 @@ Colunas alimentadas por API externa. As demais (`status`, `score`, `is_cover`, `
 | `season_list` (séries) | ✅ | — | ✅ | — |
 | `game_modes` | ✅ | — | — | ✅ |
 | `franchise_id` / `collection_id` | ✅ | — | — | ✅ (`COALESCE`) |
+| `detail_cache` / `detail_cached_at` | — | ✅ (o `GET /:id` grava) | ✅ (`backfillDetailCache`) | — |
 | `series_name` / `series_position` (livros) | — | — | — | ✅ (`COALESCE`) — `readonly` no model |
 | `synced_at` | — | — | ✅ | — |
 | `last_notified_episode` | — | — | ✅ | — |
@@ -441,5 +466,8 @@ Levantadas em revisão e **ainda não corrigidas**. Em ordem de impacto:
   atualiza é o job.
 - **Nunca sobrescreva título ou capa com valor vazio.** Use `COALESCE(NULLIF(...))`.
 - **Job novo entra no `runSyncTick`** e é embrulhado em `singleFlight` + `notifyError`.
+- **Coluna nova de biblioteca entra no `backupController`**, senão se perde no round-trip de
+  export/import. A única exceção deliberada é `detail_cache`, que é cache re-derivável — ver
+  [offline.md](offline.md).
 - **Não invente notificação no refresh.** Comparar estado antigo com novo é responsabilidade dos
   `detectAndNotify`; lançamento é do job das 09:00.

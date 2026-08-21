@@ -23,6 +23,7 @@ import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
 import styles from "./MoviesPage.module.css";
+import { useOfflineTab } from "../../hooks/useOfflineTab";
 
 const TABS = [
   { id: "popular", label: "Mais Populares" },
@@ -39,7 +40,7 @@ const RELEASE_OPTIONS: [string, string][] = [
 ];
 
 export function MoviesPage() {
-  const [activeTab, setActiveTab] = useState("now_playing");
+  const { activeTab, setActiveTab, disabledTabs } = useOfflineTab(TABS, "now_playing");
   const [searchQuery, setSearchQuery] = useState("");
   const [librarySearch, setLibrarySearch] = useState("");
   const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
@@ -199,7 +200,7 @@ export function MoviesPage() {
       <h1 className={styles.srOnly}>Filmes</h1>
 
       <div className={styles.tabWrapper}>
-        <TabNav tabs={TABS} activeTab={activeTab} onTabChange={handleTabChange} />
+        <TabNav tabs={TABS} activeTab={activeTab} onTabChange={handleTabChange} disabledIds={disabledTabs} />
       </div>
 
       {activeTab === "popular" && (
@@ -337,6 +338,11 @@ export function MoviesPage() {
                   onPrev: drawerNav.prev ? () => setSelectedMovieId(drawerNav.prev!.tmdbId) : undefined,
                   onNext: drawerNav.next ? () => setSelectedMovieId(drawerNav.next!.tmdbId) : undefined,
                 }
+              : undefined
+          }
+          fallback={
+            drawerEntry
+              ? { title: drawerEntry.title, coverImage: drawerEntry.posterImage, placeholder: "🎬" }
               : undefined
           }
           movieId={selectedMovieId}

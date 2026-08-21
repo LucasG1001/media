@@ -24,6 +24,7 @@ import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
 import styles from "./AnimePage.module.css";
+import { useOfflineTab } from "../../hooks/useOfflineTab";
 
 const TABS = [
   { id: "seasons", label: "Temporadas" },
@@ -41,7 +42,7 @@ const AIRING_OPTIONS: [string, string][] = [
 ];
 
 export function AnimePage() {
-  const [activeTab, setActiveTab] = useState("seasons");
+  const { activeTab, setActiveTab, disabledTabs } = useOfflineTab(TABS, "seasons");
   const [searchQuery, setSearchQuery] = useState("");
   const [librarySearch, setLibrarySearch] = useState("");
   const [selectedAnimeId, setSelectedAnimeId] = useState<number | null>(null);
@@ -202,7 +203,7 @@ export function AnimePage() {
       <h1 className={styles.srOnly}>Anime</h1>
 
       <div className={styles.tabWrapper}>
-        <TabNav tabs={TABS} activeTab={activeTab} onTabChange={handleTabChange} />
+        <TabNav tabs={TABS} activeTab={activeTab} onTabChange={handleTabChange} disabledIds={disabledTabs} />
       </div>
 
       {activeTab === "seasons" && (
@@ -343,6 +344,11 @@ export function AnimePage() {
                   onPrev: drawerNav.prev ? () => setSelectedAnimeId(drawerNav.prev!.anilistId) : undefined,
                   onNext: drawerNav.next ? () => setSelectedAnimeId(drawerNav.next!.anilistId) : undefined,
                 }
+              : undefined
+          }
+          fallback={
+            drawerEntry
+              ? { title: drawerEntry.title, coverImage: drawerEntry.coverImage, placeholder: "🎬" }
               : undefined
           }
           animeId={selectedAnimeId}

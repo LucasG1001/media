@@ -175,3 +175,11 @@
     }
   }
 }
+
+.statusButton:disabled,
+.groupButton:disabled,
+.groupButtonDanger:disabled,
+.select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

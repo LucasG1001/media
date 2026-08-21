@@ -476,4 +476,33 @@ export async function migrate(): Promise<void> {
     UPDATE books_library SET last_access_at = read_at
      WHERE last_access_at IS NULL AND read_at IS NOT NULL;
   `);
+
+  // Cache de imagem: os bytes ficam em disco (IMAGE_CACHE_DIR), aqui fica só o
+  // metadado — é o que torna o prune barato e dá backoff para URL que caiu.
+  // content_type NULL = a última tentativa de download falhou.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS image_cache (
+      url_hash     TEXT PRIMARY KEY,
+      url          TEXT NOT NULL,
+      content_type TEXT,
+      bytes        INTEGER,
+      fetched_at   TIMESTAMPTZ,
+      last_hit_at  TIMESTAMPTZ
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_image_cache_last_hit_at ON image_cache (last_hit_at);
+  `);
+
+  // Última resposta de detalhe da API externa, para o drawer abrir inteiro quando
+  // ela estiver fora (ou o dispositivo offline). NULL = nunca cacheado; '{}' =
+  // a última tentativa falhou (detail_cached_at é o relógio do retry).
+  // Séries guardam também o detalhe por temporada em detail_cache->'seasons'.
+  for (const table of ["anime_library", "movie_library", "series_library", "game_library", "books_library"]) {
+    await pool.query(`
+      ALTER TABLE ${table}
+      ADD COLUMN IF NOT EXISTS detail_cache     JSONB,
+      ADD COLUMN IF NOT EXISTS detail_cached_at TIMESTAMPTZ;
+    `);
+  }
 }

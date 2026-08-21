@@ -1,12 +1,17 @@
 import type { Request, Response } from "express";
-import axios from "axios";
 import { fetchPopularGames, fetchUpcomingGames, searchGames, fetchGameById } from "../services/igdbService.js";
 import { notifyError } from "../services/notifyService.js";
+import { openImage } from "../lib/imageStore.js";
+import { getCachedImage } from "../services/imageCacheService.js";
+import { serveDetail } from "../lib/detailWithCache.js";
+import { gameDetailCache } from "../models/detailCacheModel.js";
 
 const IGDB_IMAGE_BASE = "https://images.igdb.com/igdb/image/upload";
 const IMAGE_SIZE_RE = /^t_[a-z0-9_]+$/;
 const IMAGE_FILE_RE = /^[a-z0-9]+\.(jpg|png|webp)$/i;
 
+// A rota continua existindo porque game_library.background_image já guarda este
+// caminho; o que mudou é que os bytes passam pelo cache em disco.
 export async function proxyImage(req: Request, res: Response): Promise<void> {
   try {
     const size = String(req.params.size);
@@ -16,14 +21,21 @@ export async function proxyImage(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const upstream = await axios.get<ArrayBuffer>(`${IGDB_IMAGE_BASE}/${size}/${file}`, {
-      responseType: "arraybuffer",
-      timeout: 10000,
-    });
+    const cached = await getCachedImage(`${IGDB_IMAGE_BASE}/${size}/${file}`);
+    if (!cached) {
+      res.status(404).json({ error: "Imagem não disponível." });
+      return;
+    }
 
-    res.setHeader("Content-Type", String(upstream.headers["content-type"] ?? "image/jpeg"));
-    res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
-    res.send(Buffer.from(upstream.data));
+    const etag = `"${cached.hash}"`;
+    res.setHeader("Content-Type", cached.contentType);
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.setHeader("ETag", etag);
+    if (req.headers["if-none-match"] === etag) {
+      res.status(304).end();
+      return;
+    }
+    openImage(cached.hash).pipe(res);
   } catch (error) {
     void notifyError("API game/image", error);
     res.status(502).json({ error: "Erro ao carregar imagem." });
@@ -82,8 +94,7 @@ export async function getById(req: Request, res: Response): Promise<void> {
       res.status(400).json({ error: "ID inválido." });
       return;
     }
-    const game = await fetchGameById(id);
-    res.json(game);
+    await serveDetail(res, gameDetailCache, id, () => fetchGameById(id));
   } catch (error) {
     void notifyError("API game/:id", error);
     res.status(500).json({ error: "Erro ao buscar detalhes do jogo." });

@@ -4,6 +4,7 @@ import { AnimeIcon, MovieIcon, SeriesIcon, BookIcon, GameIcon } from "../Sidebar
 import { formatLastAccess, formatLastAccessExact } from "../../utils/lastAccess";
 import { useDragScroll } from "../../hooks/useDragScroll";
 import styles from "./ReleaseCarousel.module.css";
+import { CoverImage } from "../CoverImage/CoverImage";
 
 const MEDIA_ICON: Record<ReleaseItem["media"], typeof AnimeIcon> = {
   anime: AnimeIcon,
@@ -44,13 +45,16 @@ export function ReleaseCarousel({ items, onSelect }: ReleaseCarouselProps) {
             title={`${item.title} — ${item.detail} em ${formatLastAccessExact(iso)}`}
           >
             <div className={styles.imageWrapper}>
-              {item.poster ? (
-                <img className={styles.coverImage} src={item.poster} alt="" loading="lazy" />
-              ) : (
-                <div className={styles.coverPlaceholder}>
-                  <Icon className={styles.placeholderIcon} />
-                </div>
-              )}
+              <CoverImage
+                className={styles.coverImage}
+                src={item.poster}
+                alt=""
+                fallback={
+                  <div className={styles.coverPlaceholder}>
+                    <Icon className={styles.placeholderIcon} />
+                  </div>
+                }
+              />
               <div className={styles.overlay}>
                 <span className={styles.whenPill}>{formatLastAccess(iso)}</span>
                 <span className={styles.title}>{item.title}</span>

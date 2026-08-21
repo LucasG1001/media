@@ -3,14 +3,19 @@ import type { SeriesDetail } from "../../types/series";
 import { fetchSeriesById } from "../../services/seriesService";
 import { SeriesDetailBody } from "./SeriesDetailBody";
 import styles from "./SeriesDrawer.module.css";
+import { DrawerFallback, type DrawerFallbackData } from "../DrawerFallback/DrawerFallback";
 
 interface SeriesDrawerProps {
   seriesId: number;
   onClose: () => void;
   onSeriesLoad?: (series: SeriesDetail) => void;
+  // Dados salvos na biblioteca, usados quando nem a API externa nem o cache dela
+  // responderem (offline com a série nunca aberta). A anotação de série vive na
+  // temporada, então aqui o fallback não tem NotesBlock.
+  fallback?: DrawerFallbackData;
 }
 
-export function SeriesDrawer({ seriesId, onClose, onSeriesLoad }: SeriesDrawerProps) {
+export function SeriesDrawer({ seriesId, onClose, onSeriesLoad, fallback }: SeriesDrawerProps) {
   const [series, setSeries] = useState<SeriesDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -63,6 +68,8 @@ export function SeriesDrawer({ seriesId, onClose, onSeriesLoad }: SeriesDrawerPr
           <div className={styles.loading}>Carregando...</div>
         ) : series ? (
           <SeriesDetailBody series={series} />
+        ) : error && fallback ? (
+          <DrawerFallback {...fallback} />
         ) : (
           <div className={styles.loading}>{error ? "Erro ao carregar detalhes." : ""}</div>
         )}

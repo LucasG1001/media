@@ -3,6 +3,7 @@ import { MediaCard, type MediaCardConfig } from "../MediaCard/MediaCard";
 import { LoadingSkeleton } from "../LoadingSkeleton/LoadingSkeleton";
 import { SelectionBar } from "../SelectionBar/SelectionBar";
 import styles from "./MediaGrid.module.css";
+import { useOnline } from "../../context/connectivityContext";
 
 interface MediaGridProps<T extends { id: number | string }, E extends { id: string; status: string; score: number }> {
   items: T[];
@@ -56,6 +57,8 @@ export function MediaGrid<T extends { id: number | string }, E extends { id: str
     });
   }, []);
 
+  const online = useOnline();
+
   const applyStatus = useCallback(async (status: string) => {
     if (!onBulkSetStatus) return;
     await onBulkSetStatus([...selectedIds], status);
@@ -64,6 +67,20 @@ export function MediaGrid<T extends { id: number | string }, E extends { id: str
 
   if (loading && items.length === 0) {
     return <LoadingSkeleton />;
+  }
+
+  if (!online && items.length === 0) {
+    return (
+      <div className={styles.grid}>
+        <div className={styles.errorState}>
+          <div className={styles.emptyIcon}>📡</div>
+          <div className={styles.emptyTitle}>Sem conexão</div>
+          <div className={styles.emptyText}>
+            O catálogo precisa de internet. Sua biblioteca continua disponível.
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error && items.length === 0) {

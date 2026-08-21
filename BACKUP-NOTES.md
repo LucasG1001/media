@@ -195,3 +195,23 @@ chmod +x /home/lucas/scripts/backup-generic.sh
 > **Status atual:** o media-tracker já usa o `backup-generic.sh` no cron (migrado).
 > O `backup-to-gdrive.sh` (versão específica original) permanece no repositório
 > apenas como referência histórica — não está mais em uso.
+
+## O que fica de fora do export JSON
+
+O `GET /api/backup/export` monta o JSON a partir de listas explícitas de colunas em
+`backupController`, e a regra geral é que **coluna nova de biblioteca entra nessas listas** — senão
+se perde no round-trip. Duas coisas ficam fora de propósito:
+
+- **`detail_cache` / `detail_cached_at`** (as cinco mídias com catálogo) — é a última resposta de
+  detalhe da API externa, guardada para o drawer abrir offline. Medido: ~4 KB por anime, ~2 KB por
+  jogo, ~1,7 KB por série, ~1 KB por filme; com a biblioteca toda cacheada dá ~4 MB só de cache num
+  export que hoje é de algumas centenas de KB — perto do `limit: "10mb"` do `express.json` que o
+  import atravessa. E é re-derivável: o `GET /api/<mídia>/:id` e o job `backfillDetailCache`
+  reconstroem sozinhos depois de um import.
+- **O cache de capas** — os bytes vivem no volume `image_cache` (`/data/images`), não no banco. A
+  tabela `image_cache` guarda só o metadado e também não é exportada; o job `warmupImages` baixa de novo
+  tudo em alguns ticks. **Consequência prática:** um restore que não traga o volume deixa o app sem
+  imagens offline até o warm-up drenar.
+
+O **dump do PostgreSQL** (`GET /api/backup/export/dump`, `pg_dump -Fc`) traz as duas tabelas
+inteiras, `detail_cache` incluído — a exclusão vale só para o export JSON.
