@@ -126,7 +126,10 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   navega por arrasto via `hooks/useDragScroll.ts`, só no mouse — no touch a rolagem nativa já
   resolve —, com deslize por atrito ao soltar e engolindo o clique do fim do arrasto para não abrir
   o drawer. A faixa **não** usa `scroll-snap`: ele brigava com o `scrollLeft` do arrasto e travava o
-  movimento ao soltar, puxando para o card mais próximo):
+  movimento ao soltar, puxando para o card mais próximo. A **barra de rolagem é escondida**
+  (`scrollbar-width: none` + `::-webkit-scrollbar`), mas o `overflow-x` segue `auto`: nada é
+  bloqueado, então o `scrollLeft` do arrasto e a rolagem nativa do touch continuam valendo — no
+  mouse só sobra o arrasto por não haver mais barra):
   - **Finalizados recentemente** (`buildRecentReleases`, todas as mídias) — fila de "já dá para
     consumir": só entra item em `plan_to_*`, então marcar como concluído tira o item de lá.
   - **Episódios recentes** (`buildRecentEpisodes`, só anime e séries — filme/jogo/livro não têm

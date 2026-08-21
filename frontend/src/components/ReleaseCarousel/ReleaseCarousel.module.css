@@ -4,6 +4,15 @@
   overflow-x: auto;
   padding-bottom: var(--spacing-sm);
   cursor: grab;
+  /* Barra escondida, rolagem preservada: overflow-x continua auto, então o
+     scrollLeft do arrasto e a rolagem nativa do touch seguem funcionando — no
+     mouse o movimento passa a ser só pelo arrasto, por não haver mais barra. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.track::-webkit-scrollbar {
+  display: none;
 }
 
 /* Sem scroll-snap de propósito: ele brigava com o scrollLeft do arrasto e, ao
