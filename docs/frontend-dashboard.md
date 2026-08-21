@@ -38,7 +38,8 @@ resolve —, com deslize por atrito ao soltar e engolindo o clique do fim do arr
 o drawer.
 
 A faixa **não** usa `scroll-snap`: ele brigava com o `scrollLeft` do arrasto e travava o
-movimento ao soltar, puxando para o card mais próximo. A **barra de rolagem é escondida**
-(`scrollbar-width: none` + `::-webkit-scrollbar`), mas o `overflow-x` segue `auto`: nada é
-bloqueado, então o `scrollLeft` do arrasto e a rolagem nativa do touch continuam valendo — no
-mouse só sobra o arrasto por não haver mais barra.
+movimento ao soltar, puxando para o card mais próximo. A **barra de rolagem fica visível, mas fina**
+(`scrollbar-width: thin` + `::-webkit-scrollbar { height: 4px }` na `.track`): o global só define
+`width`, então sem essa altura a barra horizontal viria na espessura cheia do Chrome. Ela existe
+porque no mouse é a única dica visível de que há mais card à direita, e conviver com o arrasto é de
+graça: o `overflow-x` sempre foi `auto`.

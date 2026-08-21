@@ -4,15 +4,29 @@
   overflow-x: auto;
   padding-bottom: var(--spacing-sm);
   cursor: grab;
-  /* Barra escondida, rolagem preservada: overflow-x continua auto, então o
-     scrollLeft do arrasto e a rolagem nativa do touch seguem funcionando — no
-     mouse o movimento passa a ser só pelo arrasto, por não haver mais barra. */
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  /* Barra fina de propósito: o global só define `width`, então a barra
+     horizontal ficaria na altura cheia do Chrome (~15px) e roubaria espaço da
+     faixa. Ela fica visível porque no mouse é a única dica de que há mais
+     card à direita além do arrasto. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
 }
 
 .track::-webkit-scrollbar {
-  display: none;
+  height: 4px;
+}
+
+.track::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.track::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+}
+
+.track::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
 }
 
 /* Sem scroll-snap de propósito: ele brigava com o scrollLeft do arrasto e, ao
