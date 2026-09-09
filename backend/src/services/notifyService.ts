@@ -1,3 +1,5 @@
+import axios from "axios";
+import type { AxiosError } from "axios";
 import { httpRequest } from "../lib/httpClient.js";
 import { fetchAnimeById } from "./anilistService.js";
 import type { LibraryEntry } from "../types/library.js";
@@ -67,7 +69,39 @@ async function send(type: string, payload: NotifyPayload): Promise<void> {
 
 const ERROR_DEDUPE_WINDOW_MS = 60 * 1000;
 const ERROR_DESCRIPTION_LIMIT = 3500;
+const ERROR_BODY_LIMIT = 1024;
 const recentErrors = new Map<string, number>();
+
+// Erro normalizado (AniListError, HardcoverError) guarda o AxiosError original
+// em `cause`; sem olhar ali, o corpo da resposta da API externa se perde.
+function findAxiosError(error: unknown): AxiosError | undefined {
+  if (axios.isAxiosError(error)) return error;
+  const cause = error instanceof Error ? error.cause : undefined;
+  return axios.isAxiosError(cause) ? cause : undefined;
+}
+
+function formatBody(body: unknown): string | undefined {
+  if (body == null) return undefined;
+  const text = typeof body === "string" ? body : JSON.stringify(body);
+  return text ? text.slice(0, ERROR_BODY_LIMIT) : undefined;
+}
+
+function httpFields(error: unknown): NotifyField[] {
+  const fields: NotifyField[] = [];
+  const response = findAxiosError(error)?.response;
+  if (response) {
+    const status = `${response.status}${response.statusText ? ` ${response.statusText}` : ""}`;
+    fields.push({ name: "HTTP", value: status, inline: true });
+    const body = formatBody(response.data);
+    if (body) fields.push({ name: "Resposta", value: body });
+  }
+  const cause = error instanceof Error ? error.cause : undefined;
+  if (cause !== undefined && !axios.isAxiosError(cause)) {
+    const value = cause instanceof Error ? cause.message : String(cause);
+    if (value) fields.push({ name: "Causa", value: value.slice(0, ERROR_BODY_LIMIT) });
+  }
+  return fields;
+}
 
 /**
  * Envia qualquer erro do backend para o Telegram (mesmo canal das notificações).
@@ -96,6 +130,7 @@ export async function notifyError(
   const fields: NotifyField[] = [
     { name: "Origem", value: context, inline: true },
     { name: "Ambiente", value: process.env.NODE_ENV ?? "development", inline: true },
+    ...httpFields(error),
     { name: "Quando", value: new Date().toISOString() },
     ...Object.entries(meta ?? {}).map(([name, value]) => ({ name, value: String(value).slice(0, 1024) })),
   ];

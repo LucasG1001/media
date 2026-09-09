@@ -14,8 +14,8 @@ import type {
 } from "../types/book.js";
 
 export class HardcoverError extends Error {
-  constructor(message: string, readonly status: number) {
-    super(message);
+  constructor(message: string, readonly status: number, options?: ErrorOptions) {
+    super(message, options);
     this.name = "HardcoverError";
   }
 }
@@ -122,16 +122,19 @@ async function queryHardcover<T>(
       // O token expira em 1 ano (reset em 1º de janeiro) e derruba o domínio inteiro
       // de uma vez: mensagem própria para dar diagnóstico em vez de erro genérico.
       if (status === 401 || status === 403) {
-        throw new HardcoverError("Token da Hardcover inválido ou expirado.", 502);
+        throw new HardcoverError("Token da Hardcover inválido ou expirado.", 502, { cause: error });
       }
-      if (status === 400) throw new HardcoverError("Requisição inválida à Hardcover.", 400);
-      throw new HardcoverError("Falha ao consultar a Hardcover.", 502);
+      if (status === 400) throw new HardcoverError("Requisição inválida à Hardcover.", 400, { cause: error });
+      throw new HardcoverError("Falha ao consultar a Hardcover.", 502, { cause: error });
     }
     throw error;
   }
 
   const envelope = result as GraphQLEnvelope;
-  if (envelope.errors?.length) throw new HardcoverError("Requisição inválida à Hardcover.", 400);
+  if (envelope.errors?.length) {
+    const raw = envelope.errors.map((e) => e.message).filter(Boolean).join(" | ");
+    throw new HardcoverError("Requisição inválida à Hardcover.", 400, raw ? { cause: new Error(raw) } : undefined);
+  }
   if (envelope.data == null) throw new HardcoverError("Requisição inválida à Hardcover.", 400);
 
   return result;

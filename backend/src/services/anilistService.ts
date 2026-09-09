@@ -5,8 +5,8 @@ import { chunk } from "../lib/chunk.js";
 import type { AniListAnime, AniListResponse, AniListSingleResponse, AniListAiringResponse, AniListAiredEpisode, AnimeCard, AnimeDetail, AniListExternalLink, AniListFuzzyDate, AniListFranchiseNode, AniListFranchiseResponse } from "../types/anime.js";
 
 export class AniListError extends Error {
-  constructor(message: string, readonly status: number) {
-    super(message);
+  constructor(message: string, readonly status: number, options?: ErrorOptions) {
+    super(message, options);
     this.name = "AniListError";
   }
 }
@@ -133,9 +133,10 @@ async function queryAniList<T>(query: string, variables: Record<string, unknown>
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
-      if (status === 404) throw new AniListError("Anime não encontrado na AniList.", 404);
-      if (status === 400) throw new AniListError("Requisição inválida à AniList.", 400);
-      throw new AniListError("Falha ao consultar a AniList.", 502);
+      if (status === 404) throw new AniListError("Anime não encontrado na AniList.", 404, { cause: error });
+      if (status === 400) throw new AniListError("Requisição inválida à AniList.", 400, { cause: error });
+      if (status === 403) throw new AniListError("A AniList desativou temporariamente a API.", 503, { cause: error });
+      throw new AniListError("Falha ao consultar a AniList.", 502, { cause: error });
     }
     throw error;
   }
@@ -143,7 +144,12 @@ async function queryAniList<T>(query: string, variables: Record<string, unknown>
   const envelope = result as GraphQLEnvelope;
   if (envelope.errors?.length) {
     const notFound = envelope.errors.some((e) => e.status === 404);
-    throw new AniListError(notFound ? "Anime não encontrado na AniList." : "Requisição inválida à AniList.", notFound ? 404 : 400);
+    const raw = envelope.errors.map((e) => e.message).filter(Boolean).join(" | ");
+    throw new AniListError(
+      notFound ? "Anime não encontrado na AniList." : "Requisição inválida à AniList.",
+      notFound ? 404 : 400,
+      raw ? { cause: new Error(raw) } : undefined,
+    );
   }
   if (envelope.data == null) throw new AniListError("Requisição inválida à AniList.", 400);
 

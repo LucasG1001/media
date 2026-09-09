@@ -95,7 +95,10 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     livros em lote na Hardcover (`id: {_in: [...]}`) — o de livros passa **sem cache** (o conjunto de
     ids é determinístico, então o cache de 1 h faria o tick seguinte só bumpar `synced_at`).
   - **`releaseNotifyService.ts`** — avisa lançamentos de filmes/jogos/livros.
-  - **`notifyService.ts`** — envia ao Telegram via notify-api; nunca lança.
+  - **`notifyService.ts`** — envia ao Telegram via notify-api; nunca lança. O relatório de erro
+    inclui status HTTP e corpo da resposta quando o erro carrega um `AxiosError` em `cause` — por
+    isso serviço que normaliza erro (`AniListError`, `HardcoverError`) **precisa repassar
+    `{ cause }`**, senão o motivo real da API externa se perde e sobra só a mensagem PT genérica.
   - **`imageCacheService.ts`** / **`imageWarmupService.ts`** — baixam e servem as capas do disco
     (dedupe de download concorrente, warm-up e prune) e **`detailCacheBackfillService.ts`** —
     preenche o `detail_cache` de quem ainda não tem. Ver `docs/offline.md`.
@@ -270,8 +273,9 @@ status fica). YouTube usa `liked`/`removed`.
 - **AniList** (`https://graphql.anilist.co`, POST, sem auth) — limite documentado 90 req/min, mas
   na prática degradado (~30/min). Todo tráfego passa por `queryAniList`, que aplica o
   `rateLimiter` (throttle ~2s + pacing por header) e normaliza erros em `AniListError` (a AniList
-  responde HTTP 200 com `{ errors, data:null }` em erro de validação; 404 vira 404). Estações:
-  meses 1–3 WINTER, 4–6 SPRING, 7–9 SUMMER, 10–12 FALL. `MEDIA_FIELDS` é compartilhado com as
+  responde HTTP 200 com `{ errors, data:null }` em erro de validação; 404 vira 404; 403 — como eles
+  desligam a API inteira — vira 503). Estações: meses 1–3 WINTER, 4–6 SPRING, 7–9 SUMMER,
+  10–12 FALL. `MEDIA_FIELDS` é compartilhado com as
   listagens — campo pesado vai só na query do `fetchAnimeById` (é o caso de `stats` e de
   `streamingEpisodes`, que alimenta a lista de episódios do `AnimeDrawer` e vem vazia para anime sem
   streaming licenciado).
