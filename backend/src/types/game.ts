@@ -45,6 +45,7 @@ export interface IgdbGameListItem {
 
 export interface IgdbGameDetail extends IgdbGameListItem {
   summary?: string | null;
+  artworks?: IgdbImageRef[];
   screenshots?: IgdbImageRef[];
   videos?: IgdbVideo[];
   genres?: IgdbNamed[];
@@ -92,6 +93,7 @@ export interface GameDetail extends GameCard {
   esrb: string | null;
   stores: GameStore[];
   trailer: GameTrailer | null;
+  bannerImage: string | null;
   screenshots: string[];
   ratingsCount: number | null;
   steamAppId: string | null;

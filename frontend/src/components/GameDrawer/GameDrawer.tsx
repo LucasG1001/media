@@ -88,17 +88,26 @@ export function GameDrawer({ gameId, onClose, onGameLoad, notes, onNotesChange, 
           <>
             <CoverImage
               className={styles.banner}
-              src={game.screenshots[0] ?? game.backgroundImage}
+              src={game.bannerImage ?? game.screenshots[0] ?? null}
               alt=""
               eager
               fallback={<div className={styles.bannerPlaceholder} />}
             />
 
             <div className={styles.header}>
-              <div className={styles.title}>{game.title}</div>
-              {game.developers.length > 0 && (
-                <div className={styles.developers}>{game.developers.join(" · ")}</div>
-              )}
+              <CoverImage
+                className={styles.coverImage}
+                src={game.backgroundImage}
+                alt={game.title}
+                eager
+                fallback={<div className={styles.coverPlaceholder}>🎮</div>}
+              />
+              <div className={styles.headerInfo}>
+                <div className={styles.title}>{game.title}</div>
+                {game.developers.length > 0 && (
+                  <div className={styles.developers}>{game.developers.join(" · ")}</div>
+                )}
+              </div>
             </div>
 
             <div className={styles.content}>

@@ -26,7 +26,7 @@ const SYNC_FIELDS =
   "fields name, cover.image_id, first_release_date, total_rating, aggregated_rating, websites.type, genres.name;";
 
 const DETAIL_FIELDS =
-  "fields name, summary, cover.image_id, screenshots.image_id, videos.video_id, videos.name, " +
+  "fields name, summary, cover.image_id, artworks.image_id, screenshots.image_id, videos.video_id, videos.name, " +
   "genres.name, platforms.name, involved_companies.company.name, involved_companies.developer, " +
   "involved_companies.publisher, websites.type, websites.url, external_games.external_game_source, " +
   "external_games.uid, first_release_date, rating, aggregated_rating, total_rating, total_rating_count;";
@@ -257,6 +257,7 @@ export async function fetchGameById(id: number): Promise<GameDetail> {
     esrb: null,
     stores: storesFrom(game.websites),
     trailer: video ? { youtubeId: video.video_id } : null,
+    bannerImage: game.artworks?.[0]?.image_id ? igdbImage(game.artworks[0].image_id, "720p") : null,
     screenshots: (game.screenshots ?? []).map((s) => igdbImage(s.image_id, "720p")),
     ratingsCount: game.total_rating_count ?? null,
     steamAppId: steam?.uid ?? null,

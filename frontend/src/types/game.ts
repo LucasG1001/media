@@ -30,6 +30,8 @@ export interface GameDetail extends GameCard {
   esrb: string | null;
   stores: GameStore[];
   trailer: GameTrailer | null;
+  // Opcional: detalhe salvo no detail_cache antes deste campo existir não o tem.
+  bannerImage?: string | null;
   screenshots: string[];
   ratingsCount: number | null;
   steamAppId: string | null;
