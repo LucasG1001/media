@@ -22,6 +22,7 @@ import { collectionNav } from "../../utils/collectionNav";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
+import { buildGenreOptions, hasAllGenres, sameGenres, toggleGenre } from "../../utils/genreFacets";
 import styles from "./MoviesPage.module.css";
 import { useOfflineTab } from "../../hooks/useOfflineTab";
 
@@ -47,6 +48,7 @@ export function MoviesPage() {
   const [selectedMovieForModal, setSelectedMovieForModal] = useState<MovieCard | null>(null);
   const [libraryFilter, setLibraryFilter] = useState<MovieLibraryStatus[]>([]);
   const [releaseFilter, setReleaseFilter] = useState<string[]>([]);
+  const [genreFilter, setGenreFilter] = useState<string[]>([]);
   const [showLastAccess, setShowLastAccess] = useState(false);
   const sort = useSingleSort("release");
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
@@ -126,7 +128,8 @@ export function MoviesPage() {
         entry.runtime !== movieDetail.runtime ||
         entry.releaseDate !== movieDetail.releaseDate ||
         entry.title !== movieDetail.title ||
-        entry.posterImage !== movieDetail.posterImage;
+        entry.posterImage !== movieDetail.posterImage ||
+        !sameGenres(entry.genres, movieDetail.genres);
 
       if (needsUpdate) {
         updateEntry(entry.id, {
@@ -135,6 +138,7 @@ export function MoviesPage() {
           runtime: movieDetail.runtime,
           releaseDate: movieDetail.releaseDate,
           movieStatus: movieDetail.movieStatus,
+          genres: movieDetail.genres,
         });
       }
     }
@@ -150,16 +154,22 @@ export function MoviesPage() {
       prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
     );
 
-  const collectionGroups = useMemo(() => {
-    const hasFilter = libraryFilter.length > 0 || releaseFilter.length > 0;
-    // Multi-seleção: OU dentro de cada grupo, E entre status e lançamento.
+  const { collectionGroups, genreOptions } = useMemo(() => {
+    const hasFilter = libraryFilter.length > 0 || releaseFilter.length > 0 || genreFilter.length > 0;
+    // Multi-seleção: OU dentro de cada grupo (gênero é E, facetado), E entre status e lançamento.
+    const matchesOthers = (m: MovieLibraryEntry) => {
+      const statusOk = libraryFilter.length === 0 || libraryFilter.includes(m.status as MovieLibraryStatus);
+      const releaseOk = releaseFilter.length === 0 || releaseFilter.includes(m.movieStatus);
+      return statusOk && releaseOk;
+    };
     const memberFilter = hasFilter
-      ? (m: MovieLibraryEntry) => {
-          const statusOk = libraryFilter.length === 0 || libraryFilter.includes(m.status as MovieLibraryStatus);
-          const releaseOk = releaseFilter.length === 0 || releaseFilter.includes(m.movieStatus);
-          return statusOk && releaseOk;
-        }
+      ? (m: MovieLibraryEntry) => matchesOthers(m) && hasAllGenres(m.genres, genreFilter)
       : undefined;
+    const genreOptions = buildGenreOptions(
+      libraryEntries.filter(matchesOthers),
+      genreFilter,
+      (m) => m.genres
+    );
     let groups = buildMovieCollectionGroups(libraryEntries, memberFilter);
     if (!hasFilter) {
       groups = groups.filter((g) => g.members.some((m) => m.status !== "dropped"));
@@ -170,12 +180,12 @@ export function MoviesPage() {
         : sort.field === "score"
         ? sortGroupsByAvgScore(groups, sort.dir)
         : sortGroupsByMemberDate(groups, releaseTimeOf, sort.dir);
-    return filterGroupsBySearch(groups, librarySearch);
-  }, [libraryEntries, libraryFilter, releaseFilter, sort.field, sort.dir, librarySearch]);
+    return { collectionGroups: filterGroupsBySearch(groups, librarySearch), genreOptions };
+  }, [libraryEntries, libraryFilter, genreFilter, releaseFilter, sort.field, sort.dir, librarySearch]);
 
   const gridKey =
     activeTab === "library"
-      ? `library-${libraryFilter.join(",")}-${releaseFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
+      ? `library-${libraryFilter.join(",")}-${releaseFilter.join(",")}-${genreFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
       : activeTab === "search"
       ? `search-${debouncedSearch}`
       : activeTab === "popular"
@@ -262,10 +272,18 @@ export function MoviesPage() {
               selected: releaseFilter,
               onToggle: toggleReleaseFilter,
             },
+            {
+              key: "genres",
+              title: "Gêneros",
+              options: genreOptions,
+              selected: genreFilter,
+              onToggle: (v) => setGenreFilter((prev) => toggleGenre(prev, v)),
+            },
           ]}
           onClearFilters={() => {
             setLibraryFilter([]);
             setReleaseFilter([]);
+            setGenreFilter([]);
           }}
           sort={{
             active: sort.field,

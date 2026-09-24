@@ -32,6 +32,7 @@ export interface SeriesSeasonState {
 }
 
 export interface SeriesLibraryEntry {
+  genres?: string[] | null;
   id: string;
   tmdbId: number;
   title: string;
@@ -57,6 +58,7 @@ export interface SeriesLibraryEntry {
 }
 
 export interface CreateSeriesLibraryEntry {
+  genres?: string[] | null;
   tmdbId: number;
   title: string;
   posterImage?: string | null;
@@ -69,6 +71,7 @@ export interface CreateSeriesLibraryEntry {
 }
 
 export interface UpdateSeriesLibraryEntry {
+  genres?: string[] | null;
   title?: string;
   posterImage?: string | null;
   status?: SeriesLibraryStatus;

@@ -21,6 +21,7 @@ export const bookLibraryModel = createLibraryModel<BookLibraryEntry, CreateBookL
     { column: "page_count", field: "pageCount", default: null },
     { column: "book_status", field: "bookStatus", default: "RELEASED" },
     { column: "collection_id", field: "collectionId", default: null },
+    { column: "genres", field: "genres", default: null },
     // Só a descoberta de coleção escreve estas duas. A posição é POR série, e a série em
     // destaque de um membro pode ser outra (um Mistborn cuja featured é "The Cosmere"),
     // então drawer e job de refresh não podem tocá-las sob risco de embaralhar a expansão.
@@ -50,6 +51,7 @@ function toEntry(row: BookLibraryRow): BookLibraryEntry {
     pageCount: row.page_count,
     bookStatus: row.book_status,
     collectionId: row.collection_id,
+    genres: row.genres,
     seriesName: row.series_name,
     seriesPosition: row.series_position == null ? null : parseFloat(row.series_position),
     isCover: row.is_cover,
@@ -75,6 +77,7 @@ export async function findStaleBooks(
      WHERE status != 'dropped'
        AND (
          synced_at IS NULL
+         OR genres IS NULL
          OR (book_status = 'UPCOMING' AND synced_at < NOW() - ($1 || ' hours')::interval)
          OR (book_status != 'UPCOMING' AND synced_at < NOW() - ($2 || ' hours')::interval)
        )
@@ -94,9 +97,10 @@ export async function updateBookSyncData(hardcoverId: number, data: BookSyncData
          published_date = COALESCE($4, published_date),
          page_count = COALESCE($5, page_count),
          book_status = $6,
+         genres = $7,
          synced_at = NOW()
      WHERE hardcover_id = $1`,
-    [hardcoverId, data.title ?? null, data.coverImage ?? null, data.publishedDate ?? null, data.pageCount ?? null, data.bookStatus]
+    [hardcoverId, data.title ?? null, data.coverImage ?? null, data.publishedDate ?? null, data.pageCount ?? null, data.bookStatus, data.genres]
   );
 }
 

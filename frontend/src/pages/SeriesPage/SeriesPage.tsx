@@ -23,6 +23,7 @@ import { seriesLibraryEntryToCard } from "../../utils/seriesLibraryEntryToCard";
 import { SERIES_AIR_GROUP_LABELS, seriesAirGroup, type SeriesAirGroup } from "../../utils/seriesFormat";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
+import { buildGenreOptions, hasAllGenres, sameGenres, toggleGenre } from "../../utils/genreFacets";
 import { collectionNav } from "../../utils/collectionNav";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import styles from "./SeriesPage.module.css";
@@ -47,6 +48,7 @@ export function SeriesPage() {
   const [seasonModal, setSeasonModal] = useState<{ entry: SeriesLibraryEntry; member: SeasonMember } | null>(null);
   const [libraryFilter, setLibraryFilter] = useState<SeriesLibraryStatus[]>([]);
   const [airFilter, setAirFilter] = useState<SeriesAirGroup[]>([]);
+  const [genreFilter, setGenreFilter] = useState<string[]>([]);
   const [showLastAccess, setShowLastAccess] = useState(false);
   const sort = useSingleSort("release");
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
@@ -149,7 +151,8 @@ export function SeriesPage() {
         entry.episodes !== seriesDetail.episodes ||
         entry.firstAirDate !== seriesDetail.firstAirDate ||
         entry.title !== seriesDetail.title ||
-        entry.posterImage !== seriesDetail.posterImage;
+        entry.posterImage !== seriesDetail.posterImage ||
+        !sameGenres(entry.genres, seriesDetail.genres);
 
       if (needsUpdate) {
         updateEntry(entry.id, {
@@ -159,6 +162,7 @@ export function SeriesPage() {
           episodes: seriesDetail.episodes,
           firstAirDate: seriesDetail.firstAirDate,
           seriesStatus: seriesDetail.seriesStatus,
+          genres: seriesDetail.genres,
         });
       }
     }
@@ -177,9 +181,11 @@ export function SeriesPage() {
   // Filtro de status age POR TEMPORADA (como filmes): reduz a coleção às que
   // batem; sem filtro esconde só as séries 100% abandonadas. Já o de exibição é
   // da SÉRIE (o TMDB não dá status de exibição por temporada), então recorta a
-  // lista de entries antes de montar as coleções.
-  const collectionGroups = useMemo(() => {
-    const hasFilter = libraryFilter.length > 0 || airFilter.length > 0;
+  // lista de entries antes de montar as coleções. Gênero também é da série: cada
+  // coleção é uma série, então recorta as coleções já montadas — assim as opções
+  // facetadas contam só séries que passam no filtro de status das temporadas.
+  const { collectionGroups, genreOptions } = useMemo(() => {
+    const hasFilter = libraryFilter.length > 0 || airFilter.length > 0 || genreFilter.length > 0;
     const memberFilter = libraryFilter.length > 0
       ? (m: SeasonMember) => libraryFilter.includes(m.status as SeriesLibraryStatus)
       : undefined;
@@ -189,7 +195,10 @@ export function SeriesPage() {
       : libraryEntries;
 
     const { groups, lookup } = buildSeasonGroups(entries, memberFilter);
-    let result = groups;
+    const genresByTmdb = new Map(entries.map((e) => [e.tmdbId, e.genres]));
+    const genresOf = (g: (typeof groups)[number]) => genresByTmdb.get(g.members[0]?.tmdbId ?? -1);
+    const genreOptions = buildGenreOptions(groups, genreFilter, genresOf);
+    let result = genreFilter.length > 0 ? groups.filter((g) => hasAllGenres(genresOf(g), genreFilter)) : groups;
     if (!hasFilter) {
       result = result.filter((g) => g.members.some((m) => m.status !== "dropped"));
     }
@@ -199,8 +208,8 @@ export function SeriesPage() {
       ? sortGroupsByAvgScore(result, sort.dir)
       : sortGroupsByMemberDate(result, seasonDateOf, sort.dir);
     result = filterGroupsBySearch(result, librarySearch);
-    return { groups: result, lookup };
-  }, [libraryEntries, libraryFilter, airFilter, librarySearch, sort.field, sort.dir]);
+    return { collectionGroups: { groups: result, lookup }, genreOptions };
+  }, [libraryEntries, libraryFilter, airFilter, genreFilter, librarySearch, sort.field, sort.dir]);
 
   const displayLoading = activeTab === "library" ? libraryLoading : loading;
   const displayError = activeTab === "library" ? libraryError : error;
@@ -208,7 +217,7 @@ export function SeriesPage() {
 
   const gridKey =
     activeTab === "library"
-      ? `library-${libraryFilter.join(",")}-${airFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
+      ? `library-${libraryFilter.join(",")}-${airFilter.join(",")}-${genreFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
       : activeTab === "search"
       ? `search-${debouncedSearch}`
       : `popular-${selectedYear}-${selectedMonth}`;
@@ -295,10 +304,18 @@ export function SeriesPage() {
               selected: airFilter,
               onToggle: (v) => toggleAirFilter(v as SeriesAirGroup),
             },
+            {
+              key: "genres",
+              title: "Gêneros",
+              options: genreOptions,
+              selected: genreFilter,
+              onToggle: (v) => setGenreFilter((prev) => toggleGenre(prev, v)),
+            },
           ]}
           onClearFilters={() => {
             setLibraryFilter([]);
             setAirFilter([]);
+            setGenreFilter([]);
           }}
           sort={{
             active: sort.field,

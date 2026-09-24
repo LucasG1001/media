@@ -56,6 +56,7 @@ async function doRefresh(): Promise<void> {
             nextAiringEpisode: fresh.nextAiringEpisode,
             lastAiredEpisode: fresh.lastAiredEpisode,
             seasonList: fresh.seasonList,
+            genres: fresh.genres,
           });
         } catch (error) {
           await notifyError("seriesLibrarySyncService.refreshStaleSeries", error, { tmdbId: String(entry.tmdbId) });

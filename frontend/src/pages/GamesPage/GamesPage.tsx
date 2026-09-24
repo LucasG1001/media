@@ -22,6 +22,7 @@ import { collectionNav } from "../../utils/collectionNav";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
+import { GAME_GENRE_LABELS, buildGenreOptions, hasAllGenres, sameGenres, toggleGenre } from "../../utils/genreFacets";
 import styles from "./GamesPage.module.css";
 import { useOfflineTab } from "../../hooks/useOfflineTab";
 
@@ -49,6 +50,7 @@ export function GamesPage() {
   const [libraryFilter, setLibraryFilter] = useState<GameLibraryStatus[]>([]);
   const [modeFilter, setModeFilter] = useState<GameMode[]>([]);
   const [releaseFilter, setReleaseFilter] = useState<string[]>([]);
+  const [genreFilter, setGenreFilter] = useState<string[]>([]);
   const [showLastAccess, setShowLastAccess] = useState(false);
   const sort = useSingleSort("release");
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
@@ -129,7 +131,8 @@ export function GamesPage() {
         entry.metacritic !== gameDetail.metacritic ||
         entry.released !== gameDetail.released ||
         entry.title !== gameDetail.title ||
-        entry.backgroundImage !== gameDetail.backgroundImage;
+        entry.backgroundImage !== gameDetail.backgroundImage ||
+        !sameGenres(entry.genres, gameDetail.genres);
 
       if (needsUpdate) {
         updateEntry(entry.id, {
@@ -138,6 +141,7 @@ export function GamesPage() {
           released: gameDetail.released,
           metacritic: gameDetail.metacritic,
           gameStatus: gameDetail.gameStatus,
+          genres: gameDetail.genres,
         });
       }
     }
@@ -158,19 +162,26 @@ export function GamesPage() {
       prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
     );
 
-  const collectionGroups = useMemo(() => {
-    const hasFilter = libraryFilter.length > 0 || modeFilter.length > 0 || releaseFilter.length > 0;
-    // Multi-seleção: OU dentro de cada grupo, E entre status, lançamento e modos.
+  const { collectionGroups, genreOptions } = useMemo(() => {
+    const hasFilter = libraryFilter.length > 0 || modeFilter.length > 0 || releaseFilter.length > 0 || genreFilter.length > 0;
+    // Multi-seleção: OU dentro de cada grupo (gênero é E, facetado), E entre status, lançamento e modos.
+    const matchesOthers = (m: GameLibraryEntry) => {
+      const statusOk = libraryFilter.length === 0 || libraryFilter.includes(m.status as GameLibraryStatus);
+      const releaseOk = releaseFilter.length === 0 || releaseFilter.includes(m.gameStatus);
+      const modeOk =
+        modeFilter.length === 0 ||
+        (m.gameModes?.some((mode) => modeFilter.includes(mode as GameMode)) ?? false);
+      return statusOk && releaseOk && modeOk;
+    };
     const memberFilter = hasFilter
-      ? (m: GameLibraryEntry) => {
-          const statusOk = libraryFilter.length === 0 || libraryFilter.includes(m.status as GameLibraryStatus);
-          const releaseOk = releaseFilter.length === 0 || releaseFilter.includes(m.gameStatus);
-          const modeOk =
-            modeFilter.length === 0 ||
-            (m.gameModes?.some((mode) => modeFilter.includes(mode as GameMode)) ?? false);
-          return statusOk && releaseOk && modeOk;
-        }
+      ? (m: GameLibraryEntry) => matchesOthers(m) && hasAllGenres(m.genres, genreFilter)
       : undefined;
+    const genreOptions = buildGenreOptions(
+      libraryEntries.filter(matchesOthers),
+      genreFilter,
+      (m) => m.genres,
+      GAME_GENRE_LABELS
+    );
     let groups = buildGameCollectionGroups(libraryEntries, memberFilter);
     if (!hasFilter) {
       groups = groups.filter((g) => g.members.some((m) => m.status !== "dropped"));
@@ -181,12 +192,12 @@ export function GamesPage() {
         : sort.field === "score"
         ? sortGroupsByAvgScore(groups, sort.dir)
         : sortGroupsByMemberDate(groups, releaseTimeOf, sort.dir);
-    return filterGroupsBySearch(groups, librarySearch);
-  }, [libraryEntries, libraryFilter, modeFilter, releaseFilter, sort.field, sort.dir, librarySearch]);
+    return { collectionGroups: filterGroupsBySearch(groups, librarySearch), genreOptions };
+  }, [libraryEntries, libraryFilter, genreFilter, modeFilter, releaseFilter, sort.field, sort.dir, librarySearch]);
 
   const gridKey =
     activeTab === "library"
-      ? `library-${libraryFilter.join(",")}-${modeFilter.join(",")}-${releaseFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
+      ? `library-${libraryFilter.join(",")}-${modeFilter.join(",")}-${releaseFilter.join(",")}-${genreFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
       : activeTab === "search"
       ? `search-${debouncedSearch}`
       : activeTab === "popular"
@@ -280,11 +291,19 @@ export function GamesPage() {
               selected: modeFilter,
               onToggle: (v) => toggleModeFilter(v as GameMode),
             },
+            {
+              key: "genres",
+              title: "Gêneros",
+              options: genreOptions,
+              selected: genreFilter,
+              onToggle: (v) => setGenreFilter((prev) => toggleGenre(prev, v)),
+            },
           ]}
           onClearFilters={() => {
             setLibraryFilter([]);
             setModeFilter([]);
             setReleaseFilter([]);
+            setGenreFilter([]);
           }}
           sort={{
             active: sort.field,

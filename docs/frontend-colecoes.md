@@ -17,15 +17,15 @@ Séries são um caso próprio (coleção sintetizada de temporadas): ver
 `isCover` senão o mais antigo), `members`, `count`, `completedCount`. Os `build*CollectionGroups` só
 **agrupam** (não ordenam).
 
-## 2. Filtro reduz a coleção (mas o total não muda)
+## 2. Filtro decide quais coleções aparecem (a coleção continua inteira)
 
-Os filtros de status são **multi-seleção** (arrays) e viram um `memberFilter` passado ao builder
-**só quando há filtro ativo** — ele reduz a **capa** e a **expansão** (`members`) aos que batem. O
-badge é `completedCount/count`: o **denominador `count` é SEMPRE o total da coleção** (não muda com
-filtro); o **numerador** (`completedCount`, hoje = **quantidade mostrada**, não mais "concluídos") é
-o total quando **sem filtro** e a **qtde que bate** quando há filtro. Ex.: coleção de 6 → sem filtro
-`6/6`; filtro "planejo" → `3/6` (expansão mostra só esses 3, capa vira um deles). Coleção sem match
-some. Sem filtro (array vazio): `memberFilter` fica `undefined`, mostra tudo (inclusive `dropped`),
+Os filtros são **multi-seleção** (arrays) e viram um `memberFilter` passado ao builder **só quando
+há filtro ativo**. Ele decide só duas coisas: se a coleção aparece (**pelo menos um** membro bate) e
+o numerador do badge. **Capa e expansão (`members`) são sempre da coleção inteira.** O badge é
+`completedCount/count`: o **denominador `count` é SEMPRE o total da coleção**; o **numerador**
+(`completedCount`, não mais "concluídos") é o total quando **sem filtro** e a **qtde que bate**
+quando há filtro. Ex.: coleção de 6 → sem filtro `6/6`; filtro "planejo" → `3/6`, e a expansão
+mostra os 6 com a capa de sempre. Coleção sem match some. Sem filtro (array vazio): `memberFilter` fica `undefined`, mostra tudo (inclusive `dropped`),
 escondendo só coleções 100% `dropped` (`.filter(some não-dropped)` na página).
 
 `filterGroupsBySearch` casa por título **do representante ou de qualquer membro** — o representante
@@ -34,22 +34,32 @@ existe só nele.
 
 ## 3. Grupos de filtro por mídia
 
-Todos member-level e combinados em **E** entre si, **OU** dentro de cada um:
+Todos member-level e combinados em **E** entre si, **OU** dentro de cada um (menos Gêneros, abaixo):
 
-- anime = Status + **Exibição** (`animeStatus`, 3 estados)
-- filmes = Status + **Lançamento** (`movieStatus`)
-- jogos = Status + **Lançamento** (`gameStatus`) + Modos de jogo
-- livros = Status + **Lançamento** (`bookStatus`)
+- anime = Status + **Exibição** (`animeStatus`, 3 estados) + Gêneros
+- filmes = Status + **Lançamento** (`movieStatus`) + Gêneros
+- séries = Status + **Exibição** + Gêneros
+- jogos = Status + **Lançamento** (`gameStatus`) + Modos de jogo + Gêneros
+- livros = Status + **Lançamento** (`bookStatus`) + Gêneros
 - YouTube tem só **Coleção**, e o resto do recorte é por tag dentro da expansão
+
+**Gêneros é E e facetado** (`utils/genreFacets.ts`): o item precisa ter **todos** os marcados, e as
+opções (com contagem) são recalculadas sobre os itens que já passam nos outros grupos **e** nos
+gêneros marcados — cada marcação encolhe a lista para o que ainda coexiste com ela, então nunca se
+chega a resultado vazio. Os marcados ficam sempre na lista, para desmarcar. Item com `genres` nulo
+(ainda não sincronizado) some quando há gênero marcado. Rótulos PT só para AniList/IGDB/Hardcover
+(conjuntos em inglês); o TMDB já vem em pt-BR.
 
 **Séries é a exceção**: o de Exibição é da série, não da temporada (o TMDB não dá status de exibição
 por temporada), então recorta a lista de entries **antes** do `buildSeasonGroups`, enquanto o de
-Status segue member-level. O mapeamento `air_status` cru → `on_air`/`finished`/`upcoming` fica em
+Status segue member-level. Gênero também é da série, mas recorta as coleções **depois** do
+`buildSeasonGroups` (coleção = série), para as opções contarem só séries que passam no Status das
+temporadas. O mapeamento `air_status` cru → `on_air`/`finished`/`upcoming` fica em
 `utils/seriesFormat.ts`.
 
 ## 4. Ordenação
 
-De seleção única (`hooks/useSingleSort.ts`; sempre uma ativa), opera sobre o grupo **já reduzido**,
+De seleção única (`hooks/useSingleSort.ts`; sempre uma ativa), opera sobre a **coleção inteira** (o filtro não reduz `members`),
 via `utils/sortGroups.ts`: **data** = item **mais antigo** da coleção (`sortGroupsByMemberDate`,
 `agg:"oldest"`); **nota** = **média** das notas dos membros com `score>0` (`sortGroupsByAvgScore`).
 Exceção: Livros "Leitura" usa a data de leitura **mais recente** (`agg:"latest"`). Avulsos contam
@@ -89,9 +99,9 @@ drawer do representante (que segue acessível como membro da expansão, já que
 `buildCollectionGroups` inclui o representante em `members`). O `MediaCard` recebe
 `isCollectionCover` e some com **tudo que é estado de item**: botão de status e badge de
 exibição/lançamento — na coleção esse estado é dos membros, e o representante é só quem empresta a
-capa. O topo assim liberado é ocupado pela contagem `mostrados/total` do `FranchiseCard` (classe
+capa. O topo assim liberado é ocupado pela contagem `que batem/total` do `FranchiseCard` (classe
 `.badgeTop`).
 
 **Grupo de 1 item é card simples normal**: botão de status (status/nota/remover) + drawer no clique.
-Como `count` é o total **não filtrado**, um grupo de 2+ reduzido a 1 pelo filtro continua sendo
-coleção.
+Como `count` é o total **não filtrado**, um grupo de 2+ com só 1 membro batendo no filtro continua
+sendo coleção.

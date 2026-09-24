@@ -1,6 +1,7 @@
 export type GameLibraryStatus = "plan_to_play" | "beaten" | "dropped";
 
 export interface GameLibraryEntry {
+  genres?: string[] | null;
   id: string;
   igdbId: number;
   title: string;
@@ -33,6 +34,7 @@ export const GAME_MODE_LABELS: Record<GameMode, string> = {
 };
 
 export interface CreateGameLibraryEntry {
+  genres?: string[] | null;
   igdbId: number;
   title: string;
   backgroundImage?: string | null;
@@ -44,6 +46,7 @@ export interface CreateGameLibraryEntry {
 }
 
 export interface UpdateGameLibraryEntry {
+  genres?: string[] | null;
   title?: string;
   backgroundImage?: string | null;
   status?: GameLibraryStatus;

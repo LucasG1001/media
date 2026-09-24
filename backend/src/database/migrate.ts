@@ -505,4 +505,16 @@ export async function migrate(): Promise<void> {
       ADD COLUMN IF NOT EXISTS detail_cached_at TIMESTAMPTZ;
     `);
   }
+
+  // NULL = nunca buscado (findStale* puxa a linha); [] = sem gênero conhecido.
+  // O backfill a partir do detail_cache é idempotente e custa zero requisição.
+  for (const table of ["anime_library", "movie_library", "series_library", "game_library", "books_library"]) {
+    await pool.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS genres TEXT[];`);
+    await pool.query(`
+      UPDATE ${table}
+         SET genres = ARRAY(SELECT jsonb_array_elements_text(detail_cache->'detail'->'genres'))
+       WHERE genres IS NULL
+         AND jsonb_typeof(detail_cache->'detail'->'genres') = 'array';
+    `);
+  }
 }

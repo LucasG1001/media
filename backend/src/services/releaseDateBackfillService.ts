@@ -39,6 +39,7 @@ async function backfillAnimeEndDate(): Promise<number> {
             nextAiringEpisode: anime.nextAiringEpisode,
             endDate: anime.endDate,
             streamingLinks: anime.streamingLinks,
+            genres: anime.genres,
           })
         )
       );
@@ -71,6 +72,7 @@ async function backfillSeriesLastAired(): Promise<number> {
             nextAiringEpisode: fresh.nextAiringEpisode,
             lastAiredEpisode: fresh.lastAiredEpisode,
             seasonList: fresh.seasonList,
+            genres: fresh.genres,
           });
           updated += 1;
         } catch (error) {

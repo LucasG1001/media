@@ -9,6 +9,7 @@ export interface AnimeAiredEpisode {
 export type LibraryStatus = "plan_to_watch" | "watched" | "dropped";
 
 export interface LibraryEntry {
+  genres?: string[] | null;
   id: string;
   anilistId: number;
   title: string;
@@ -37,6 +38,7 @@ export interface LibraryEntry {
 }
 
 export interface CreateLibraryEntry {
+  genres?: string[] | null;
   anilistId: number;
   title: string;
   coverImage?: string | null;
@@ -50,6 +52,7 @@ export interface CreateLibraryEntry {
 }
 
 export interface UpdateLibraryEntry {
+  genres?: string[] | null;
   title?: string;
   coverImage?: string | null;
   status?: LibraryStatus;

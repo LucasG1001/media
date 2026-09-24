@@ -21,6 +21,7 @@ import { collectionNav } from "../../utils/collectionNav";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
+import { BOOK_GENRE_LABELS, buildGenreOptions, hasAllGenres, sameGenres, toggleGenre } from "../../utils/genreFacets";
 import styles from "./BooksPage.module.css";
 import { useOfflineTab } from "../../hooks/useOfflineTab";
 
@@ -45,6 +46,7 @@ export function BooksPage() {
   const [selectedBookForModal, setSelectedBookForModal] = useState<BookCard | null>(null);
   const [libraryFilter, setLibraryFilter] = useState<BookLibraryStatus[]>([]);
   const [releaseFilter, setReleaseFilter] = useState<string[]>([]);
+  const [genreFilter, setGenreFilter] = useState<string[]>([]);
   const [showLastAccess, setShowLastAccess] = useState(false);
   const sort = useSingleSort("published");
   const [selectedGenre, setSelectedGenre] = useState(BOOK_GENRES[0].value);
@@ -127,7 +129,8 @@ export function BooksPage() {
         entry.authors !== authorsStr ||
         entry.publishedDate !== bookDetail.publishedDate ||
         entry.pageCount !== bookDetail.pageCount ||
-        entry.bookStatus !== bookDetail.bookStatus;
+        entry.bookStatus !== bookDetail.bookStatus ||
+        !sameGenres(entry.genres, bookDetail.genres);
 
       if (needsUpdate) {
         updateEntry(entry.id, {
@@ -137,6 +140,7 @@ export function BooksPage() {
           publishedDate: bookDetail.publishedDate,
           pageCount: bookDetail.pageCount,
           bookStatus: bookDetail.bookStatus,
+          genres: bookDetail.genres,
         });
       }
     }
@@ -152,16 +156,23 @@ export function BooksPage() {
       prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
     );
 
-  const collectionGroups = useMemo(() => {
-    const hasFilter = libraryFilter.length > 0 || releaseFilter.length > 0;
-    // Multi-seleção: OU dentro de cada grupo, E entre status e lançamento.
+  const { collectionGroups, genreOptions } = useMemo(() => {
+    const hasFilter = libraryFilter.length > 0 || releaseFilter.length > 0 || genreFilter.length > 0;
+    // Multi-seleção: OU dentro de cada grupo (gênero é E, facetado), E entre status e lançamento.
+    const matchesOthers = (m: BookLibraryEntry) => {
+      const statusOk = libraryFilter.length === 0 || libraryFilter.includes(m.status as BookLibraryStatus);
+      const releaseOk = releaseFilter.length === 0 || releaseFilter.includes(m.bookStatus);
+      return statusOk && releaseOk;
+    };
     const memberFilter = hasFilter
-      ? (m: BookLibraryEntry) => {
-          const statusOk = libraryFilter.length === 0 || libraryFilter.includes(m.status as BookLibraryStatus);
-          const releaseOk = releaseFilter.length === 0 || releaseFilter.includes(m.bookStatus);
-          return statusOk && releaseOk;
-        }
+      ? (m: BookLibraryEntry) => matchesOthers(m) && hasAllGenres(m.genres, genreFilter)
       : undefined;
+    const genreOptions = buildGenreOptions(
+      libraryEntries.filter(matchesOthers),
+      genreFilter,
+      (m) => m.genres,
+      BOOK_GENRE_LABELS
+    );
     let groups = buildBookCollectionGroups(libraryEntries, memberFilter);
     if (!hasFilter) {
       groups = groups.filter((g) => g.members.some((m) => m.status !== "dropped"));
@@ -174,12 +185,12 @@ export function BooksPage() {
         : sort.field === "read"
         ? sortGroupsByMemberDate(groups, readTimeOf, sort.dir, "latest")
         : sortGroupsByMemberDate(groups, pubTimeOf, sort.dir);
-    return filterGroupsBySearch(groups, librarySearch);
-  }, [libraryEntries, libraryFilter, releaseFilter, sort.field, sort.dir, librarySearch]);
+    return { collectionGroups: filterGroupsBySearch(groups, librarySearch), genreOptions };
+  }, [libraryEntries, libraryFilter, genreFilter, releaseFilter, sort.field, sort.dir, librarySearch]);
 
   const gridKey =
     activeTab === "library"
-      ? `library-${libraryFilter.join(",")}-${releaseFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
+      ? `library-${libraryFilter.join(",")}-${releaseFilter.join(",")}-${genreFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
       : activeTab === "search"
       ? `search-${debouncedSearch}`
       : `discover-${selectedGenre}`;
@@ -252,10 +263,18 @@ export function BooksPage() {
               selected: releaseFilter,
               onToggle: toggleReleaseFilter,
             },
+            {
+              key: "genres",
+              title: "Gêneros",
+              options: genreOptions,
+              selected: genreFilter,
+              onToggle: (v) => setGenreFilter((prev) => toggleGenre(prev, v)),
+            },
           ]}
           onClearFilters={() => {
             setLibraryFilter([]);
             setReleaseFilter([]);
+            setGenreFilter([]);
           }}
           sort={{
             active: sort.field,

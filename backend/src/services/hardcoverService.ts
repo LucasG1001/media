@@ -183,6 +183,14 @@ function toBookCard(book: HardcoverBook): BookCard {
   };
 }
 
+// Gêneros saem de cached_tags.Genre (escalar, já ordenado por popularidade) em vez
+// do join `taggings`, que devolve a mesma tag repetida.
+function toBookGenres(book: HardcoverBook): string[] {
+  return (book.cached_tags?.Genre ?? [])
+    .map((t) => t.tag)
+    .filter((t): t is string => !!t);
+}
+
 function toBookDetail(book: HardcoverBook): BookDetail {
   return {
     ...toBookCard(book),
@@ -190,11 +198,7 @@ function toBookDetail(book: HardcoverBook): BookDetail {
     description: book.description ?? null,
     headline: book.headline ?? null,
     usersCount: book.users_count,
-    // Gêneros saem de cached_tags.Genre (escalar, já ordenado por popularidade) em vez
-    // do join `taggings`, que devolve a mesma tag repetida.
-    genres: (book.cached_tags?.Genre ?? [])
-      .map((t) => t.tag)
-      .filter((t): t is string => !!t),
+    genres: toBookGenres(book),
   };
 }
 
@@ -478,6 +482,7 @@ const SYNC_QUERY = `
       release_date
       release_year
       cached_image
+      cached_tags
     }
   }
 `;
@@ -498,6 +503,7 @@ export async function fetchBooksSyncData(ids: number[]): Promise<Map<number, Boo
         publishedDate: book.release_date,
         pageCount: book.pages,
         bookStatus: deriveBookStatus(book.release_date, book.release_year),
+        genres: toBookGenres(book),
       });
     }
   }

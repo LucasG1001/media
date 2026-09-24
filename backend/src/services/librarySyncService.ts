@@ -73,6 +73,7 @@ async function doRefresh(): Promise<void> {
             nextAiringEpisode: anime.nextAiringEpisode,
             endDate: anime.endDate,
             streamingLinks: anime.streamingLinks,
+            genres: anime.genres,
           });
         })
       );

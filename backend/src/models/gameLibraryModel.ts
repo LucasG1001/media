@@ -22,6 +22,7 @@ export const gameLibraryModel = createLibraryModel<GameLibraryEntry, CreateGameL
     { column: "collection_id", field: "collectionId", default: null },
     { column: "is_cover", field: "isCover", default: false, readonly: true },
     { column: "game_modes", field: "gameModes", default: null },
+    { column: "genres", field: "genres", default: null },
     { column: "synced_at", field: "syncedAt", default: null, readonly: true },
     { column: "notes", field: "notes", default: null },
   ],
@@ -45,6 +46,7 @@ function toEntry(row: GameLibraryRow): GameLibraryEntry {
     collectionId: row.collection_id,
     isCover: row.is_cover,
     gameModes: row.game_modes,
+    genres: row.genres,
     syncedAt: row.synced_at,
     notes: row.notes,
     finishedAt: row.finished_at,
@@ -105,6 +107,7 @@ export async function findStaleGames(
      WHERE status != 'dropped'
        AND (
          synced_at IS NULL
+         OR genres IS NULL
          OR (game_status = 'UPCOMING' AND synced_at < NOW() - ($1 || ' hours')::interval)
          OR (game_status != 'UPCOMING' AND synced_at < NOW() - ($2 || ' hours')::interval)
        )`,
@@ -123,9 +126,10 @@ export async function updateGameSyncData(igdbId: number, data: GameSyncData): Pr
          released = COALESCE($4, released),
          metacritic = COALESCE($5, metacritic),
          game_status = $6,
+         genres = $7,
          synced_at = NOW()
      WHERE igdb_id = $1`,
-    [igdbId, data.title ?? null, data.backgroundImage ?? null, data.released ?? null, data.metacritic ?? null, data.gameStatus]
+    [igdbId, data.title ?? null, data.backgroundImage ?? null, data.released ?? null, data.metacritic ?? null, data.gameStatus, data.genres]
   );
 }
 

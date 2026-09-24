@@ -1,6 +1,7 @@
 export type BookLibraryStatus = "plan_to_read" | "read" | "dropped";
 
 export interface BookLibraryEntry {
+  genres?: string[] | null;
   id: string;
   hardcoverId: number;
   title: string;
@@ -26,6 +27,7 @@ export interface BookLibraryEntry {
 }
 
 export interface CreateBookLibraryEntry {
+  genres?: string[] | null;
   hardcoverId: number;
   title: string;
   coverImage?: string | null;
@@ -38,6 +40,7 @@ export interface CreateBookLibraryEntry {
 }
 
 export interface UpdateBookLibraryEntry {
+  genres?: string[] | null;
   title?: string;
   coverImage?: string | null;
   authors?: string | null;

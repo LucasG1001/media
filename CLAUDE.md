@@ -146,7 +146,7 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   **`config/cards.tsx`**. Props, slots de inversão de controle (`renderExpansion`, `extraActions`) e
   comportamento dos painéis: **ver `docs/frontend-componentes.md`** antes de mexer neles.
 - **Biblioteca = coleções (invariantes que valem para todas as mídias)**: agrupamento, filtro
-  member-level que reduz a coleção sem mudar o total do badge, ordenação por grupo (data = mais
+  member-level que decide quais coleções aparecem e o numerador do badge (a expansão fica inteira), ordenação por grupo (data = mais
   antigo, nota = média) e "capa é só coleção". **Ver `docs/frontend-colecoes.md`** antes de mexer em
   filtro/ordenação/agrupamento de biblioteca.
 - **Séries = coleção de temporadas**: a coleção não vem de linhas do banco — é sintetizada de
@@ -216,6 +216,10 @@ tag; **só valem dentro de coleção** — ver `docs/frontend-youtube-tags.md`) 
 podada quando fica vazia (`pruneEmptyCollections`). Colunas JSONB são
 escritas com `JSON.stringify` explícito (ver `seriesLibraryModel`); `TEXT[]` vai como **array JS
 direto** (ver `game_modes` e `tags`).
+
+**`genres`** (`TEXT[]`, nas cinco mídias com catálogo; `NULL` = nunca buscado, `[]` = sem gênero) — gravado
+pelo drawer e pelos jobs de refresh (`genres IS NULL` entra no `findStale*`); alimenta o filtro
+facetado de Gêneros da biblioteca (ver `docs/frontend-colecoes.md`).
 
 **`detail_cache`** (`JSONB`) + **`detail_cached_at`** — última resposta de detalhe da API externa,
 para o drawer abrir inteiro com ela fora. Existe nas cinco mídias com catálogo (não em

@@ -115,6 +115,7 @@ export interface MovieSyncResult {
   releaseDate: string | null;
   runtime: number | null;
   movieStatus: string;
+  genres: string[];
 }
 
 export async function fetchMovieSyncData(id: number): Promise<MovieSyncResult> {
@@ -125,6 +126,7 @@ export async function fetchMovieSyncData(id: number): Promise<MovieSyncResult> {
     releaseDate: data.release_date || null,
     runtime: data.runtime,
     movieStatus: deriveStatus(data.release_date || null),
+    genres: (data.genres ?? []).map((g) => g.name),
   };
 }
 

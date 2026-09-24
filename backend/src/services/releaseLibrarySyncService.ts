@@ -62,6 +62,7 @@ async function doRefreshGames(): Promise<void> {
           released: game.released,
           metacritic: game.metacritic,
           gameStatus: game.gameStatus,
+          genres: game.genres,
         });
       }
     } catch (error) {

@@ -71,7 +71,8 @@ const DEFAULT_STATE = { status: "plan_to_watch", score: 0, notes: null, lastAcce
 // 2+ temporadas: com 1 temporada o grupo vira card simples que mostra a série mas
 // carrega o estado daquela temporada (`isOnlySeason`), e séries sem season_list
 // caem no fallback de 1 membro (a própria série).
-// `memberFilter` (quando presente) reduz aos que batem — total (`count`) não muda.
+// `memberFilter` (quando presente) decide só se a coleção aparece e o numerador do
+// badge; a expansão continua com todas as temporadas e o total (`count`) não muda.
 export function buildSeasonGroups(
   entries: SeriesLibraryEntry[],
   memberFilter?: (member: SeasonMember) => boolean
@@ -129,18 +130,18 @@ export function buildSeasonGroups(
       : null;
     const members = single ? [single] : allMembers;
 
-    const shown = memberFilter ? members.filter(memberFilter) : members;
-    if (shown.length === 0) continue;
+    const matched = memberFilter ? members.filter(memberFilter).length : members.length;
+    if (matched === 0) continue;
 
     if (!single) lookup.set(representative.id, representative);
-    for (const m of shown) lookup.set(m.id, m);
+    for (const m of members) lookup.set(m.id, m);
 
     groups.push({
       key: `series-${entry.tmdbId}`,
       representative: single ?? representative,
-      members: shown,
+      members,
       count: members.length,
-      completedCount: shown.length,
+      completedCount: matched,
     });
   }
 

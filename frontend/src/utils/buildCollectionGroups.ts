@@ -10,8 +10,8 @@ export interface BuildGroupsConfig<T> {
   getKey: (entry: T) => string;
   compareMembers: (a: T, b: T) => number;
   reverseMembers?: boolean;
-  // Quando presente, cada coleção é reduzida aos membros que passam no filtro
-  // (recalculando capa/contagem); coleções sem nenhum membro que passa somem.
+  // Quando presente, decide só quais coleções aparecem (pelo menos um membro passa)
+  // e o numerador do badge; capa e expansão continuam sendo da coleção inteira.
   memberFilter?: (entry: T) => boolean;
 }
 
@@ -36,19 +36,16 @@ export function buildCollectionGroups<T extends { isCover?: boolean }>(
   const groups: CollectionGroup<T>[] = [];
   map.forEach((members, key) => {
     const ordered = [...members].sort(compareMembers);
-    // `shown` = subconjunto que aparece (capa/expansão) quando há filtro; sem
-    // filtro, todos. `count` é SEMPRE o total da coleção (denominador não muda);
-    // com filtro, `completedCount` (numerador) vira a quantidade que bate.
-    const shown = memberFilter ? ordered.filter(memberFilter) : ordered;
-    if (shown.length === 0) return;
+    // `count` é SEMPRE o total da coleção; `completedCount` é a quantidade que
+    // bate no filtro (ex.: 3/6), ou o total sem filtro (6/6).
+    const matched = memberFilter ? ordered.filter(memberFilter).length : ordered.length;
+    if (matched === 0) return;
     groups.push({
       key,
-      representative: pickRepresentative(shown),
-      members: reverseMembers ? [...shown].reverse() : shown,
+      representative: pickRepresentative(ordered),
+      members: reverseMembers ? [...ordered].reverse() : ordered,
       count: ordered.length,
-      // Numerador = quantidade mostrada: total quando sem filtro (ex.: 6/6),
-      // ou a quantidade que bate no filtro (ex.: 3/6).
-      completedCount: shown.length,
+      completedCount: matched,
     });
   });
 

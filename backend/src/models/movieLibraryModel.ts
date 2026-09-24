@@ -20,6 +20,7 @@ export const movieLibraryModel = createLibraryModel<MovieLibraryEntry, CreateMov
     { column: "runtime", field: "runtime", default: null },
     { column: "movie_status", field: "movieStatus", default: "RELEASED" },
     { column: "collection_id", field: "collectionId", default: null },
+    { column: "genres", field: "genres", default: null },
     { column: "is_cover", field: "isCover", default: false, readonly: true },
     { column: "synced_at", field: "syncedAt", default: null, readonly: true },
     { column: "notes", field: "notes", default: null },
@@ -42,6 +43,7 @@ function toEntry(row: MovieLibraryRow): MovieLibraryEntry {
     runtime: row.runtime,
     movieStatus: row.movie_status,
     collectionId: row.collection_id,
+    genres: row.genres,
     isCover: row.is_cover,
     syncedAt: row.synced_at,
     notes: row.notes,
@@ -65,6 +67,7 @@ export async function findStaleMovies(
      WHERE status != 'dropped'
        AND (
          synced_at IS NULL
+         OR genres IS NULL
          OR (movie_status = 'UPCOMING' AND synced_at < NOW() - ($1 || ' hours')::interval)
          OR (movie_status != 'UPCOMING' AND synced_at < NOW() - ($2 || ' hours')::interval)
        )
@@ -85,9 +88,10 @@ export async function updateMovieSyncData(tmdbId: number, data: MovieSyncData): 
          release_date = COALESCE($4, release_date),
          runtime = COALESCE($5, runtime),
          movie_status = $6,
+         genres = $7,
          synced_at = NOW()
      WHERE tmdb_id = $1`,
-    [tmdbId, data.title ?? null, data.posterImage ?? null, data.releaseDate ?? null, data.runtime ?? null, data.movieStatus]
+    [tmdbId, data.title ?? null, data.posterImage ?? null, data.releaseDate ?? null, data.runtime ?? null, data.movieStatus, data.genres]
   );
 }
 

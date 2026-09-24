@@ -1,6 +1,7 @@
 export type MovieLibraryStatus = "plan_to_watch" | "watched" | "dropped";
 
 export interface MovieLibraryEntry {
+  genres: string[] | null;
   id: string;
   tmdbId: number;
   title: string;
@@ -21,6 +22,7 @@ export interface MovieLibraryEntry {
 }
 
 export interface CreateMovieLibraryEntry {
+  genres?: string[] | null;
   tmdbId: number;
   title: string;
   posterImage?: string | null;
@@ -33,6 +35,7 @@ export interface CreateMovieLibraryEntry {
 }
 
 export interface UpdateMovieLibraryEntry {
+  genres?: string[] | null;
   title?: string;
   posterImage?: string | null;
   status?: MovieLibraryStatus;
@@ -44,6 +47,7 @@ export interface UpdateMovieLibraryEntry {
 }
 
 export interface MovieSyncData {
+  genres: string[];
   title: string;
   posterImage: string | null;
   releaseDate: string | null;
@@ -52,6 +56,7 @@ export interface MovieSyncData {
 }
 
 export interface MovieLibraryRow {
+  genres: string[] | null;
   id: string;
   tmdb_id: number;
   title: string;

@@ -22,6 +22,9 @@ const CACHE_TTL_MS = 60 * 60 * 1000;
 const CARD_FIELDS =
   "fields name, cover.image_id, first_release_date, total_rating, aggregated_rating, websites.type;";
 
+const SYNC_FIELDS =
+  "fields name, cover.image_id, first_release_date, total_rating, aggregated_rating, websites.type, genres.name;";
+
 const DETAIL_FIELDS =
   "fields name, summary, cover.image_id, screenshots.image_id, videos.video_id, videos.name, " +
   "genres.name, platforms.name, involved_companies.company.name, involved_companies.developer, " +
@@ -217,16 +220,18 @@ export async function fetchGameModes(ids: number[]): Promise<Map<number, string[
 // Dados de sync por igdbId. Uma query por lote (mesmo limite da IGDB do
 // fetchGameModes: o chamador fatia em ≤500). Jogo que sumiu da IGDB não volta
 // no Map — o chamador simplesmente não atualiza a linha.
-export async function fetchGamesSyncData(ids: number[]): Promise<Map<number, GameCard>> {
-  const result = new Map<number, GameCard>();
+export async function fetchGamesSyncData(ids: number[]): Promise<Map<number, GameCard & { genres: string[] }>> {
+  const result = new Map<number, GameCard & { genres: string[] }>();
   const unique = [...new Set(ids)];
   if (unique.length === 0) return result;
 
-  const data = await igdbQuery<IgdbGameListItem[]>(
+  const data = await igdbQuery<(IgdbGameListItem & Pick<IgdbGameDetail, "genres">)[]>(
     "games",
-    `${CARD_FIELDS} where id = (${unique.join(",")}); limit ${unique.length};`
+    `${SYNC_FIELDS} where id = (${unique.join(",")}); limit ${unique.length};`
   );
-  for (const game of data) result.set(game.id, toGameCard(game));
+  for (const game of data) {
+    result.set(game.id, { ...toGameCard(game), genres: (game.genres ?? []).map((g) => g.name) });
+  }
   return result;
 }
 

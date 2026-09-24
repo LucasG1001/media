@@ -4,6 +4,7 @@ const score = z.number().min(0).max(10).optional();
 const nullableString = z.string().nullish();
 const nullableNumber = z.number().nullish();
 const notes = z.string().max(20000).nullish();
+const genres = z.array(z.string().min(1).max(80)).max(50).optional();
 // Tag do vídeo: string não vazia. Só o YouTube usa.
 const tag = z.string().min(1).max(60);
 
@@ -16,6 +17,7 @@ export const movieCreateSchema = z.object({
   releaseDate: nullableString,
   runtime: nullableNumber,
   movieStatus: z.string().optional(),
+  genres,
 });
 export const movieUpdateSchema = movieCreateSchema.partial().extend({ notes });
 
@@ -29,6 +31,7 @@ export const seriesCreateSchema = z.object({
   seasons: nullableNumber,
   episodes: nullableNumber,
   seriesStatus: z.string().optional(),
+  genres,
 });
 export const seriesUpdateSchema = seriesCreateSchema.partial();
 
@@ -42,6 +45,7 @@ export const gameCreateSchema = z.object({
   metacritic: nullableNumber,
   gameStatus: z.string().optional(),
   gameModes: z.array(z.string()).optional(),
+  genres,
 });
 export const gameUpdateSchema = gameCreateSchema.partial().extend({ notes });
 
@@ -57,6 +61,7 @@ export const bookCreateSchema = z.object({
   publishedDate: nullableString,
   pageCount: nullableNumber,
   bookStatus: z.string().optional(),
+  genres,
 });
 export const bookUpdateSchema = bookCreateSchema.partial().extend({ notes });
 
@@ -72,6 +77,7 @@ export const animeCreateSchema = z.object({
   seasonYear: nullableNumber,
   nextAiringEpisode: z.unknown().nullish(),
   streamingLinks: z.array(z.unknown()).optional(),
+  genres,
 });
 export const animeUpdateSchema = z.object({
   title: z.string().min(1).optional(),
@@ -80,6 +86,7 @@ export const animeUpdateSchema = z.object({
   score,
   totalEpisodes: nullableNumber,
   animeStatus: z.string().optional(),
+  genres,
   notes,
 });
 

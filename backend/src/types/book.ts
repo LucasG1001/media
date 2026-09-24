@@ -131,4 +131,5 @@ export interface BookSyncResult {
   publishedDate: string | null;
   pageCount: number | null;
   bookStatus: string;
+  genres: string[];
 }

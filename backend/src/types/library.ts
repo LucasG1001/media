@@ -1,6 +1,7 @@
 import type { AniListNextAiringEpisode, AniListAiredEpisode, AniListExternalLink } from "./anime.js";
 
 export interface LibraryEntry {
+  genres: string[] | null;
   id: string;
   anilistId: number;
   title: string;
@@ -30,6 +31,7 @@ export interface LibraryEntry {
 export type LibraryStatus = "plan_to_watch" | "watched" | "dropped";
 
 export interface CreateLibraryEntry {
+  genres?: string[] | null;
   anilistId: number;
   title: string;
   coverImage?: string | null;
@@ -45,6 +47,7 @@ export interface CreateLibraryEntry {
 }
 
 export interface UpdateLibraryEntry {
+  genres?: string[] | null;
   title?: string;
   coverImage?: string | null;
   status?: LibraryStatus;
@@ -55,6 +58,7 @@ export interface UpdateLibraryEntry {
 }
 
 export interface SyncLibraryData {
+  genres: string[];
   title: string;
   coverImage: string | null;
   format: string | null;
@@ -67,6 +71,7 @@ export interface SyncLibraryData {
 }
 
 export interface LibraryRow {
+  genres: string[] | null;
   id: string;
   anilist_id: number;
   title: string;

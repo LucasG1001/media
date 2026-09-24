@@ -335,6 +335,7 @@ Colunas alimentadas por API externa. As demais (`status`, `score`, `is_cover`, `
 | `streaming_links`, `season_year`, `format` (anime) | ✅ | — | ✅ | ✅ (`COALESCE`) |
 | `season_list` (séries) | ✅ | — | ✅ | — |
 | `game_modes` | ✅ | — | — | ✅ |
+| `genres` | — | ✅ | ✅ (`genres IS NULL` entra no `findStale*`) | — |
 | `franchise_id` / `collection_id` | ✅ | — | — | ✅ (`COALESCE`) |
 | `detail_cache` / `detail_cached_at` | — | ✅ (o `GET /:id` grava) | ✅ (`backfillDetailCache`) | — |
 | `series_name` / `series_position` (livros) | — | — | — | ✅ (`COALESCE`) — `readonly` no model |
@@ -404,6 +405,12 @@ o volume real aparece na primeira execução após um deploy que mexa nas condi�
 O pico previsível é o **primeiro tick depois de adicionar coluna a um `findStale*`**: a biblioteca
 inteira fica stale de uma vez. Filmes têm teto de 100 por execução; séries e anime absorvem pelo
 fatiamento; jogos e livros resolvem em poucas consultas em lote.
+
+O `genres IS NULL` (as cinco mídias) amortece esse pico: o `migrate()` preenche `genres` a partir do
+`detail_cache` antes do primeiro tick, sem requisição, e só o que nunca teve detalhe cacheado fica
+stale. A saída é garantida porque todo sync grava array (`[]` = sem gênero). Exceção: jogo/livro que
+sumiu da API não volta no lote e segue `NULL` — revisitado a cada tick, mas dentro de uma consulta
+em lote que já aconteceria.
 
 ---
 

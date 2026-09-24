@@ -13,6 +13,7 @@ export const animeLibraryModel = createLibraryModel<LibraryEntry, CreateLibraryE
     { column: "total_episodes", field: "totalEpisodes", default: null },
     { column: "anime_status", field: "animeStatus", default: "FINISHED" },
     { column: "franchise_id", field: "franchiseId", default: null },
+    { column: "genres", field: "genres", default: null },
     { column: "format", field: "format", default: null },
     { column: "season_year", field: "seasonYear", default: null },
     { column: "next_airing_episode", field: "nextAiringEpisode", default: null },
@@ -50,6 +51,7 @@ function toLibraryEntry(row: LibraryRow): LibraryEntry {
     totalEpisodes: row.total_episodes,
     animeStatus: row.anime_status,
     franchiseId: row.franchise_id,
+    genres: row.genres,
     isCover: row.is_cover,
     format: row.format,
     seasonYear: row.season_year,
@@ -74,6 +76,7 @@ export async function findStale(nonFinishedTtlHours: number, finishedTtlHours: n
   const result = await pool.query<LibraryRow>(
     `SELECT * FROM anime_library
      WHERE synced_at IS NULL
+        OR genres IS NULL
         OR (anime_status != 'FINISHED' AND synced_at < NOW() - ($1 || ' hours')::interval)
         OR (anime_status = 'FINISHED' AND synced_at < NOW() - ($2 || ' hours')::interval)`,
     [nonFinishedTtlHours, finishedTtlHours]
@@ -122,8 +125,8 @@ export async function findAnilistIdsWithoutEndDate(): Promise<number[]> {
 export async function create(entry: CreateLibraryEntry): Promise<LibraryEntry> {
   const result = await pool.query<LibraryRow>(
     `INSERT INTO anime_library
-       (anilist_id, title, cover_image, status, score, total_episodes, anime_status, season_year, next_airing_episode, streaming_links, synced_at, watched_at, last_access_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), CASE WHEN $4 = 'watched' THEN NOW() ELSE NULL END, CASE WHEN $4 = 'watched' THEN NOW() ELSE NULL END)
+       (anilist_id, title, cover_image, status, score, total_episodes, anime_status, season_year, next_airing_episode, streaming_links, genres, synced_at, watched_at, last_access_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), CASE WHEN $4 = 'watched' THEN NOW() ELSE NULL END, CASE WHEN $4 = 'watched' THEN NOW() ELSE NULL END)
      RETURNING *`,
     [
       entry.anilistId,
@@ -136,6 +139,7 @@ export async function create(entry: CreateLibraryEntry): Promise<LibraryEntry> {
       entry.seasonYear ?? null,
       JSON.stringify(entry.nextAiringEpisode ?? null),
       JSON.stringify(entry.streamingLinks ?? []),
+      entry.genres ?? null,
     ]
   );
   return toLibraryEntry(result.rows[0]);
@@ -199,6 +203,7 @@ export async function updateSyncData(anilistId: number, data: SyncLibraryData): 
          cover_image = COALESCE(NULLIF($8, ''), cover_image),
          format = COALESCE($9, format),
          end_date = COALESCE($10, end_date),
+         genres = $11,
          synced_at = NOW()
      WHERE anilist_id = $1`,
     [
@@ -212,6 +217,7 @@ export async function updateSyncData(anilistId: number, data: SyncLibraryData): 
       data.coverImage ?? null,
       data.format ?? null,
       data.endDate ?? null,
+      data.genres,
     ]
   );
 }

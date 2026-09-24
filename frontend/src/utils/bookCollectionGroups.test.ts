@@ -78,8 +78,9 @@ describe("buildBookCollectionGroups", () => {
     expect(groups.some((g) => g.key.startsWith("single-"))).toBe(true);
   });
 
-  // O denominador do badge é sempre o total da coleção; o filtro só reduz o que aparece.
-  it("o filtro reduz members mas não o count", () => {
+  // O filtro decide só se a coleção aparece e o numerador do badge: a expansão e a
+  // capa continuam sendo da coleção inteira.
+  it("o filtro muda o numerador mas mantém members, capa e count", () => {
     const entries = [
       entry({ collectionId: 50, seriesPosition: 1, status: "read" }),
       entry({ collectionId: 50, seriesPosition: 2, status: "plan_to_read" }),
@@ -88,7 +89,8 @@ describe("buildBookCollectionGroups", () => {
     const [group] = buildBookCollectionGroups(entries, (m) => m.status === "plan_to_read");
     expect(group.count).toBe(3);
     expect(group.completedCount).toBe(2);
-    expect(group.members).toHaveLength(2);
+    expect(group.members).toHaveLength(3);
+    expect(group.representative.seriesPosition).toBe(1);
   });
 
   it("coleção sem nenhum membro casando desaparece", () => {

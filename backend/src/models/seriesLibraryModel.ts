@@ -33,6 +33,7 @@ export const seriesLibraryModel = createLibraryModel<SeriesLibraryEntry, CreateS
     { column: "season_list", field: "seasonList", default: null, readonly: true },
     { column: "season_states", field: "seasonStates", default: null, readonly: true },
     { column: "cover_season", field: "coverSeason", default: null, readonly: true },
+    { column: "genres", field: "genres", default: null },
   ],
   statusField: "status",
   completion: { column: "watched_at", field: "watchedAt", whenStatus: "watched" },
@@ -62,6 +63,7 @@ function toSeriesEntry(row: SeriesLibraryRow): SeriesLibraryEntry {
     seasonList: row.season_list,
     seasonStates: row.season_states,
     coverSeason: row.cover_season,
+    genres: row.genres,
     watchedAt: row.watched_at,
     lastAccessAt: row.last_access_at,
     createdAt: row.created_at,
@@ -79,6 +81,7 @@ export async function findStaleSeries(
        AND (
          synced_at IS NULL
          OR air_status IS NULL
+         OR genres IS NULL
          OR (next_airing_episode IS NOT NULL AND synced_at < NOW() - ($1 || ' hours')::interval)
          OR (next_airing_episode IS NULL AND synced_at < NOW() - ($2 || ' hours')::interval)
        )`,
@@ -116,6 +119,7 @@ export interface SeriesSyncData {
   nextAiringEpisode: SeriesNextAiringEpisode | null;
   lastAiredEpisode: SeriesLastAiredEpisode | null;
   seasonList: SeriesSeasonMeta[];
+  genres: string[];
 }
 
 // Título/pôster usam COALESCE(NULLIF(...)): o TMDB em pt-BR às vezes devolve
@@ -133,6 +137,7 @@ export async function updateSeriesSyncData(tmdbId: number, data: SeriesSyncData)
          series_status = $9,
          air_status = COALESCE($10, air_status),
          last_aired_episode = COALESCE($11::jsonb, last_aired_episode),
+         genres = $12,
          synced_at = NOW()
      WHERE tmdb_id = $1`,
     [
@@ -147,6 +152,7 @@ export async function updateSeriesSyncData(tmdbId: number, data: SeriesSyncData)
       data.seriesStatus,
       data.airStatus ?? null,
       data.lastAiredEpisode ? JSON.stringify(data.lastAiredEpisode) : null,
+      data.genres,
     ]
   );
 }

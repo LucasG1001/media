@@ -23,6 +23,7 @@ import { collectionNav } from "../../utils/collectionNav";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
+import { ANIME_GENRE_LABELS, buildGenreOptions, hasAllGenres, sameGenres, toggleGenre } from "../../utils/genreFacets";
 import styles from "./AnimePage.module.css";
 import { useOfflineTab } from "../../hooks/useOfflineTab";
 
@@ -49,6 +50,7 @@ export function AnimePage() {
   const [selectedAnimeForModal, setSelectedAnimeForModal] = useState<AnimeCard | null>(null);
   const [libraryFilter, setLibraryFilter] = useState<LibraryStatus[]>([]);
   const [airingFilter, setAiringFilter] = useState<string[]>([]);
+  const [genreFilter, setGenreFilter] = useState<string[]>([]);
   const [showLastAccess, setShowLastAccess] = useState(false);
   const sort = useSingleSort("release");
   const [selectedSeasonObj, setSelectedSeasonObj] = useState(getCurrentRealSeason());
@@ -131,7 +133,8 @@ export function AnimePage() {
         entry.animeStatus !== animeDetail.status ||
         entry.totalEpisodes !== animeEpisodes ||
         entry.title !== animeDetail.title ||
-        entry.coverImage !== animeDetail.coverImage;
+        entry.coverImage !== animeDetail.coverImage ||
+        !sameGenres(entry.genres, animeDetail.genres);
 
       if (needsUpdate) {
         updateEntry(entry.id, {
@@ -139,6 +142,7 @@ export function AnimePage() {
           coverImage: animeDetail.coverImage,
           totalEpisodes: animeEpisodes,
           animeStatus: animeDetail.status,
+          genres: animeDetail.genres,
         });
       }
     }
@@ -154,13 +158,20 @@ export function AnimePage() {
       prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]
     );
 
-  const franchiseGroups = useMemo(() => {
-    const hasFilter = libraryFilter.length > 0 || airingFilter.length > 0;
+  const { franchiseGroups, genreOptions } = useMemo(() => {
+    const hasFilter = libraryFilter.length > 0 || airingFilter.length > 0 || genreFilter.length > 0;
+    const matchesOthers = (m: LibraryEntry) =>
+      (libraryFilter.length === 0 || libraryFilter.includes(m.status as LibraryStatus)) &&
+      (airingFilter.length === 0 || (m.animeStatus != null && airingFilter.includes(m.animeStatus)));
     const memberFilter = hasFilter
-      ? (m: LibraryEntry) =>
-          (libraryFilter.length === 0 || libraryFilter.includes(m.status as LibraryStatus)) &&
-          (airingFilter.length === 0 || (m.animeStatus != null && airingFilter.includes(m.animeStatus)))
+      ? (m: LibraryEntry) => matchesOthers(m) && hasAllGenres(m.genres, genreFilter)
       : undefined;
+    const genreOptions = buildGenreOptions(
+      libraryEntries.filter(matchesOthers),
+      genreFilter,
+      (m) => m.genres,
+      ANIME_GENRE_LABELS
+    );
     let groups = buildFranchiseGroups(libraryEntries, memberFilter);
     if (!hasFilter) {
       groups = groups.filter((g) => g.members.some((m) => m.status !== "dropped"));
@@ -171,12 +182,12 @@ export function AnimePage() {
         : sort.field === "score"
         ? sortGroupsByAvgScore(groups, sort.dir)
         : sortGroupsByMemberDate(groups, seasonYearOf, sort.dir);
-    return filterGroupsBySearch(groups, librarySearch);
-  }, [libraryEntries, libraryFilter, airingFilter, sort.field, sort.dir, librarySearch]);
+    return { franchiseGroups: filterGroupsBySearch(groups, librarySearch), genreOptions };
+  }, [libraryEntries, libraryFilter, airingFilter, genreFilter, sort.field, sort.dir, librarySearch]);
 
   const gridKey =
     activeTab === "library"
-      ? `library-${libraryFilter.join(",")}-${airingFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
+      ? `library-${libraryFilter.join(",")}-${airingFilter.join(",")}-${genreFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
       : activeTab === "seasons"
       ? `seasons-${selectedSeasonObj.season}-${selectedSeasonObj.year}`
       : activeTab === "search"
@@ -268,10 +279,18 @@ export function AnimePage() {
               selected: airingFilter,
               onToggle: toggleAiringFilter,
             },
+            {
+              key: "genres",
+              title: "Gêneros",
+              options: genreOptions,
+              selected: genreFilter,
+              onToggle: (v) => setGenreFilter((prev) => toggleGenre(prev, v)),
+            },
           ]}
           onClearFilters={() => {
             setLibraryFilter([]);
             setAiringFilter([]);
+            setGenreFilter([]);
           }}
           sort={{
             active: sort.field,

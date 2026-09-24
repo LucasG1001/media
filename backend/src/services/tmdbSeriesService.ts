@@ -158,6 +158,7 @@ export interface SeriesSyncResult {
   nextAiringEpisode: { episode: number; airingAt: number; season: number } | null;
   lastAiredEpisode: { season: number; episode: number; airDate: string } | null;
   seasonList: SeasonMeta[];
+  genres: string[];
 }
 
 export async function fetchSeriesSyncData(id: number): Promise<SeriesSyncResult> {
@@ -187,5 +188,6 @@ export async function fetchSeriesSyncData(id: number): Promise<SeriesSyncResult>
     nextAiringEpisode,
     lastAiredEpisode,
     seasonList: toSeasonList(data),
+    genres: (data.genres ?? []).map((g) => g.name),
   };
 }

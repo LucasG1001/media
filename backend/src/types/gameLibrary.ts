@@ -1,6 +1,7 @@
 export type GameLibraryStatus = "plan_to_play" | "beaten" | "dropped";
 
 export interface GameLibraryEntry {
+  genres: string[] | null;
   id: string;
   igdbId: number;
   title: string;
@@ -22,6 +23,7 @@ export interface GameLibraryEntry {
 }
 
 export interface CreateGameLibraryEntry {
+  genres?: string[] | null;
   igdbId: number;
   title: string;
   backgroundImage?: string | null;
@@ -35,6 +37,7 @@ export interface CreateGameLibraryEntry {
 }
 
 export interface UpdateGameLibraryEntry {
+  genres?: string[] | null;
   title?: string;
   backgroundImage?: string | null;
   status?: GameLibraryStatus;
@@ -46,6 +49,7 @@ export interface UpdateGameLibraryEntry {
 }
 
 export interface GameSyncData {
+  genres: string[];
   title: string;
   backgroundImage: string | null;
   released: string | null;
@@ -54,6 +58,7 @@ export interface GameSyncData {
 }
 
 export interface GameLibraryRow {
+  genres: string[] | null;
   id: string;
   igdb_id: number;
   title: string;
