@@ -52,7 +52,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <div className={styles.logoIcon}>
           <LogoIcon className={styles.logoMark} />
         </div>
-        <span className={styles.logoText}>Media Tracker</span>
+        <span className={styles.logoText}>Media</span>
         <button
           type="button"
           className={styles.toggle}
