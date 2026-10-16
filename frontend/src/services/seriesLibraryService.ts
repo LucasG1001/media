@@ -38,20 +38,6 @@ export async function saveSeason(
   return response.data;
 }
 
-// "Assisti de novo" da temporada: só a data de último acesso avança. A série tem
-// o seu próprio (registerAccess), usado pelo fallback de série sem temporadas.
-export async function registerSeasonAccess(id: string, seasonNumber: number): Promise<SeriesLibraryEntry> {
-  const response = await api.post<SeriesLibraryEntry>(
-    `/api/series-library/${id}/seasons/${seasonNumber}/access`
-  );
-  return response.data;
-}
-
-export async function registerAccess(id: string): Promise<SeriesLibraryEntry> {
-  const response = await api.post<SeriesLibraryEntry>(`/api/series-library/${id}/access`);
-  return response.data;
-}
-
 export async function saveSeasonNotes(
   id: string,
   seasonNumber: number,

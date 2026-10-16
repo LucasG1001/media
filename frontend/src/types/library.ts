@@ -6,7 +6,7 @@ export interface AnimeAiredEpisode {
   airingAt: number;
 }
 
-export type LibraryStatus = "plan_to_watch" | "watched" | "dropped";
+export type LibraryStatus = "plan_to_watch" | "watched" | "rewatching" | "dropped";
 
 export interface LibraryEntry {
   genres?: string[] | null;
@@ -65,5 +65,6 @@ export interface UpdateLibraryEntry {
 export const LIBRARY_STATUS_LABELS: Record<LibraryStatus, string> = {
   plan_to_watch: "Planejo Assistir",
   watched: "Assistido",
+  rewatching: "Reassistindo",
   dropped: "Abandonado",
 };

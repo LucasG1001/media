@@ -1,0 +1,28 @@
+# Banco de desenvolvimento local, isolado da produção.
+# Só o Postgres roda em container: backend e frontend seguem nativos (npm run dev),
+# porque bind mount no Windows deixa o tsx watch e o HMR do Vite lentos e instáveis.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#   scripts/dev-seed.sh <arquivo.dump>      # opcional: carrega dados reais
+name: media-tracker-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: media
+      POSTGRES_PASSWORD: media
+      POSTGRES_DB: media_tracker
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U media -d media_tracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_dev:

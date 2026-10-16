@@ -1,5 +1,6 @@
 import { pool } from "../database/connection.js";
 import { createLibraryModel } from "../lib/createLibraryModel.js";
+import { completedOnInsertSql } from "../lib/completionSql.js";
 import type {
   MovieLibraryEntry,
   CreateMovieLibraryEntry,
@@ -26,7 +27,7 @@ export const movieLibraryModel = createLibraryModel<MovieLibraryEntry, CreateMov
     { column: "notes", field: "notes", default: null },
   ],
   statusField: "status",
-  completion: { column: "watched_at", field: "watchedAt", whenStatus: "watched" },
+  completion: { column: "watched_at", field: "watchedAt", whenStatus: "watched", rewatchStatus: "rewatching" },
   lastAccess: { column: "last_access_at", field: "lastAccessAt" },
   collectionColumn: "collection_id",
 });
@@ -104,8 +105,9 @@ export async function bulkUpsertMovies(entries: CreateMovieLibraryEntry[], colle
 
   for (const entry of entries) {
     const statusParam = `$${i + 3}`;
+    const completedCase = completedOnInsertSql(statusParam, "watched");
     rows.push(
-      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, CASE WHEN ${statusParam} = 'watched' THEN NOW() ELSE NULL END, CASE WHEN ${statusParam} = 'watched' THEN NOW() ELSE NULL END)`
+      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, ${completedCase}, ${completedCase})`
     );
     values.push(
       entry.tmdbId,

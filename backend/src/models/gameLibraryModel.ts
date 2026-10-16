@@ -1,5 +1,6 @@
 import { pool } from "../database/connection.js";
 import { createLibraryModel } from "../lib/createLibraryModel.js";
+import { completedOnInsertSql } from "../lib/completionSql.js";
 import type {
   GameLibraryEntry,
   CreateGameLibraryEntry,
@@ -27,7 +28,7 @@ export const gameLibraryModel = createLibraryModel<GameLibraryEntry, CreateGameL
     { column: "notes", field: "notes", default: null },
   ],
   statusField: "status",
-  completion: { column: "finished_at", field: "finishedAt", whenStatus: "beaten" },
+  completion: { column: "finished_at", field: "finishedAt", whenStatus: "beaten", rewatchStatus: "replaying" },
   lastAccess: { column: "last_access_at", field: "lastAccessAt" },
   collectionColumn: "collection_id",
 });
@@ -65,8 +66,9 @@ export async function bulkUpsertGames(entries: CreateGameLibraryEntry[], collect
 
   for (const entry of entries) {
     const statusParam = `$${i + 3}`;
+    const completedCase = completedOnInsertSql(statusParam, "beaten");
     rows.push(
-      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, CASE WHEN ${statusParam} = 'beaten' THEN NOW() ELSE NULL END, CASE WHEN ${statusParam} = 'beaten' THEN NOW() ELSE NULL END)`
+      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, ${completedCase}, ${completedCase})`
     );
     values.push(
       entry.igdbId,

@@ -15,6 +15,7 @@ import { ReleaseCarousel } from "../../components/ReleaseCarousel/ReleaseCarouse
 import { AnimeIcon, MovieIcon, SeriesIcon, BookIcon, GameIcon } from "../../components/Sidebar/Sidebar.icons";
 import { buildAgenda, splitAgenda, groupByDay, groupByMonth, type AgendaItem, type AgendaGroup } from "../../utils/agenda";
 import { buildRecentReleases, buildRecentEpisodes, type ReleaseItem } from "../../utils/recentReleases";
+import { seriesHasStatus } from "../../utils/seriesStatus";
 import styles from "./DashboardPage.module.css";
 
 const MEDIA_ICON: Record<AgendaItem["media"], typeof AnimeIcon> = {
@@ -70,35 +71,35 @@ export function DashboardPage() {
     {
       label: "Anime", path: "/anime", icon: AnimeIcon, color: "var(--color-media-anime)",
       completed: countByStatus(animes, "watched"),
-      inProgress: null,
+      inProgress: countByStatus(animes, "rewatching"),
       backlog: countByStatus(animes, "plan_to_watch"),
       thisYear: countThisYear(animes, (e) => e.watchedAt),
     },
     {
       label: "Filmes", path: "/filmes", icon: MovieIcon, color: "var(--color-media-movie)",
       completed: countByStatus(movies, "watched"),
-      inProgress: null,
+      inProgress: countByStatus(movies, "rewatching"),
       backlog: countByStatus(movies, "plan_to_watch"),
       thisYear: countThisYear(movies, (e) => e.watchedAt),
     },
     {
       label: "Séries", path: "/series", icon: SeriesIcon, color: "var(--color-media-series)",
       completed: countByStatus(series, "watched"),
-      inProgress: null,
+      inProgress: series.filter((entry) => seriesHasStatus(entry, "rewatching")).length,
       backlog: countByStatus(series, "plan_to_watch"),
       thisYear: countThisYear(series, (e) => e.watchedAt),
     },
     {
       label: "Livros", path: "/livros", icon: BookIcon, color: "var(--color-media-book)",
       completed: countByStatus(books, "read"),
-      inProgress: null,
+      inProgress: countByStatus(books, "rereading"),
       backlog: countByStatus(books, "plan_to_read"),
       thisYear: countThisYear(books, (e) => e.readAt),
     },
     {
       label: "Jogos", path: "/jogos", icon: GameIcon, color: "var(--color-media-game)",
       completed: countByStatus(games, "beaten"),
-      inProgress: null,
+      inProgress: countByStatus(games, "replaying"),
       backlog: countByStatus(games, "plan_to_play"),
       thisYear: countThisYear(games, (e) => e.finishedAt),
     },

@@ -418,8 +418,8 @@ export async function migrate(): Promise<void> {
      WHERE last_access_at IS NULL AND finished_at IS NOT NULL;
   `);
 
-  // Reassistindo/rejogando deixou de existir: marcar como concluído é tudo, e
-  // rever de novo é o `touchAccess` (só a data de último acesso avança).
+  // A flag `is_rewatching` foi trocada pelo status de revisita (rewatching/
+  // replaying/rereading), que vive na própria coluna `status`.
   await pool.query(`ALTER TABLE anime_library   DROP COLUMN IF EXISTS is_rewatching;`);
   await pool.query(`ALTER TABLE movie_library   DROP COLUMN IF EXISTS is_rewatching;`);
   await pool.query(`ALTER TABLE series_library  DROP COLUMN IF EXISTS is_rewatching;`);

@@ -10,14 +10,6 @@ interface LastAccessConfig {
   at: string | null;
 }
 
-// "Assisti/joguei de novo": só faz sentido em item que JÁ estava concluído — é o
-// único jeito de a data de último acesso avançar sem transição de status.
-interface AgainConfig {
-  label: string;
-  whenStatus: string;
-  onClick: () => void;
-}
-
 interface LibraryModalBaseProps {
   title: string;
   coverImage: string | null;
@@ -30,7 +22,6 @@ interface LibraryModalBaseProps {
   isCover?: boolean;
   hideScore?: boolean;
   lastAccess?: LastAccessConfig;
-  again?: AgainConfig;
   onSetCover?: () => void;
   onClose: () => void;
   onSave: (data: { status: string; score: number }) => void;
@@ -51,7 +42,6 @@ export function LibraryModalBase({
   isCover = false,
   hideScore = false,
   lastAccess,
-  again,
   onSetCover,
   onClose,
   onSave,
@@ -61,10 +51,6 @@ export function LibraryModalBase({
   const offlineHint = online ? undefined : OFFLINE_HINT;
   const [status, setStatus] = useState(initialStatus);
   const [score, setScore] = useState(initialScore);
-  // Vale o status SALVO, não o do seletor: trocando o seletor para concluído sem
-  // salvar, quem grava a data é o próprio Salvar (é transição). Item que não está
-  // na biblioteca cai fora sozinho — o status inicial dele é o de "planejo".
-  const showAgain = again != null && initialStatus === again.whenStatus;
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") onClose();
@@ -129,18 +115,6 @@ export function LibraryModalBase({
               <span className={styles.controlLabel}>{lastAccess.label}</span>
               <span className={styles.lastAccessValue}>{formatLastAccess(lastAccess.at)}</span>
             </div>
-          )}
-
-          {showAgain && (
-            <button
-              type="button"
-              className={styles.againButton}
-              onClick={again.onClick}
-              disabled={!online}
-              title={offlineHint}
-            >
-              {again.label}
-            </button>
           )}
 
           <div className={styles.actionButtons}>

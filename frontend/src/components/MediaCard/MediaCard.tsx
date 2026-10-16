@@ -38,8 +38,7 @@ const ACCESS_TONE_CLASS: Record<LastAccessTone, string> = {
   ancient: styles.accessAncient,
 };
 
-// Só aparece com o botão "Último acesso" ligado — por padrão o card não carrega
-// esse texto. Na capa de coleção o valor é o mais recente entre os membros.
+// Na capa de coleção o valor é o mais recente entre os membros.
 function LastAccessPill({ at }: { at: string | null }) {
   return (
     <span
@@ -66,8 +65,6 @@ interface MediaCardProps<T, E extends { status: string; score: number; lastAcces
   // exibição/lançamento — esse estado é dos membros, não da coleção; o lugar
   // deles no topo fica para a contagem do FranchiseCard.
   isCollectionCover?: boolean;
-  // Botão "Último acesso" da barra da biblioteca: revela a data em todos os cards.
-  showLastAccess?: boolean;
   index?: number;
   selectionMode?: boolean;
   selected?: boolean;
@@ -83,7 +80,6 @@ export function MediaCard<T, E extends { status: string; score: number; lastAcce
   onAdd,
   isLibraryView,
   isCollectionCover = false,
-  showLastAccess = false,
   index = 0,
   selectionMode = false,
   selected = false,
@@ -96,7 +92,7 @@ export function MediaCard<T, E extends { status: string; score: number; lastAcce
   const score = config.getScore?.(item) ?? null;
   // Só na biblioteca: no catálogo não existe entry e a data não faz sentido.
   const accessPill =
-    showLastAccess && isLibraryView && libraryEntry ? (
+    isLibraryView && libraryEntry ? (
       <LastAccessPill at={libraryEntry.lastAccessAt ?? null} />
     ) : null;
 

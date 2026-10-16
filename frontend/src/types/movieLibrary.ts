@@ -1,4 +1,4 @@
-export type MovieLibraryStatus = "plan_to_watch" | "watched" | "dropped";
+export type MovieLibraryStatus = "plan_to_watch" | "watched" | "rewatching" | "dropped";
 
 export interface MovieLibraryEntry {
   genres?: string[] | null;
@@ -48,5 +48,6 @@ export interface UpdateMovieLibraryEntry {
 export const MOVIE_LIBRARY_STATUS_LABELS: Record<MovieLibraryStatus, string> = {
   plan_to_watch: "Planejo Assistir",
   watched: "Assistido",
+  rewatching: "Reassistindo",
   dropped: "Abandonado",
 };

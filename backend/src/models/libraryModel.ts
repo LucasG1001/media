@@ -1,5 +1,6 @@
 import { pool } from "../database/connection.js";
 import { createLibraryModel } from "../lib/createLibraryModel.js";
+import { completedOnInsertSql } from "../lib/completionSql.js";
 import type { LibraryEntry, LibraryRow, CreateLibraryEntry, UpdateLibraryEntry, SyncLibraryData } from "../types/library.js";
 
 export const animeLibraryModel = createLibraryModel<LibraryEntry, CreateLibraryEntry, UpdateLibraryEntry>({
@@ -25,7 +26,7 @@ export const animeLibraryModel = createLibraryModel<LibraryEntry, CreateLibraryE
     { column: "notes", field: "notes", default: null },
   ],
   statusField: "status",
-  completion: { column: "watched_at", field: "watchedAt", whenStatus: "watched" },
+  completion: { column: "watched_at", field: "watchedAt", whenStatus: "watched", rewatchStatus: "rewatching" },
   lastAccess: { column: "last_access_at", field: "lastAccessAt" },
   collectionColumn: "franchise_id",
 });
@@ -126,7 +127,7 @@ export async function create(entry: CreateLibraryEntry): Promise<LibraryEntry> {
   const result = await pool.query<LibraryRow>(
     `INSERT INTO anime_library
        (anilist_id, title, cover_image, status, score, total_episodes, anime_status, season_year, next_airing_episode, streaming_links, genres, synced_at, watched_at, last_access_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), CASE WHEN $4 = 'watched' THEN NOW() ELSE NULL END, CASE WHEN $4 = 'watched' THEN NOW() ELSE NULL END)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), ${completedOnInsertSql("$4", "watched")}, ${completedOnInsertSql("$4", "watched")})
      RETURNING *`,
     [
       entry.anilistId,
@@ -154,8 +155,9 @@ export async function bulkUpsert(entries: CreateLibraryEntry[], franchiseId: num
 
   for (const entry of entries) {
     const statusParam = `$${i + 3}`;
+    const completedCase = completedOnInsertSql(statusParam, "watched");
     rows.push(
-      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, $${i + 10}, $${i + 11}, $${i + 12}, NOW(), CASE WHEN ${statusParam} = 'watched' THEN NOW() ELSE NULL END, CASE WHEN ${statusParam} = 'watched' THEN NOW() ELSE NULL END)`
+      `($${i}, $${i + 1}, $${i + 2}, ${statusParam}, $${i + 4}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, $${i + 10}, $${i + 11}, $${i + 12}, NOW(), ${completedCase}, ${completedCase})`
     );
     values.push(
       entry.anilistId,

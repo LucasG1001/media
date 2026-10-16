@@ -177,6 +177,11 @@ describe("buildRecentReleases", () => {
     expect(build({ games: [game({ status: "dropped" })] })).toEqual([]);
   });
 
+  it("ignora item em revisita, que ja foi consumido uma vez", () => {
+    expect(build({ games: [game({ status: "replaying" })] })).toEqual([]);
+    expect(build({ movies: [movie({ status: "rewatching" })] })).toEqual([]);
+  });
+
   it("ignora anime que ainda esta lancando", () => {
     expect(build({ animes: [anime({ animeStatus: "RELEASING" })] })).toEqual([]);
   });

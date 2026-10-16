@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { movieCreateSchema, gameCreateSchema, bookCreateSchema, animeCreateSchema } from "./library.js";
+import {
+  movieCreateSchema,
+  gameCreateSchema,
+  bookCreateSchema,
+  animeCreateSchema,
+  seriesUpdateSchema,
+} from "./library.js";
 
 describe("library schemas", () => {
   it("accepts a valid movie payload", () => {
@@ -27,5 +33,18 @@ describe("library schemas", () => {
       streamingLinks: [{ url: "u" }],
     });
     expect(result.success).toBe(true);
+  });
+
+  it("accepts the rewatch status of each media", () => {
+    expect(animeCreateSchema.safeParse({ anilistId: 1, title: "X", status: "rewatching" }).success).toBe(true);
+    expect(movieCreateSchema.safeParse({ tmdbId: 1, title: "X", status: "rewatching" }).success).toBe(true);
+    expect(seriesUpdateSchema.safeParse({ status: "rewatching" }).success).toBe(true);
+    expect(gameCreateSchema.safeParse({ igdbId: 1, title: "X", status: "replaying" }).success).toBe(true);
+    expect(bookCreateSchema.safeParse({ hardcoverId: 1, title: "X", status: "rereading" }).success).toBe(true);
+  });
+
+  it("does not accept another media's rewatch status", () => {
+    expect(gameCreateSchema.safeParse({ igdbId: 1, title: "X", status: "rewatching" }).success).toBe(false);
+    expect(bookCreateSchema.safeParse({ hardcoverId: 1, title: "X", status: "replaying" }).success).toBe(false);
   });
 });

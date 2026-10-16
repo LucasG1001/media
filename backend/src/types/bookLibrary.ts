@@ -1,4 +1,4 @@
-export type BookLibraryStatus = "plan_to_read" | "read" | "dropped";
+export type BookLibraryStatus = "plan_to_read" | "read" | "rereading" | "dropped";
 
 export interface BookLibraryEntry {
   genres: string[] | null;

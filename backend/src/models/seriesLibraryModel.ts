@@ -1,5 +1,6 @@
 import { pool } from "../database/connection.js";
 import { createLibraryModel } from "../lib/createLibraryModel.js";
+import { mergeSeasonState } from "../lib/seasonState.js";
 import type {
   SeriesLibraryEntry,
   CreateSeriesLibraryEntry,
@@ -36,7 +37,7 @@ export const seriesLibraryModel = createLibraryModel<SeriesLibraryEntry, CreateS
     { column: "genres", field: "genres", default: null },
   ],
   statusField: "status",
-  completion: { column: "watched_at", field: "watchedAt", whenStatus: "watched" },
+  completion: { column: "watched_at", field: "watchedAt", whenStatus: "watched", rewatchStatus: "rewatching" },
   // A série tem a coluna, mas o último acesso que interessa é o da temporada
   // (dentro de season_states). A coluna só é gravada pelo fallback de série sem
   // season_list, que salva pelo update genérico.
@@ -211,17 +212,8 @@ export async function setSeasonState(
   if (!row) return null;
 
   const states: Record<string, SeriesSeasonState> = { ...(row.season_states ?? {}) };
-  const previous = states[String(seasonNumber)];
-  // Merge, não substituição: o modal só manda status/nota e não pode apagar a
-  // anotação nem o último acesso da temporada, gravados por outros caminhos.
-  states[String(seasonNumber)] = { ...previous, ...state };
-
-  // Mesma regra do CASE de last_access_at nas outras mídias: só a transição para
-  // assistido conta. Ajustar só a nota não conta, sair do assistido não limpa, e
-  // rever uma temporada já assistida é o touchSeasonAccess.
-  if (state.status === "watched" && previous?.status !== "watched") {
-    states[String(seasonNumber)].lastAccessAt = new Date().toISOString();
-  }
+  const key = String(seasonNumber);
+  states[key] = mergeSeasonState(states[key], state, new Date());
 
   const nextScore = averageOfStates(states);
 
@@ -240,28 +232,6 @@ export async function setSeasonState(
 // Estado padrão de temporada ainda não avaliada — o mesmo que o frontend já
 // exibe, para que anotar não mude nada visível na temporada.
 const DEFAULT_SEASON_STATE: SeriesSeasonState = { status: "plan_to_watch", score: 0 };
-
-// "Assisti de novo" da temporada: só a data avança (status e nota ficam como
-// estão). Mesmo motivo do touchAccess das outras mídias — marcar como assistida
-// algo já assistido não é transição.
-export async function touchSeasonAccess(
-  id: string,
-  seasonNumber: number
-): Promise<SeriesLibraryEntry | null> {
-  const current = await pool.query<SeriesLibraryRow>(`SELECT * FROM series_library WHERE id = $1`, [id]);
-  const row = current.rows[0];
-  if (!row) return null;
-
-  const states: Record<string, SeriesSeasonState> = { ...(row.season_states ?? {}) };
-  const key = String(seasonNumber);
-  states[key] = { ...DEFAULT_SEASON_STATE, ...states[key], lastAccessAt: new Date().toISOString() };
-
-  const result = await pool.query<SeriesLibraryRow>(
-    `UPDATE series_library SET season_states = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
-    [id, JSON.stringify(states)]
-  );
-  return result.rows[0] ? toSeriesEntry(result.rows[0]) : null;
-}
 
 // Não recalcula `score`: anotação não é nota.
 export async function setSeasonNotes(

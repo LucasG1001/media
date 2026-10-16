@@ -32,6 +32,10 @@ function catalogStatusColor(status: string | undefined): string {
     case "read":
     case "beaten":
       return "var(--color-success)";
+    case "rewatching":
+    case "rereading":
+    case "replaying":
+      return "var(--color-info)";
     case "dropped":
       return "var(--color-error)";
     default:

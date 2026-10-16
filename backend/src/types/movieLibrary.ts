@@ -1,4 +1,4 @@
-export type MovieLibraryStatus = "plan_to_watch" | "watched" | "dropped";
+export type MovieLibraryStatus = "plan_to_watch" | "watched" | "rewatching" | "dropped";
 
 export interface MovieLibraryEntry {
   genres: string[] | null;

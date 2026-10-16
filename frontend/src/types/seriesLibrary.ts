@@ -1,4 +1,4 @@
-export type SeriesLibraryStatus = "plan_to_watch" | "watched" | "dropped";
+export type SeriesLibraryStatus = "plan_to_watch" | "watched" | "rewatching" | "dropped";
 
 export interface SeriesNextAiringEpisode {
   episode: number;
@@ -85,5 +85,6 @@ export interface UpdateSeriesLibraryEntry {
 export const SERIES_LIBRARY_STATUS_LABELS: Record<SeriesLibraryStatus, string> = {
   plan_to_watch: "Planejo Assistir",
   watched: "Assistido",
+  rewatching: "Reassistindo",
   dropped: "Abandonado",
 };

@@ -10,10 +10,9 @@ interface BookLibraryModalProps {
   onSave: (book: BookCard, data: { status: BookLibraryStatus; score: number }) => void;
   onRemove: (id: string) => void;
   onSetCover: (id: string) => void;
-  onAccessAgain: (id: string) => void;
 }
 
-export function BookLibraryModal({ book, libraryEntry, onClose, onSave, onRemove, onSetCover, onAccessAgain }: BookLibraryModalProps) {
+export function BookLibraryModal({ book, libraryEntry, onClose, onSave, onRemove, onSetCover }: BookLibraryModalProps) {
   return (
     <LibraryModalBase
       title={book.title}
@@ -26,7 +25,6 @@ export function BookLibraryModal({ book, libraryEntry, onClose, onSave, onRemove
       canSetCover={!!libraryEntry && libraryEntry.collectionId != null}
       isCover={libraryEntry?.isCover ?? false}
       lastAccess={{ label: "Última vez lido", at: libraryEntry?.lastAccessAt ?? null }}
-      again={{ label: "🔁 Li de novo", whenStatus: "read", onClick: () => libraryEntry && onAccessAgain(libraryEntry.id) }}
       onSetCover={() => libraryEntry && onSetCover(libraryEntry.id)}
       onClose={onClose}
       onSave={(data) => onSave(book, { status: data.status as BookLibraryStatus, score: data.score })}

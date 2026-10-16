@@ -1,4 +1,4 @@
-export type GameLibraryStatus = "plan_to_play" | "beaten" | "dropped";
+export type GameLibraryStatus = "plan_to_play" | "beaten" | "replaying" | "dropped";
 
 export interface GameLibraryEntry {
   genres?: string[] | null;
@@ -60,5 +60,6 @@ export interface UpdateGameLibraryEntry {
 export const GAME_LIBRARY_STATUS_LABELS: Record<GameLibraryStatus, string> = {
   plan_to_play: "Pretendo Jogar",
   beaten: "Zerado",
+  replaying: "Rejogando",
   dropped: "Abandonado",
 };

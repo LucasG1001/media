@@ -82,16 +82,6 @@
   color: var(--color-accent);
 }
 
-.iconToggle {
-  flex-shrink: 0;
-}
-
-.toggleOn {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-  background: var(--color-accent-subtle);
-}
-
 /* ---- result count ---- */
 
 .count {
@@ -324,17 +314,6 @@
 
   .control {
     order: 2;
-  }
-
-  /* Sem `order` o botão caía antes da busca (que ocupa 100%) e ficava sozinho numa
-     linha. Aqui ele entra na mesma linha dos popóvers, só com o ícone. */
-  .iconToggle {
-    order: 2;
-    padding: 8px 12px;
-  }
-
-  .iconToggle .toggleLabel {
-    display: none;
   }
 
   .count {

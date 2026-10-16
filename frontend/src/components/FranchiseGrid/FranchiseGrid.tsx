@@ -29,8 +29,6 @@ interface FranchiseGridProps<
   emptyHint?: string;
   expandTitle: string;
   coverIsCollectionOnly?: boolean;
-  // Botão "Último acesso" da barra: revela a data em todos os cards e capas.
-  showLastAccess?: boolean;
   animationKey?: string;
   getCollectionKey?: (entry: E) => number | null | undefined;
   onFormGroup?: (ids: string[], name: string) => void | Promise<unknown>;
@@ -70,7 +68,6 @@ export function FranchiseGrid<
   emptyHint = "Adicione itens para começar!",
   expandTitle,
   coverIsCollectionOnly,
-  showLastAccess,
   animationKey,
   getCollectionKey,
   onFormGroup,
@@ -194,7 +191,6 @@ export function FranchiseGrid<
             onClick={() => onCardClick(card)}
             onAdd={() => onAddToLibrary(card)}
             isLibraryView
-            showLastAccess={showLastAccess}
             index={index}
             selectionMode={selectionActive}
             selected={selectedIds.has(repId)}
@@ -220,7 +216,6 @@ export function FranchiseGrid<
             onClick={() => onCardClick(card)}
             onAdd={() => onAddToLibrary(card)}
             isLibraryView
-            showLastAccess={showLastAccess}
             index={memberIndex}
             selectionMode={selectionActive}
             selected={selectedIds.has(member.id)}
@@ -245,7 +240,6 @@ export function FranchiseGrid<
           entryToCard={entryToCard}
           expandTitle={expandTitle}
           coverIsCollectionOnly={coverIsCollectionOnly}
-          showLastAccess={showLastAccess}
           selectionMode={selectionActive}
           selected={memberIds.length > 0 && memberIds.every((id) => selectedIds.has(id))}
           onLongPress={selectionEnabled ? () => toggleIds(memberIds) : undefined}

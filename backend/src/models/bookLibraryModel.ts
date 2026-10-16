@@ -1,5 +1,6 @@
 import { pool } from "../database/connection.js";
 import { createLibraryModel } from "../lib/createLibraryModel.js";
+import { completedOnInsertSql } from "../lib/completionSql.js";
 import type {
   BookLibraryEntry,
   CreateBookLibraryEntry,
@@ -33,7 +34,7 @@ export const bookLibraryModel = createLibraryModel<BookLibraryEntry, CreateBookL
     { column: "notes", field: "notes", default: null },
   ],
   statusField: "status",
-  completion: { column: "read_at", field: "readAt", whenStatus: "read" },
+  completion: { column: "read_at", field: "readAt", whenStatus: "read", rewatchStatus: "rereading" },
   lastAccess: { column: "last_access_at", field: "lastAccessAt" },
   collectionColumn: "collection_id",
 });
@@ -116,7 +117,7 @@ export async function bulkUpsertBooks(
 
   for (const entry of entries) {
     const statusParam = `$${i + 4}`;
-    const completedCase = `CASE WHEN ${statusParam} = 'read' THEN NOW() ELSE NULL END`;
+    const completedCase = completedOnInsertSql(statusParam, "read");
     rows.push(
       `($${i}, $${i + 1}, $${i + 2}, $${i + 3}, ${statusParam}, $${i + 5}, $${i + 6}, $${i + 7}, $${i + 8}, $${i + 9}, $${i + 10}, $${i + 11}, ${completedCase}, ${completedCase})`
     );

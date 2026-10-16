@@ -12,6 +12,12 @@ O Dashboard **agrega no cliente**, sobre as 5 bibliotecas que os stores já carr
 endpoint próprio). `utils/agenda.ts` cobre o que **vai** lançar; `utils/recentReleases.ts` cobre o
 que **já** saiu, em dois carrosséis (`ReleaseCarousel`).
 
+Os contadores por mídia mostram concluídos, "N em andamento" e "N na pilha". **Em andamento** é o
+status de revisita (`rewatching`/`replaying`/`rereading`); em séries conta a série com **alguma
+temporada** em revisita (`utils/seriesStatus.ts`, que cai no status da linha sem `season_list`).
+Revisita não entra em "Finalizados recentemente" (já foi consumido uma vez), mas segue em
+"Episódios recentes".
+
 ## 2. Os dois carrosséis
 
 - **Finalizados recentemente** (`buildRecentReleases`, todas as mídias) — fila de "já dá para

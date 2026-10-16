@@ -31,7 +31,6 @@ interface FranchiseCardProps<
   // expande/recolhe em vez de abrir o detalhe do representante (que segue
   // acessível como membro da expansão).
   coverIsCollectionOnly?: boolean;
-  showLastAccess?: boolean;
   selectionMode?: boolean;
   selected?: boolean;
   onLongPress?: () => void;
@@ -57,7 +56,6 @@ export function FranchiseCard<
   entryToCard,
   expandTitle,
   coverIsCollectionOnly,
-  showLastAccess,
   selectionMode,
   selected,
   onLongPress,
@@ -150,7 +148,6 @@ export function FranchiseCard<
         onAdd={() => onAddToLibrary(card)}
         isLibraryView
         isCollectionCover={coverIsCollectionOnly}
-        showLastAccess={showLastAccess}
         index={index}
         selectionMode={selectionMode}
         selected={selected}

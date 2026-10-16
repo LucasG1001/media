@@ -1,4 +1,4 @@
-export type GameLibraryStatus = "plan_to_play" | "beaten" | "dropped";
+export type GameLibraryStatus = "plan_to_play" | "beaten" | "replaying" | "dropped";
 
 export interface GameLibraryEntry {
   genres: string[] | null;

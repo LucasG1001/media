@@ -51,7 +51,6 @@ export function AnimePage() {
   const [libraryFilter, setLibraryFilter] = useState<LibraryStatus[]>([]);
   const [airingFilter, setAiringFilter] = useState<string[]>([]);
   const [genreFilter, setGenreFilter] = useState<string[]>([]);
-  const [showLastAccess, setShowLastAccess] = useState(false);
   const sort = useSingleSort("release");
   const [selectedSeasonObj, setSelectedSeasonObj] = useState(getCurrentRealSeason());
   const [selectedPopularYear, setSelectedPopularYear] = useState(0);
@@ -66,7 +65,6 @@ export function AnimePage() {
     update: updateEntry,
     updateMany: updateManyEntries,
     setCover: setCoverEntry,
-    registerAccess,
     remove: removeEntry,
     removeMany: removeManyEntries,
     findByAnilistId,
@@ -302,12 +300,6 @@ export function AnimePage() {
             ],
             onSelect: sort.select,
           }}
-          toggle={{
-            label: "Último acesso",
-            active: showLastAccess,
-            onToggle: () => setShowLastAccess((v) => !v),
-            title: "Mostrar quando foi o último acesso em cada card",
-          }}
         />
       )}
 
@@ -327,7 +319,6 @@ export function AnimePage() {
           onBulkSetStatus={(ids, status) => updateManyEntries(ids, status)}
           expandTitle="Ver temporadas, OVAs e filmes"
           coverIsCollectionOnly
-          showLastAccess={showLastAccess}
           animationKey={gridKey}
           emptyMessage="Sua biblioteca está vazia."
           emptyHint="Adicione animes para começar!"
@@ -391,7 +382,6 @@ export function AnimePage() {
             setCoverEntry(id);
             setSelectedAnimeForModal(null);
           }}
-          onAccessAgain={(id) => { void registerAccess(id); }}
         />
       )}
     </div>

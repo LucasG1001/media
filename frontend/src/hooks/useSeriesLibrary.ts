@@ -61,32 +61,11 @@ export function useSeriesLibrary() {
     [mutate, entries]
   );
 
-  // "Assisti de novo" da temporada: só o lastAccessAt daquela temporada avança.
-  const registerSeasonAccess = useCallback(
-    (id: string, seasonNumber: number): Promise<SeriesLibraryEntry | null> => {
-      const entry = entries.find((e) => e.id === id);
-      if (!entry) return Promise.resolve(null);
-      const states = { ...(entry.seasonStates ?? {}) };
-      const key = String(seasonNumber);
-      const previous = states[key];
-      states[key] = {
-        ...previous,
-        status: previous?.status ?? "plan_to_watch",
-        score: previous?.score ?? 0,
-        lastAccessAt: new Date().toISOString(),
-      };
-      return mutate(id, { seasonStates: states }, () =>
-        seriesLibraryService.registerSeasonAccess(id, seasonNumber)
-      );
-    },
-    [mutate, entries]
-  );
-
   const setCoverSeason = useCallback(
     (id: string, seasonNumber: number): Promise<SeriesLibraryEntry | null> =>
       mutate(id, { coverSeason: seasonNumber }, () => seriesLibraryService.setCoverSeason(id, seasonNumber)),
     [mutate]
   );
 
-  return { ...store, findByTmdbId: store.findByExternalId, saveSeason, saveSeasonNotes, registerSeasonAccess, setCoverSeason };
+  return { ...store, findByTmdbId: store.findByExternalId, saveSeason, saveSeasonNotes, setCoverSeason };
 }

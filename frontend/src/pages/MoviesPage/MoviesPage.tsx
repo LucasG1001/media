@@ -49,7 +49,6 @@ export function MoviesPage() {
   const [libraryFilter, setLibraryFilter] = useState<MovieLibraryStatus[]>([]);
   const [releaseFilter, setReleaseFilter] = useState<string[]>([]);
   const [genreFilter, setGenreFilter] = useState<string[]>([]);
-  const [showLastAccess, setShowLastAccess] = useState(false);
   const sort = useSingleSort("release");
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
   const [selectedMonth, setSelectedMonth] = useState(0);
@@ -64,7 +63,6 @@ export function MoviesPage() {
     update: updateEntry,
     updateMany: updateManyEntries,
     setCover: setCoverEntry,
-    registerAccess,
     remove: removeEntry,
     removeMany: removeManyEntries,
     findByTmdbId,
@@ -295,12 +293,6 @@ export function MoviesPage() {
             ],
             onSelect: sort.select,
           }}
-          toggle={{
-            label: "Último acesso",
-            active: showLastAccess,
-            onToggle: () => setShowLastAccess((v) => !v),
-            title: "Mostrar quando foi o último acesso em cada card",
-          }}
         />
       )}
 
@@ -320,7 +312,6 @@ export function MoviesPage() {
           onBulkSetStatus={(ids, status) => updateManyEntries(ids, status)}
           expandTitle="Ver filmes da coleção"
           coverIsCollectionOnly
-          showLastAccess={showLastAccess}
           animationKey={gridKey}
           emptyMessage="Sua biblioteca está vazia."
           emptyHint="Adicione filmes para começar!"
@@ -384,7 +375,6 @@ export function MoviesPage() {
             setCoverEntry(id);
             setSelectedMovieForModal(null);
           }}
-          onAccessAgain={(id) => { void registerAccess(id); }}
         />
       )}
     </div>

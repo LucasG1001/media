@@ -29,6 +29,7 @@ import { backupRoutes } from "./routes/backupRoutes.js";
 import { imageRoutes } from "./routes/imageRoutes.js";
 import { notFoundHandler, errorHandler } from "./middleware/errorHandler.js";
 import { notifyError } from "./services/notifyService.js";
+import { jobsEnabled } from "./lib/jobsEnabled.js";
 
 const app = express();
 const PORT = process.env.PORT || 3333;
@@ -80,6 +81,10 @@ async function start(): Promise<void> {
   app.listen(PORT, () => {
     process.stdout.write(`Backend rodando em http://localhost:${PORT}\n`);
   });
+  if (!jobsEnabled()) {
+    process.stdout.write("DISABLE_JOBS=true: jobs de fundo desligados\n");
+    return;
+  }
   backfillGameModes().catch((error) => void notifyError("Job backfillGameModes", error));
   backfillSeriesSeasons().catch((error) => void notifyError("Job backfillSeriesSeasons", error));
   backfillReleaseDates().catch((error) => void notifyError("Job backfillReleaseDates", error));

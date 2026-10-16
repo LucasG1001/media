@@ -97,4 +97,16 @@ describe("buildBookCollectionGroups", () => {
     const entries = [entry({ collectionId: 60, seriesPosition: 1, status: "read" })];
     expect(buildBookCollectionGroups(entries, (m) => m.status === "dropped")).toHaveLength(0);
   });
+
+  it("filtrar por Relendo mostra só a coleção com livro em releitura", () => {
+    const entries = [
+      entry({ collectionId: 70, seriesPosition: 1, status: "read" }),
+      entry({ collectionId: 70, seriesPosition: 2, status: "rereading" }),
+      entry({ collectionId: 71, seriesPosition: 1, status: "read" }),
+    ];
+    const groups = buildBookCollectionGroups(entries, (m) => m.status === "rereading");
+    expect(groups).toHaveLength(1);
+    expect(groups[0].completedCount).toBe(1);
+    expect(groups[0].count).toBe(2);
+  });
 });

@@ -1,4 +1,5 @@
 import { pool } from "../database/connection.js";
+import { completedOnInsertSql, completionUpdateSql, lastAccessUpdateSql } from "./completionSql.js";
 
 export interface FieldSpec {
   column: string;
@@ -13,10 +14,11 @@ export interface LibraryModelConfig {
   externalId: { column: string; field: string };
   fields: FieldSpec[];
   statusField: string;
-  completion: { column: string; field: string; whenStatus: string };
+  // `rewatchStatus`: revisita (reassistindo/rejogando/relendo), que preserva a data
+  // de conclusão e cuja volta ao concluído grava o último acesso.
+  completion: { column: string; field: string; whenStatus: string; rewatchStatus?: string };
   // Última vez consumido. Distinto do `completion`: é gravado ao entrar no status
-  // concluído e pelo `touchAccess` ("assisti de novo"), e nunca é limpo ao sair
-  // do status concluído.
+  // concluído (inclusive vindo da revisita) e nunca é limpo ao sair dele.
   lastAccess?: { column: string; field: string };
   collectionColumn?: string;
 }
@@ -28,8 +30,6 @@ export interface LibraryModel<TEntry, TCreate, TUpdate> {
   create(entry: TCreate): Promise<TEntry>;
   update(id: string, data: TUpdate): Promise<TEntry | null>;
   updateManyStatus(ids: string[], status: string): Promise<TEntry[]>;
-  /** Só existe quando `lastAccess` está configurado. */
-  touchAccess?(id: string): Promise<TEntry | null>;
   remove(id: string): Promise<boolean>;
   removeMany(ids: string[]): Promise<number>;
   setCover?(id: string): Promise<TEntry | null>;
@@ -86,12 +86,12 @@ export function createLibraryModel<TEntry, TCreate, TUpdate>(
     const placeholders = values.map((_, i) => `$${i + 1}`);
     const statusParam = insertable.findIndex((f) => f.field === statusField) + 2;
     insertCols.push(completion.column);
-    placeholders.push(`CASE WHEN $${statusParam} = '${completion.whenStatus}' THEN NOW() ELSE NULL END`);
+    placeholders.push(completedOnInsertSql(`$${statusParam}`, completion.whenStatus));
     // Entrar na biblioteca já concluído conta como acesso (adicionar do catálogo
     // direto como assistido/zerado).
     if (lastAccess) {
       insertCols.push(lastAccess.column);
-      placeholders.push(`CASE WHEN $${statusParam} = '${completion.whenStatus}' THEN NOW() ELSE NULL END`);
+      placeholders.push(completedOnInsertSql(`$${statusParam}`, completion.whenStatus));
     }
     const result = await pool.query<Row>(
       `INSERT INTO ${table} (${insertCols.join(", ")}) VALUES (${placeholders.join(", ")}) RETURNING *`,
@@ -117,11 +117,7 @@ export function createLibraryModel<TEntry, TCreate, TUpdate>(
         sets.push(`${f.column} = $${statusParam}`);
         values.push(patch[f.field]);
         sets.push(
-          `${completion.column} = CASE
-             WHEN $${statusParam} = '${completion.whenStatus}' AND ${f.column} != '${completion.whenStatus}' THEN NOW()
-             WHEN $${statusParam} != '${completion.whenStatus}' THEN NULL
-             ELSE ${completion.column}
-           END`
+          `${completion.column} = ${completionUpdateSql(completion.column, `$${statusParam}`, f.column, completion)}`
         );
       } else {
         sets.push(`${f.column} = $${index++}`);
@@ -129,17 +125,9 @@ export function createLibraryModel<TEntry, TCreate, TUpdate>(
       }
     }
 
-    // Só a transição para o status concluído conta como acesso: salvar de novo
-    // mexendo apenas na nota não mexe na data, e sair do concluído não a limpa —
-    // por isso o `ELSE` devolve a própria coluna, ao contrário do completion.
-    // Consumir de novo algo já concluído é o `touchAccess`. A coluna sem prefixo
-    // no CASE lê o valor pré-UPDATE da linha.
     if (lastAccess && statusParam != null) {
       sets.push(
-        `${lastAccess.column} = CASE
-           WHEN $${statusParam} = '${completion.whenStatus}' AND ${statusColumn} != '${completion.whenStatus}' THEN NOW()
-           ELSE ${lastAccess.column}
-         END`
+        `${lastAccess.column} = ${lastAccessUpdateSql(lastAccess.column, `$${statusParam}`, statusColumn, completion)}`
       );
     }
 
@@ -156,10 +144,7 @@ export function createLibraryModel<TEntry, TCreate, TUpdate>(
   };
 
   const lastAccessBulkSet = lastAccess
-    ? `${lastAccess.column} = CASE
-                WHEN $2 = '${completion.whenStatus}' AND ${statusColumn} != '${completion.whenStatus}' THEN NOW()
-                ELSE ${lastAccess.column}
-              END,`
+    ? `${lastAccess.column} = ${lastAccessUpdateSql(lastAccess.column, "$2", statusColumn, completion)},`
     : "";
 
   const updateManyStatus = async (ids: string[], status: string): Promise<TEntry[]> => {
@@ -167,11 +152,7 @@ export function createLibraryModel<TEntry, TCreate, TUpdate>(
     const result = await pool.query<Row>(
       `UPDATE ${table}
           SET ${statusColumn} = $2,
-              ${completion.column} = CASE
-                WHEN $2 = '${completion.whenStatus}' AND ${statusColumn} != '${completion.whenStatus}' THEN NOW()
-                WHEN $2 != '${completion.whenStatus}' THEN NULL
-                ELSE ${completion.column}
-              END,
+              ${completion.column} = ${completionUpdateSql(completion.column, "$2", statusColumn, completion)},
               ${lastAccessBulkSet}
               updated_at = NOW()
         WHERE id = ANY($1::uuid[])
@@ -179,17 +160,6 @@ export function createLibraryModel<TEntry, TCreate, TUpdate>(
       [ids, status]
     );
     return result.rows.map(toEntry);
-  };
-
-  // "Assisti/joguei de novo": item já concluído volta a ser consumido. Sem isto
-  // não haveria como registrar a revisita — marcar como concluído algo que já
-  // está concluído não é transição e o CASE do update não pegaria.
-  const touchAccess = async (id: string): Promise<TEntry | null> => {
-    const result = await pool.query<Row>(
-      `UPDATE ${table} SET ${lastAccess!.column} = NOW(), updated_at = NOW() WHERE id = $1 RETURNING *`,
-      [id]
-    );
-    return result.rows[0] ? toEntry(result.rows[0]) : null;
   };
 
   const remove = async (id: string): Promise<boolean> => {
@@ -238,6 +208,5 @@ export function createLibraryModel<TEntry, TCreate, TUpdate>(
     removeMany,
   };
   if (collectionColumn) model.setCover = setCover;
-  if (lastAccess) model.touchAccess = touchAccess;
   return model;
 }

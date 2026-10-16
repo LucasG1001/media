@@ -142,7 +142,7 @@ O `Caddyfile` do container `web` marca `sw.js`, `index.html` e `manifest.webmani
   volta na aba em que estava — é estado derivado, não efeito. O `MediaGrid` mostra um estado próprio
   de "Sem conexão" quando está vazio e offline.
 - **Escrita desabilitada** (`disabled` + `title` explicativo): `LibraryModalBase` (Salvar, Remover,
-  "de novo", capa), `SelectionBar` (todas as ações em lote e o select mobile), o add-by-URL do
+  capa), `SelectionBar` (todas as ações em lote e o select mobile), o add-by-URL do
   `YouTubePage` e os três botões de backup do `SettingsPage`.
 - **`components/DrawerFallback`**: corpo mínimo quando não há nem detalhe da API nem `detail_cache` —
   capa, título, aviso e **`NotesBlock`**. Antes esse caso mostrava só `"Erro ao carregar detalhes."`

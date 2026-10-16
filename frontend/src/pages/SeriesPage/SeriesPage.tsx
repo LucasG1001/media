@@ -49,7 +49,6 @@ export function SeriesPage() {
   const [libraryFilter, setLibraryFilter] = useState<SeriesLibraryStatus[]>([]);
   const [airFilter, setAirFilter] = useState<SeriesAirGroup[]>([]);
   const [genreFilter, setGenreFilter] = useState<string[]>([]);
-  const [showLastAccess, setShowLastAccess] = useState(false);
   const sort = useSingleSort("release");
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
   const [selectedMonth, setSelectedMonth] = useState(0);
@@ -65,8 +64,6 @@ export function SeriesPage() {
     remove: removeEntry,
     saveSeason,
     saveSeasonNotes,
-    registerAccess,
-    registerSeasonAccess,
     setCoverSeason,
     findByTmdbId,
   } = useSeriesLibrary();
@@ -327,12 +324,6 @@ export function SeriesPage() {
             ],
             onSelect: sort.select,
           }}
-          toggle={{
-            label: "Último acesso",
-            active: showLastAccess,
-            onToggle: () => setShowLastAccess((v) => !v),
-            title: "Mostrar quando foi o último acesso em cada card",
-          }}
         />
       )}
 
@@ -353,7 +344,6 @@ export function SeriesPage() {
           }}
           expandTitle="Ver temporadas"
           coverIsCollectionOnly
-          showLastAccess={showLastAccess}
           animationKey={gridKey}
           emptyMessage="Sua biblioteca está vazia."
           emptyHint="Adicione séries para começar!"
@@ -403,7 +393,6 @@ export function SeriesPage() {
           onClose={() => setSelectedSeriesForModal(null)}
           onSave={handleModalSave}
           onRemove={handleModalRemove}
-          onAccessAgain={(id) => { void registerAccess(id); }}
         />
       )}
 
@@ -452,9 +441,6 @@ export function SeriesPage() {
           onSave={(data) => {
             saveSeason(seasonModal.entry.id, seasonModal.member.seasonNumber as number, data);
             setSeasonModal(null);
-          }}
-          onAccessAgain={() => {
-            void registerSeasonAccess(seasonModal.entry.id, seasonModal.member.seasonNumber as number);
           }}
           onSetCover={
             seasonModal.member.isOnlySeason

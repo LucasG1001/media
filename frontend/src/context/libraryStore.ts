@@ -51,7 +51,7 @@ export interface LibraryStore<TEntry, TCreate, TUpdate> {
   mutate: (id: string, optimistic: Partial<TEntry>, serverCall: () => Promise<TEntry>) => Promise<TEntry | null>;
   updateMany: (ids: string[], status: string) => Promise<boolean>;
   setCover: (id: string) => Promise<TEntry | null>;
-  // "Assisti/joguei de novo": só a data de último acesso avança.
+  // Acesso sem transição de status: só o YouTube usa, ao abrir o drawer do vídeo.
   registerAccess: (id: string) => Promise<TEntry | null>;
   remove: (id: string) => Promise<boolean>;
   removeMany: (ids: string[]) => Promise<boolean>;

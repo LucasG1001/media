@@ -28,7 +28,7 @@ export interface LibraryEntry {
   updatedAt: string;
 }
 
-export type LibraryStatus = "plan_to_watch" | "watched" | "dropped";
+export type LibraryStatus = "plan_to_watch" | "watched" | "rewatching" | "dropped";
 
 export interface CreateLibraryEntry {
   genres?: string[] | null;

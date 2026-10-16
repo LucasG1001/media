@@ -47,7 +47,6 @@ export function BooksPage() {
   const [libraryFilter, setLibraryFilter] = useState<BookLibraryStatus[]>([]);
   const [releaseFilter, setReleaseFilter] = useState<string[]>([]);
   const [genreFilter, setGenreFilter] = useState<string[]>([]);
-  const [showLastAccess, setShowLastAccess] = useState(false);
   const sort = useSingleSort("published");
   const [selectedGenre, setSelectedGenre] = useState(BOOK_GENRES[0].value);
   const debouncedSearch = useDebounce(searchQuery, 400);
@@ -61,7 +60,6 @@ export function BooksPage() {
     update: updateEntry,
     updateMany: updateManyEntries,
     setCover: setCoverEntry,
-    registerAccess,
     remove: removeEntry,
     removeMany: removeManyEntries,
     findByHardcoverId,
@@ -287,12 +285,6 @@ export function BooksPage() {
             ],
             onSelect: sort.select,
           }}
-          toggle={{
-            label: "Último acesso",
-            active: showLastAccess,
-            onToggle: () => setShowLastAccess((v) => !v),
-            title: "Mostrar quando foi o último acesso em cada card",
-          }}
         />
       )}
 
@@ -312,7 +304,6 @@ export function BooksPage() {
           onBulkSetStatus={(ids, status) => updateManyEntries(ids, status)}
           expandTitle="Ver livros da série"
           coverIsCollectionOnly
-          showLastAccess={showLastAccess}
           animationKey={gridKey}
           emptyMessage="Sua biblioteca está vazia."
           emptyHint="Adicione livros para começar!"
@@ -376,7 +367,6 @@ export function BooksPage() {
             setCoverEntry(id);
             setSelectedBookForModal(null);
           }}
-          onAccessAgain={(id) => { void registerAccess(id); }}
         />
       )}
     </div>

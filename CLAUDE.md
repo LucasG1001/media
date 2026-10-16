@@ -26,11 +26,15 @@ o detalhe de cada item é cacheado no banco e um Service Worker deixa o app abri
 
 ## Comandos de desenvolvimento
 
-Pré-requisito local: PostgreSQL acessível em `127.0.0.1:5432` (banco `media_tracker`). Em dev o
-banco fica na VPS; abra um túnel SSH antes: `ssh -L 5432:localhost:5432 lucas@<vps>`. O backend
-roda `migrate()` (DDL idempotente) no boot — sem arquivos de migração.
+Pré-requisito local: o Postgres de dev do `docker-compose.dev.yml` (só o banco vai em container;
+backend e frontend rodam nativos). **Nunca aponte o dev para o banco da VPS**: o boot roda
+`migrate()` (DDL idempotente, sem arquivos de migração) e os jobs de fundo. Em dev,
+`DISABLE_JOBS=true` desliga os jobs e `NOTIFY_API_URL` vazia desliga o Telegram.
 
 ```bash
+docker compose -f docker-compose.dev.yml up -d   # Postgres em 127.0.0.1:5432
+scripts/dev-seed.sh <arquivo.dump>               # dados reais (ou --from-vps <ssh-host>)
+
 # backend (hot-reload via tsx)
 cd backend && npm run dev        # http://localhost:3333
 cd backend && npm run build      # tsc → dist/
@@ -72,7 +76,7 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 - **`lib/` (reutilizáveis — prefira-os a reinventar):**
   - **`createLibraryModel.ts` / `createLibraryController.ts`** — factories que geram o CRUD padrão
     das bibliotecas (findAll/create/update/updateManyStatus/setCover/remove + timestamp de
-    conclusão + `lastAccess`/`touchAccess` — último acesso, ver esquema).
+    conclusão + `lastAccess` — último acesso, ver esquema; os `CASE`s vêm de `lib/completionSql.ts`).
     Movie/series/game/book/youtube adotam por completo;
     anime usa a factory pro CRUD e mantém funções próprias (JSONB, franquia, sync) standalone.
   - **`httpClient.ts`** — wrapper axios com retry (429/5xx, respeita `Retry-After`), cache opcional
@@ -181,30 +185,27 @@ coleção (`franchise_id`/`collection_id`) e `notes`
 a anotação é por temporada, dentro de `season_states`.
 
 **`last_access_at`** (`TIMESTAMPTZ`; `NULL` = nunca) — última vez assistido/jogado, **distinto do
-timestamp de conclusão**, que marca a *primeira* conclusão e é zerado ao sair do status concluído.
-Existe em todas as seis mídias. Regras:
+timestamp de conclusão**, que marca a _primeira_ conclusão e é zerado ao sair do status concluído —
+**exceto** para a revisita, que o preserva (ver status abaixo). Existe em todas as seis mídias. Regras:
+
 - **Só a transição para o status concluído grava.** Salvar de novo mexendo apenas na nota **não**
   mexe na data, e **sair** do status concluído **não limpa** (item abandonado mantém a última vez que
   foi visto) — daí o `ELSE` do `CASE` devolver a própria coluna, ao contrário do `CASE` de conclusão.
-- **Consumir de novo algo já concluído é o `touchAccess`** (`POST /:id/access` nas mídias dirigidas
-  por status, via `registerAccess` do controller/store): só a data avança, status e nota ficam. Sem
-  ele não haveria como registrar a revisita — marcar como concluído o que já está concluído não é
-  transição. Na UI é
-  o botão "🔁 Assisti/Joguei/Li de novo" do `LibraryModalBase` (prop `again`), que aparece **só** quando
-  o status **salvo** já é o concluído: com o seletor mudado sem salvar, quem grava é o próprio Salvar.
+- **Consumir de novo é a revisita**: concluído → revisita → concluído. A volta ao concluído é
+  transição, então grava o acesso; entrar na revisita não grava.
 - **Séries**: o que vale é o da **temporada**, dentro de `season_states` (`setSeasonState` aplica a
-  mesma regra em JS; `touchSeasonAccess` é o "de novo" da temporada, `POST /:id/seasons/:n/access`).
-  A coluna da série só é gravada pelo fallback de série sem `season_list`.
-- **YouTube é a exceção**: não é dirigido por status (o `whenStatus` dele é `liked`, o default) e não
-  tem botão — quem grava é `touchAccess` via `POST /api/youtube-library/:id/access`, chamado ao
+  mesma regra em JS via `mergeSeasonState`). A coluna da série só é gravada pelo fallback de série
+  sem `season_list`.
+- **YouTube é a exceção**: não é dirigido por status (o `whenStatus` dele é `liked`, o default) —
+  quem grava é o `touchAccess` próprio dele via `POST /api/youtube-library/:id/access`, chamado ao
   **abrir o drawer** do vídeo (e sem tocar `updated_at`: abrir é passivo e não pode reordenar a
   biblioteca). Por isso a coluna é `readonly` na config do model. O drawer só **grava**, não exibe:
-  quem mostra a data é o chip do card (botão "Último acesso").
+  quem mostra a data é o chip do card, sempre visível na biblioteca.
 - Coluna nova em biblioteca precisa entrar também nas listas de `backupController`, senão se perde
   no round-trip de export/import.
 
 `series_library` tem ainda `season_list` (JSONB, metadado das temporadas do TMDB), `season_states`
-(JSONB, estado por temporada `{ "1": {status,score,isRewatching,notes,lastAccessAt} }`; `score` da série = média das notas)
+(JSONB, estado por temporada `{ "1": {status,score,notes,lastAccessAt} }`; `score` da série = média das notas)
 e `cover_season` (INTEGER, temporada usada como capa da coleção). `game_library` tem `game_modes`
 (`TEXT[]`). `books_library` tem `series_name` e `series_position` (`NUMERIC(6,2)` — a posição na
 série da Hardcover é float8 com meio-valor real; ordena a expansão). As duas são **`readonly` no
@@ -254,10 +255,12 @@ TMDB**: lá data nula significa "sem data marcada" e cai em `UPCOMING`, mas na H
 "não se sabe" e o livro em geral é antigo — `deriveBookStatus` cai no ano e só então em `RELEASED`,
 senão clássico sem data viraria "Em breve" e ficaria preso no TTL de 12 h para sempre.
 
-**Status da biblioteca:** `plan_to_*` (planejo) → concluído (`watched`/`beaten`/`read`) →
-`dropped`. Não existe status "em progresso" **nem reassistindo/rejogando**: a coluna
-`is_rewatching` foi dropada e rever algo é só o `touchAccess` (a data de último acesso avança, o
-status fica). YouTube usa `liked`/`removed`.
+**Status da biblioteca:** `plan_to_*` (planejo), concluído (`watched`/`beaten`/`read`), revisita
+(`rewatching`/`replaying`/`rereading` — Reassistindo/Rejogando/Relendo, config `rewatchStatus` do
+model) e `dropped`. Não existe status "em progresso" de primeira vez. A revisita conta como concluído
+para o sync de coleções e **preserva a data de conclusão** (entrar e sair dela não a zera); é ela
+o "em andamento" do Dashboard. Não reaproveite `watching`/`playing`/`reading`: o `migrate()` os
+converte em `plan_to_*` a cada boot. YouTube usa `liked`/`removed`.
 
 ## Convenções
 
@@ -363,3 +366,9 @@ por uma linha daqui.
 - Documente fatos, não preferências. Não adicione convenções ou "boas práticas" novas por conta
   própria: proponha e deixe a decisão de estilo comigo.
 - Mantenha conciso e em português.
+
+Sempre que adicionar uma nova funcionalidade ou corrigir um bug:
+
+Escreva novos testes automatizados cobrindo a mudança (para bugs, crie primeiro um teste que reproduza a falha).
+
+Execute a suíte de testes relevante para garantir que a mudança funciona e nenhuma funcionalidade existente quebrou (sem regressões).

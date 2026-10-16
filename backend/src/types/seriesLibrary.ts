@@ -1,4 +1,4 @@
-export type SeriesLibraryStatus = "plan_to_watch" | "watched" | "dropped";
+export type SeriesLibraryStatus = "plan_to_watch" | "watched" | "rewatching" | "dropped";
 
 export interface SeriesNextAiringEpisode {
   episode: number;

@@ -84,9 +84,9 @@ acessado valendo 0). É o que faz item que entra numa coleção passar a compor 
 sair, voltar a valer por si — sem escrita nem sincronização. Mesmo espírito da nota, que é a média
 dos membros.
 
-**A data no card é opt-in**: o botão "Último acesso" da barra (`showLastAccess`, propagado até o
-`MediaCard`) revela um chip em **todos** os cards — capa, membros da expansão e avulsos. Por padrão
-nada aparece: o card já carrega título, ano, status e nota. O chip entra **dentro do overlay**, acima
+**A data no card é sempre visível** na biblioteca (não há botão para ligar/desligar): o `MediaCard`
+mostra o chip em **todos** os cards com `isLibraryView` e entry — capa, membros da expansão e
+avulsos; no catálogo não aparece. O chip entra **dentro do overlay**, acima
 do título (não cobre nada), e **flutua** no canto de baixo da imagem quando a mídia não tem overlay
 (YouTube, que descreve o vídeo abaixo da imagem). Cor por faixa (`lastAccessTone`): até 1 ano, 1–5
 anos, 5+ anos e nunca — as mesmas faixas que o filtro por tempo vai usar.

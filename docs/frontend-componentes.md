@@ -12,7 +12,7 @@ Config visual por mídia (cores, ícones, labels de status) fica em **`config/ca
 
 Card e grade da aba de catálogo (resultado de busca na API externa). O mesmo `MediaCard` é reusado
 na biblioteca, dentro do `FranchiseGrid` — as props que mudam seu comportamento lá
-(`isCollectionCover`, `showLastAccess`) estão em `docs/frontend-colecoes.md`.
+(`isCollectionCover`, chip de último acesso) estão em `docs/frontend-colecoes.md`.
 
 ## 2. Biblioteca — `FranchiseGrid`
 
@@ -42,16 +42,15 @@ Ver `docs/offline.md`.
 ## 4. `LibraryModalBase`
 
 Seletor de status derivado do mapa de labels de cada mídia + linha opcional `lastAccess` — "Última
-vez assistido/jogado" em data relativa, escondida quando nunca houve acesso. A prop `again` (botão
-"🔁 Assisti/Joguei/Li de novo") é regida pelas regras de `last_access_at` no esquema (ver
-`CLAUDE.md`).
+vez assistido/jogado" em data relativa, escondida quando nunca houve acesso. Não há botão de
+"consumir de novo": revisitar é o status de revisita (Reassistindo/Rejogando/Relendo), e a data
+avança ao voltar dele para o concluído (regras de `last_access_at` no `CLAUDE.md`).
 
 ## 5. `LibraryControls`
 
 Barra de biblioteca: busca + botões Filtros/Ordenação com painel que é bottom-sheet no mobile e
-popover ancorado no desktop + chip de contagem; dirigido por config `filterGroups`/`sort`/`toggle`
-(este último é um botão liga/desliga sem painel — hoje o "Último acesso"), cada página monta a
-config do seu estado.
+popover ancorado no desktop + chip de contagem; dirigido por config `filterGroups`/`sort`, cada página
+monta a config do seu estado.
 
 O gatilho da **Ordenação é dividido** (`onIconClick` do `ControlPopover`): o ícone **inverte a
 direção** — é ele que a mostra — e o rótulo abre o painel; são dois botões irmãos porque `<button>`

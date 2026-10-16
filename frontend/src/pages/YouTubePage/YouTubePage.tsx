@@ -77,7 +77,6 @@ export function YouTubePage() {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [addNotice, setAddNotice] = useState<string | null>(null);
-  const [showLastAccess, setShowLastAccess] = useState(false);
   const [drawerVideoId, setDrawerVideoId] = useState<string | null>(null);
   const [modalVideoId, setModalVideoId] = useState<string | null>(null);
   const [bulk, setBulk] = useState<{ mode: TagBulkMode; ids: string[] } | null>(null);
@@ -369,12 +368,6 @@ export function YouTubePage() {
           ],
           onSelect: sort.select,
         }}
-        toggle={{
-          label: "Último acesso",
-          active: showLastAccess,
-          onToggle: () => setShowLastAccess((v) => !v),
-          title: "Mostrar quando foi o último acesso em cada card",
-        }}
       />
 
       <YoutubeTagContext.Provider value={tagContext}>
@@ -389,7 +382,6 @@ export function YouTubePage() {
           onCardClick={handleCardClick}
           onAddToLibrary={handleOpenModal}
           coverIsCollectionOnly
-          showLastAccess={showLastAccess}
           onDeleteGroup={(group) => removeManyEntries(group.members.map((m) => m.id)).then(() => collections.reload())}
           statusLabels={YOUTUBE_LIBRARY_STATUS_LABELS}
           onBulkSetStatus={(ids, status) => updateManyEntries(ids, status)}

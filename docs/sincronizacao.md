@@ -227,7 +227,7 @@ está em [offline.md](offline.md).
 
 Roda anime → filmes → jogos → livros, **em sequência**. Não roda no boot.
 
-**O que faz:** para cada coleção que tenha **ao menos um item concluído** (`watched`/`beaten`/`read`),
+**O que faz:** para cada coleção que tenha **ao menos um item concluído** (`watched`/`beaten`/`read`, ou em revisita: `rewatching`/`replaying`/`rereading`),
 descobre os membros que faltam e adiciona como "planejo", notificando cada um. É assim que
 sequência/OVA/filme novo de uma franquia que você terminou aparece sozinho na biblioteca.
 
@@ -318,7 +318,7 @@ Backfill de coluna nova nem sempre precisa virar job: quando dá, é melhor pend
 
 ## 6. Quem escreve o quê
 
-Colunas alimentadas por API externa. As demais (`status`, `score`, `is_cover`, `is_rewatching`,
+Colunas alimentadas por API externa. As demais (`status`, `score`, `is_cover`,
 `season_states`, `cover_season`, timestamps de conclusão) são **suas** e nenhum job encosta nelas.
 
 | Coluna | Criação | Drawer | Job 30 min | Sync coleções |

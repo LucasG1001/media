@@ -51,7 +51,6 @@ export function GamesPage() {
   const [modeFilter, setModeFilter] = useState<GameMode[]>([]);
   const [releaseFilter, setReleaseFilter] = useState<string[]>([]);
   const [genreFilter, setGenreFilter] = useState<string[]>([]);
-  const [showLastAccess, setShowLastAccess] = useState(false);
   const sort = useSingleSort("release");
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
   const [selectedMonth, setSelectedMonth] = useState(0);
@@ -66,7 +65,6 @@ export function GamesPage() {
     update: updateEntry,
     updateMany: updateManyEntries,
     setCover: setCoverEntry,
-    registerAccess,
     remove: removeEntry,
     removeMany: removeManyEntries,
     findByIgdbId,
@@ -315,12 +313,6 @@ export function GamesPage() {
             ],
             onSelect: sort.select,
           }}
-          toggle={{
-            label: "Último acesso",
-            active: showLastAccess,
-            onToggle: () => setShowLastAccess((v) => !v),
-            title: "Mostrar quando foi o último acesso em cada card",
-          }}
         />
       )}
 
@@ -340,7 +332,6 @@ export function GamesPage() {
           onBulkSetStatus={(ids, status) => updateManyEntries(ids, status)}
           expandTitle="Ver jogos da coleção"
           coverIsCollectionOnly
-          showLastAccess={showLastAccess}
           animationKey={gridKey}
           emptyMessage="Sua biblioteca está vazia."
           emptyHint="Adicione jogos para começar!"
@@ -404,7 +395,6 @@ export function GamesPage() {
             setCoverEntry(id);
             setSelectedGameForModal(null);
           }}
-          onAccessAgain={(id) => { void registerAccess(id); }}
         />
       )}
     </div>

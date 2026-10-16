@@ -109,7 +109,7 @@ const animeAdapter: CollectionSyncAdapter<LibraryEntry, AnimeCard, CreateLibrary
   findAll: () => libraryModel.findAll(),
   externalId: (entry) => entry.anilistId,
   collectionKey: (entry) => entry.franchiseId,
-  isCompleted: (entry) => entry.status === "watched",
+  isCompleted: (entry) => entry.status === "watched" || entry.status === "rewatching",
   discover: async (seedId) => {
     const members = await discoverFranchise(seedId);
     if (members.length < 2) return null;
@@ -146,7 +146,7 @@ const movieAdapter: CollectionSyncAdapter<MovieLibraryEntry, MovieCard, CreateMo
   findAll: () => movieLibraryModel.findAll(),
   externalId: (entry) => entry.tmdbId,
   collectionKey: (entry) => entry.collectionId,
-  isCompleted: (entry) => entry.status === "watched",
+  isCompleted: (entry) => entry.status === "watched" || entry.status === "rewatching",
   discover: (seedId) => discoverCollection(seedId),
   memberId: (member) => member.id,
   toCreateEntry: (member) => ({
@@ -174,7 +174,7 @@ const gameAdapter: CollectionSyncAdapter<GameLibraryEntry, GameCard, CreateGameL
   findAll: () => gameLibraryModel.findAll(),
   externalId: (entry) => entry.igdbId,
   collectionKey: (entry) => entry.collectionId,
-  isCompleted: (entry) => entry.status === "beaten",
+  isCompleted: (entry) => entry.status === "beaten" || entry.status === "replaying",
   discover: (seedId) => discoverGameCollection(seedId),
   memberId: (member) => member.id,
   toCreateEntry: (member) => ({
@@ -205,7 +205,7 @@ const bookAdapter: CollectionSyncAdapter<BookLibraryEntry, BookCard, CreateBookL
   findAll: () => bookLibraryModel.findAll(),
   externalId: (entry) => entry.hardcoverId,
   collectionKey: (entry) => entry.collectionId,
-  isCompleted: (entry) => entry.status === "read",
+  isCompleted: (entry) => entry.status === "read" || entry.status === "rereading",
   discover: (seedId) => discoverBookSeries(seedId),
   memberId: (member) => member.id,
   toCreateEntry: (member) => ({

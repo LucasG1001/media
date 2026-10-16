@@ -31,8 +31,9 @@ sujeito à regra `coverIsCollectionOnly`.
   → `saveSeason` (`PUT /:id/seasons/:n`, `setSeasonState` recalcula `score` da série = média das
   notas > 0) e `setCoverSeason` (`PUT /:id/cover-season/:n`).
 
-`setSeasonState` **mescla** no estado atual da temporada em vez de substituí-lo: o modal não manda a
-anotação e não pode apagá-la.
+`setSeasonState` **mescla** no estado atual da temporada em vez de substituí-lo (`mergeSeasonState`):
+o modal não manda a anotação e não pode apagá-la. A revisita ("Reassistindo") também é por
+temporada: voltar dela para Assistida grava o `lastAccessAt` da temporada.
 
 ## 3. A nota da série é sempre a média
 

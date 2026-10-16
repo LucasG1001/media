@@ -1,4 +1,4 @@
-export type BookLibraryStatus = "plan_to_read" | "read" | "dropped";
+export type BookLibraryStatus = "plan_to_read" | "read" | "rereading" | "dropped";
 
 export interface BookLibraryEntry {
   genres?: string[] | null;
@@ -55,5 +55,6 @@ export interface UpdateBookLibraryEntry {
 export const BOOK_LIBRARY_STATUS_LABELS: Record<BookLibraryStatus, string> = {
   plan_to_read: "Quero Ler",
   read: "Lido",
+  rereading: "Relendo",
   dropped: "Abandonado",
 };
