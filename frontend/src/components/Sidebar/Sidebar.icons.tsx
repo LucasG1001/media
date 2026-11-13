@@ -92,6 +92,14 @@ export function HomeIcon({ className }: IconProps) {
   );
 }
 
+export function TierIcon({ className }: IconProps) {
+  return (
+    <Icon className={className}>
+      <path d="M3 5h18M3 12h13M3 19h8" />
+    </Icon>
+  );
+}
+
 export function SettingsIcon({ className }: IconProps) {
   return (
     <Icon className={className}>

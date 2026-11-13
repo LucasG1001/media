@@ -17,7 +17,7 @@ e biblioteca pessoal (CRUD em PostgreSQL):
 - **YouTube** — vídeos curtidos/salvos (YouTube Data API); modelo à parte (status `liked`/`removed`).
   Coleções (tabela própria) e, **dentro de cada uma**, organização por **tags** (N por vídeo).
 
-Recursos transversais: **Dashboard** agregado, **sync de coleções** (descobre e adiciona novos
+Recursos transversais: **Dashboard** agregado, **Tier List** (coleções em faixas pela nota), **sync de coleções** (descobre e adiciona novos
 lançamentos de franquias já concluídas), **notificações no Telegram** (novos episódios, itens de
 coleção, lançamentos) via **notify-api** — o app nunca fala com o Telegram diretamente — e
 **backup** export/import. O app é **offline-first para leitura**: capas ficam em disco na VPS,
@@ -135,8 +135,8 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 
 ### Frontend (`frontend/src/`)
 
-- **`App.tsx`** — BrowserRouter + Sidebar; páginas `Dashboard`, `Anime`, `Movies`, `Series`,
-  `Games`, `Books`, `YouTube`, `Settings`.
+- **`App.tsx`** — BrowserRouter + Sidebar; páginas `Dashboard`, `TierList`, `Anime`, `Movies`,
+  `Series`, `Games`, `Books`, `YouTube`, `Settings`.
 - **Padrão de página de mídia**: catálogo (`useMediaList`) + biblioteca (`use*Library`); a
   biblioteca é um `FranchiseGrid` sobre grupos de coleção montados num `useMemo`
   (`build*CollectionGroups` com `memberFilter` → `filterGroupsBySearch` → `sortGroups`), com
@@ -165,6 +165,9 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   player ou bloco de anotação.
 - **Dashboard**: agrega no cliente sobre as bibliotecas já carregadas, em carrosséis de agenda e de
   lançamentos recentes. **Ver `docs/frontend-dashboard.md`** antes de mexer nele.
+- **Tier List**: visão **somente leitura e derivada** (sem tabela nem endpoint) das coleções de uma
+  mídia em faixas pela média da coleção, com filtro de ano e exportação em PNG. **Ver
+  `docs/frontend-tierlist.md`** antes de mexer nele.
 - **Offline**: toda imagem de dado dinâmico passa por `components/CoverImage` (que aplica
   `utils/imageUrl.ts` e trata `onError`) — **nunca use `<img>` cru para URL de terceiro**. O estado de
   rede sai de `useOnline` (`context/connectivityContext.ts`) e governa aba inicial, botões de escrita

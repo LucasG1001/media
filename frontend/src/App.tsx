@@ -12,6 +12,7 @@ import { BooksPage } from "./pages/BooksPage/BooksPage";
 import { GamesPage } from "./pages/GamesPage/GamesPage";
 import { YouTubePage } from "./pages/YouTubePage/YouTubePage";
 import { SettingsPage } from "./pages/SettingsPage/SettingsPage";
+import { TierListPage } from "./pages/TierListPage/TierListPage";
 import styles from "./App.module.css";
 
 const SIDEBAR_STORAGE_KEY = "sidebar-collapsed";
@@ -41,6 +42,7 @@ function App() {
               <OfflineBanner />
               <Routes>
                 <Route path="/" element={<DashboardPage />} />
+                <Route path="/tierlist" element={<TierListPage />} />
                 <Route path="/anime" element={<AnimePage />} />
                 <Route path="/filmes" element={<MoviesPage />} />
                 <Route path="/series" element={<SeriesPage />} />

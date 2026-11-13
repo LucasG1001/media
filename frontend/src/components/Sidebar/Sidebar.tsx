@@ -13,6 +13,7 @@ import {
   MovieIcon,
   SeriesIcon,
   SettingsIcon,
+  TierIcon,
   YoutubeIcon,
 } from "./Sidebar.icons";
 
@@ -74,6 +75,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           <HomeIcon className={styles.navIcon} />
           <span className={styles.navLabel}>Início</span>
         </NavLink>
+        <NavLink
+          to="/tierlist"
+          title="Tier List"
+          className={({ isActive }) => `${styles.navItem} ${isActive ? styles.navItemActive : ""}`}
+        >
+          <TierIcon className={styles.navIcon} />
+          <span className={styles.navLabel}>Tier List</span>
+        </NavLink>
 
         <span className={styles.navSection}>Biblioteca</span>
         {NAV_ITEMS.map((item) => {
@@ -125,6 +134,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         >
           <CenterIcon className={styles.barIcon} />
         </button>
+
+        <NavLink
+          to="/tierlist"
+          aria-label="Tier List"
+          className={({ isActive }) => `${styles.barItem} ${isActive ? styles.barItemActive : ""}`}
+        >
+          <TierIcon className={styles.barIcon} />
+        </NavLink>
 
         <NavLink
           to="/config"
