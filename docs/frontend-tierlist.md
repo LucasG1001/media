@@ -52,6 +52,17 @@ passa se **alguma marca** bate. Por isso os dois filtros juntos valem para o **m
 em 2026" + "concluído em 2026" não é satisfeito por uma temporada de 2020 vista em 2026 somada a uma
 de 2026 vista em 2027.
 
+**Com ano filtrado a peça vira o membro do ano.** A marca carrega também `externalId`, `title` e
+`cover` do membro, e `groupTierRows` troca os três na peça pelos da **primeira marca que bate** — as
+marcas ficam em ordem de lançamento, então é o membro mais antigo daquele ano. "Lançado em 2024"
+mostra a capa da temporada de 2024, o hover traz o nome dela e o clique abre o drawer dela (em séries
+o título vira "Série · Temporada N" e o drawer continua sendo o da série). Membro sem capa cai na capa
+da coleção. Sem filtro, vale o representante — a capa escolhida na biblioteca. Nota, faixa e `key` da
+peça nunca mudam. A exportação usa a mesma capa da tela.
+
+`group.members` vem na ordem da expansão da biblioteca, invertida em anime, filmes e jogos; o
+`newestFirst` do adapter é o que devolve a ordem cronológica às marcas.
+
 Quem gera marca:
 
 - Coleção com membro concluído: **só os concluídos/em revisita**. Membro planejado ou abandonado não
@@ -107,6 +118,7 @@ cabeçalho (mídia + filtros de ano ativos), as cinco faixas (vazias inclusive) 
 
 ## 6. Interação
 
-Clique abre o drawer do item-capa, com `DrawerNav` percorrendo a coleção na ordem da expansão da
-biblioteca (`collectionNav` sobre os grupos da mídia). Séries abrem o `SeriesDrawer`, que não tem
+Clique abre o drawer do item-capa — ou do membro do ano, quando há filtro de ano (§3) —, com
+`DrawerNav` percorrendo a coleção na ordem da expansão da biblioteca (`collectionNav` sobre os grupos
+da mídia). Séries abrem o `SeriesDrawer`, que não tem
 navegação. Título e nota aparecem no hover; em tela de toque (`hover: none`) a nota fica sempre visível.

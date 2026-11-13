@@ -9,6 +9,7 @@ import {
   groupTierRows,
   releaseYearOf,
   tierYears,
+  type TierTile,
 } from "./tierList";
 import { buildFranchiseGroups } from "./franchiseGroups";
 import { buildSeasonGroups } from "./seasonGroups";
@@ -71,6 +72,10 @@ function series(over: Partial<SeriesLibraryEntry> = {}): SeriesLibraryEntry {
     updatedAt: "",
     ...over,
   };
+}
+
+function yearsOf(tile: TierTile) {
+  return tile.marks.map(({ released, completed }) => ({ released, completed }));
 }
 
 function tilesOf(entries: LibraryEntry[]) {
@@ -162,7 +167,7 @@ describe("buildTierTiles", () => {
       anime({ franchiseId: 1, score: 9, seasonYear: null, watchedAt: null }),
     ]);
 
-    expect(tiles[0].marks).toEqual(
+    expect(yearsOf(tiles[0])).toEqual(
       expect.arrayContaining([
         { released: 2019, completed: 2025 },
         { released: 2026, completed: 2026 },
@@ -179,7 +184,7 @@ describe("buildTierTiles", () => {
       anime({ franchiseId: 1, status: "plan_to_watch", seasonYear: 2026 }),
     ]);
 
-    expect(tiles[0].marks).toEqual([{ released: 2020, completed: 2025 }]);
+    expect(yearsOf(tiles[0])).toEqual([{ released: 2020, completed: 2025 }]);
   });
 
   it("marks a dropped collection by the release year of what was dropped", () => {
@@ -189,7 +194,7 @@ describe("buildTierTiles", () => {
     ]);
 
     expect(tiles[0].row).toBe("dropped");
-    expect(tiles[0].marks).toEqual([{ released: 2026, completed: null }]);
+    expect(yearsOf(tiles[0])).toEqual([{ released: 2026, completed: null }]);
   });
 
   it("falls back to the end date when the anime has no season year", () => {
@@ -219,7 +224,7 @@ describe("buildTierTiles", () => {
     expect(tiles[0].externalId).toBe(entry.tmdbId);
     expect(tiles[0].score).toBe(7.5);
     expect(tiles[0].row).toBe("good");
-    expect(tiles[0].marks).toEqual(
+    expect(yearsOf(tiles[0])).toEqual(
       expect.arrayContaining([
         { released: 2020, completed: 2025 },
         { released: 2021, completed: 2026 },
@@ -317,6 +322,88 @@ describe("groupTierRows", () => {
     expect(groupTierRows(tiles, { released: 2026, completed: 2026 }).good).toHaveLength(0);
     expect(groupTierRows(tiles, { released: 2020, completed: 2026 }).good).toHaveLength(1);
     expect(groupTierRows(tiles, { released: 2026, completed: 2027 }).good).toHaveLength(1);
+  });
+});
+
+describe("groupTierRows — capa do membro do ano", () => {
+  it("keeps the collection cover without a year filter", () => {
+    const tiles = tilesOf([
+      anime({ franchiseId: 1, score: 8, seasonYear: 2020, title: "T1", coverImage: "t1.jpg", isCover: true }),
+      anime({ franchiseId: 1, score: 8, seasonYear: 2024, title: "T2", coverImage: "t2.jpg" }),
+    ]);
+
+    const tile = groupTierRows(tiles).good[0];
+    expect(tile.title).toBe("T1");
+    expect(tile.cover).toBe("t1.jpg");
+  });
+
+  it("shows and opens the member released in the filtered year, keeping the collection score", () => {
+    const second = anime({ franchiseId: 1, score: 6, seasonYear: 2024, title: "T2", coverImage: "t2.jpg" });
+    const tiles = tilesOf([
+      anime({ franchiseId: 1, score: 10, seasonYear: 2020, title: "T1", coverImage: "t1.jpg", isCover: true }),
+      second,
+    ]);
+
+    const tile = groupTierRows(tiles, { released: 2024, completed: null }).good[0];
+    expect(tile.title).toBe("T2");
+    expect(tile.cover).toBe("t2.jpg");
+    expect(tile.externalId).toBe(second.anilistId);
+    expect(tile.score).toBe(8);
+    expect(tile.key).toBe("franchise-1");
+  });
+
+  it("takes the oldest member when more than one matches the year", () => {
+    const tiles = tilesOf([
+      anime({ franchiseId: 1, score: 8, seasonYear: 2024, title: "Primeiro", coverImage: "a.jpg" }),
+      anime({ franchiseId: 1, score: 8, seasonYear: 2024, title: "Segundo", coverImage: "b.jpg" }),
+      anime({ franchiseId: 1, score: 8, seasonYear: 2025, title: "Terceiro", coverImage: "c.jpg", isCover: true }),
+    ]);
+
+    const tile = groupTierRows(tiles, { released: 2024, completed: null }).good[0];
+    expect(tile.title).toBe("Primeiro");
+    expect(tile.cover).toBe("a.jpg");
+  });
+
+  it("uses the member completed in the filtered year", () => {
+    const tiles = tilesOf([
+      anime({ franchiseId: 1, score: 8, title: "T1", coverImage: "t1.jpg", watchedAt: "2024-03-10T12:00:00.000Z" }),
+      anime({ franchiseId: 1, score: 8, title: "T2", coverImage: "t2.jpg", watchedAt: "2026-03-10T12:00:00.000Z" }),
+    ]);
+
+    expect(groupTierRows(tiles, { released: null, completed: 2026 }).good[0].cover).toBe("t2.jpg");
+    expect(groupTierRows(tiles, { released: null, completed: 2024 }).good[0].cover).toBe("t1.jpg");
+  });
+
+  it("falls back to the collection cover when the member of the year has none", () => {
+    const tiles = tilesOf([
+      anime({ franchiseId: 1, score: 8, seasonYear: 2020, title: "T1", coverImage: "t1.jpg", isCover: true }),
+      anime({ franchiseId: 1, score: 8, seasonYear: 2024, title: "T2", coverImage: null }),
+    ]);
+
+    const tile = groupTierRows(tiles, { released: 2024, completed: null }).good[0];
+    expect(tile.title).toBe("T2");
+    expect(tile.cover).toBe("t1.jpg");
+  });
+
+  it("shows the season of the year for a series, titled with the series name", () => {
+    const entry = series({
+      title: "Série X",
+      seasonList: [
+        { number: 1, name: null, poster: "s1.jpg", episodeCount: 10, airDate: "2020-01-01" },
+        { number: 2, name: null, poster: "s2.jpg", episodeCount: 10, airDate: "2021-01-01" },
+      ],
+      seasonStates: {
+        "1": { status: "watched", score: 9, lastAccessAt: "2025-05-05T12:00:00.000Z" },
+        "2": { status: "watched", score: 6, lastAccessAt: "2026-05-05T12:00:00.000Z" },
+      },
+      coverSeason: 2,
+    });
+    const tiles = buildTierTiles("series", buildSeasonGroups([entry]).groups, SERIES_TIER);
+
+    const tile = groupTierRows(tiles, { released: 2020, completed: null }).good[0];
+    expect(tile.cover).toBe("s1.jpg");
+    expect(tile.title).toBe("Série X · Temporada 1");
+    expect(tile.externalId).toBe(entry.tmdbId);
   });
 });
 
