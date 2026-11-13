@@ -3,7 +3,10 @@ import { singleFlight } from "../lib/singleFlight.js";
 import { findStaleMovies, updateMovieSyncData } from "../models/movieLibraryModel.js";
 import { findStaleGames, updateGameSyncData } from "../models/gameLibraryModel.js";
 import { findStaleBooks, updateBookSyncData } from "../models/bookLibraryModel.js";
-import { fetchMovieSyncData } from "./tmdbService.js";
+import { isHttpNotFound } from "../lib/httpClient.js";
+import { fetchMovieSyncData, type MovieSyncResult } from "./tmdbService.js";
+import { resolveMissingMovie } from "./tmdbMissingService.js";
+import type { MovieLibraryEntry } from "../types/movieLibrary.js";
 import { fetchGamesSyncData } from "./igdbService.js";
 import { fetchBooksSyncData } from "./hardcoverService.js";
 import { notifyError } from "./notifyService.js";
@@ -31,8 +34,7 @@ async function doRefreshMovies(): Promise<void> {
     await Promise.all(
       batch.map(async (entry) => {
         try {
-          const fresh = await fetchMovieSyncData(entry.tmdbId);
-          await updateMovieSyncData(entry.tmdbId, fresh);
+          await refreshMovie(entry);
         } catch (error) {
           await notifyError("releaseLibrarySyncService.refreshStaleMovies", error, {
             tmdbId: String(entry.tmdbId),
@@ -41,6 +43,20 @@ async function doRefreshMovies(): Promise<void> {
       })
     );
   }
+}
+
+// 404 não é falha do job: o TMDB apagou o id. Sem tratar, a linha nunca ganha
+// synced_at e volta a cada tick disparando o mesmo erro.
+async function refreshMovie(entry: MovieLibraryEntry): Promise<void> {
+  let fresh: MovieSyncResult;
+  try {
+    fresh = await fetchMovieSyncData(entry.tmdbId);
+  } catch (error) {
+    if (!isHttpNotFound(error)) throw error;
+    await resolveMissingMovie(entry);
+    return;
+  }
+  await updateMovieSyncData(entry.tmdbId, fresh);
 }
 
 export const refreshStaleGames = singleFlight(doRefreshGames);

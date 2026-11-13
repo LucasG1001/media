@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { AxiosError } from "axios";
+import type { AxiosResponse } from "axios";
 import type { Response } from "express";
 import type { DetailCache } from "../models/detailCacheModel.js";
 
 vi.mock("../services/notifyService.js", () => ({ notifyError: vi.fn().mockResolvedValue(undefined) }));
 
 const { serveDetail } = await import("./detailWithCache.js");
+const { notifyError } = await import("../services/notifyService.js");
 
 function fakeResponse() {
   const headers: Record<string, string> = {};
@@ -51,6 +54,44 @@ describe("serveDetail", () => {
 
     expect(json).toHaveBeenCalledWith({ title: "Frieren (cache)" });
     expect(headers["X-From-Cache"]).toBe("1");
+  });
+
+  it("reports the failure behind a fallback", async () => {
+    const { res } = fakeResponse();
+
+    await serveDetail(res, fakeCache({ title: "Frieren (cache)" }), 7, async () => {
+      throw new Error("TMDB fora do ar");
+    });
+
+    expect(notifyError).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers the cache silently when the item was removed from the external API", async () => {
+    const { res, json, headers } = fakeResponse();
+    const notFound = new AxiosError("Request failed with status code 404", "ERR_BAD_REQUEST", undefined, undefined, {
+      status: 404,
+    } as AxiosResponse);
+
+    await serveDetail(res, fakeCache({ title: "Filme apagado" }), 7, async () => {
+      throw notFound;
+    });
+
+    expect(json).toHaveBeenCalledWith({ title: "Filme apagado" });
+    expect(headers["X-From-Cache"]).toBe("1");
+    expect(notifyError).not.toHaveBeenCalled();
+  });
+
+  it("treats a normalized error wrapping a 404 the same way", async () => {
+    const { res } = fakeResponse();
+    const notFound = new AxiosError("Request failed with status code 404", "ERR_BAD_REQUEST", undefined, undefined, {
+      status: 404,
+    } as AxiosResponse);
+
+    await serveDetail(res, fakeCache({ title: "Anime apagado" }), 7, async () => {
+      throw new Error("Anime não encontrado na AniList.", { cause: notFound });
+    });
+
+    expect(notifyError).not.toHaveBeenCalled();
   });
 
   it("rethrows when the API fails and there is nothing cached", async () => {

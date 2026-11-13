@@ -1,4 +1,5 @@
 import { chunk } from "../lib/chunk.js";
+import { isHttpNotFound } from "../lib/httpClient.js";
 import * as libraryModel from "../models/libraryModel.js";
 import { findSeriesWithoutLastAired, updateSeriesSyncData } from "../models/seriesLibraryModel.js";
 import { fetchAnimesByIds, fetchLastAiredEpisodes } from "./anilistService.js";
@@ -73,9 +74,12 @@ async function backfillSeriesLastAired(): Promise<number> {
             lastAiredEpisode: fresh.lastAiredEpisode,
             seasonList: fresh.seasonList,
             genres: fresh.genres,
+            imdbId: fresh.imdbId,
           });
           updated += 1;
         } catch (error) {
+          // Série apagada do TMDB é assunto do refresh (tmdbMissingService), não deste backfill.
+          if (isHttpNotFound(error)) return;
           await notifyError("releaseDateBackfillService.series", error, { tmdbId: String(entry.tmdbId) });
         }
       })

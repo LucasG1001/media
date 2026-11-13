@@ -45,6 +45,8 @@ interface CollectionSyncAdapter<E, C, Cr> {
   externalId(entry: E): number;
   collectionKey(entry: E): number | null;
   isCompleted(entry: E): boolean;
+  // Item apagado da API externa: não serve de semente (a descoberta daria 404).
+  isMissing?(entry: E): boolean;
   discover(seedId: number): Promise<{ collectionId: number; members: C[] } | null>;
   memberId(member: C): number;
   toCreateEntry(member: C): Cr;
@@ -52,10 +54,13 @@ interface CollectionSyncAdapter<E, C, Cr> {
   notify(member: C, collectionId: number): Promise<void>;
 }
 
-async function syncOne<E, C, Cr>(adapter: CollectionSyncAdapter<E, C, Cr>): Promise<number> {
-  const entries = await adapter.findAll();
-  const existingIds = new Set(entries.map((entry) => adapter.externalId(entry)));
+type SeedAdapter<E> = Pick<
+  CollectionSyncAdapter<E, unknown, unknown>,
+  "externalId" | "collectionKey" | "isCompleted" | "isMissing"
+>;
 
+// Uma semente por coleção com item concluído, mais cada concluído sem coleção.
+export function selectSeeds<E>(adapter: SeedAdapter<E>, entries: E[]): Set<number> {
   const completedKeys = new Set<number>();
   for (const entry of entries) {
     const key = adapter.collectionKey(entry);
@@ -65,6 +70,7 @@ async function syncOne<E, C, Cr>(adapter: CollectionSyncAdapter<E, C, Cr>): Prom
   const seeds = new Set<number>();
   const seededKeys = new Set<number>();
   for (const entry of entries) {
+    if (adapter.isMissing?.(entry)) continue;
     const key = adapter.collectionKey(entry);
     if (key != null) {
       if (completedKeys.has(key) && !seededKeys.has(key)) {
@@ -75,6 +81,14 @@ async function syncOne<E, C, Cr>(adapter: CollectionSyncAdapter<E, C, Cr>): Prom
       seeds.add(adapter.externalId(entry));
     }
   }
+  return seeds;
+}
+
+async function syncOne<E, C, Cr>(adapter: CollectionSyncAdapter<E, C, Cr>): Promise<number> {
+  const entries = await adapter.findAll();
+  const existingIds = new Set(entries.map((entry) => adapter.externalId(entry)));
+
+  const seeds = selectSeeds(adapter, entries);
 
   let added = 0;
   for (const seed of seeds) {
@@ -147,6 +161,7 @@ const movieAdapter: CollectionSyncAdapter<MovieLibraryEntry, MovieCard, CreateMo
   externalId: (entry) => entry.tmdbId,
   collectionKey: (entry) => entry.collectionId,
   isCompleted: (entry) => entry.status === "watched" || entry.status === "rewatching",
+  isMissing: (entry) => entry.tmdbMissingAt != null,
   discover: (seedId) => discoverCollection(seedId),
   memberId: (member) => member.id,
   toCreateEntry: (member) => ({

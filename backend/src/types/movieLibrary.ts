@@ -14,6 +14,9 @@ export interface MovieLibraryEntry {
   collectionId: number | null;
   isCover: boolean;
   syncedAt: string | null;
+  imdbId: string | null;
+  // Primeiro 404 do TMDB para este id; NULL = o item existe lá.
+  tmdbMissingAt: string | null;
   notes: string | null;
   watchedAt: string | null;
   lastAccessAt: string | null;
@@ -53,6 +56,7 @@ export interface MovieSyncData {
   releaseDate: string | null;
   runtime: number | null;
   movieStatus: string;
+  imdbId: string | null;
 }
 
 export interface MovieLibraryRow {
@@ -69,6 +73,8 @@ export interface MovieLibraryRow {
   collection_id: number | null;
   is_cover: boolean;
   synced_at: string | null;
+  imdb_id: string | null;
+  tmdb_missing_at: string | null;
   notes: string | null;
   watched_at: string | null;
   last_access_at: string | null;

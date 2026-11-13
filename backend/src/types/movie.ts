@@ -31,6 +31,7 @@ export interface TmdbMovieDetail extends TmdbMovieListItem {
   runtime: number | null;
   genres: TmdbGenre[];
   tagline: string | null;
+  imdb_id?: string | null;
   belongs_to_collection?: {
     id: number;
     name: string;
@@ -41,6 +42,11 @@ export interface TmdbMovieDetail extends TmdbMovieListItem {
   "watch/providers"?: {
     results: Record<string, { flatrate?: TmdbProvider[] }>;
   };
+}
+
+export interface TmdbFindResponse {
+  movie_results?: { id: number }[];
+  tv_results?: { id: number }[];
 }
 
 export interface TmdbCollectionResponse {

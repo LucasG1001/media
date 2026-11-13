@@ -77,7 +77,9 @@ da entrada do banco. As duas colunas são **`readonly` no model** (mesmo padrão
   continua sendo o mecanismo de atualização.
 - **Quem lê é o mesmo endpoint.** Se a API externa falha e há cache, responde **200 com o cache** e o
   header `X-From-Cache: 1`. É isto que faz todos os drawers voltarem a funcionar inteiros no cenário
-  "API externa caiu", sem tocar em drawer nenhum. Sem cache, o erro sobe como antes.
+  "API externa caiu", sem tocar em drawer nenhum. Sem cache, o erro sobe como antes. O fallback
+  manda `notifyError`, **menos quando a falha é 404**: item apagado da API externa não é
+  indisponibilidade, e o cache passa a ser a resposta definitiva dele (`docs/sincronizacao.md` §2.9).
 - **Backfill** (`services/detailCacheBackfillService.ts`): job próprio no `runSyncTick`, teto de 50
   por mídia (**10 em anime** — o limiter da AniList é global ao processo e um lote grande atrasaria a
   busca do catálogo). Fica **fora** dos `findStale*` de propósito: coluna nova num `findStale*`

@@ -24,6 +24,8 @@ export const movieLibraryModel = createLibraryModel<MovieLibraryEntry, CreateMov
     { column: "genres", field: "genres", default: null },
     { column: "is_cover", field: "isCover", default: false, readonly: true },
     { column: "synced_at", field: "syncedAt", default: null, readonly: true },
+    { column: "imdb_id", field: "imdbId", default: null, readonly: true },
+    { column: "tmdb_missing_at", field: "tmdbMissingAt", default: null, readonly: true },
     { column: "notes", field: "notes", default: null },
   ],
   statusField: "status",
@@ -47,6 +49,8 @@ function toEntry(row: MovieLibraryRow): MovieLibraryEntry {
     genres: row.genres,
     isCover: row.is_cover,
     syncedAt: row.synced_at,
+    imdbId: row.imdb_id,
+    tmdbMissingAt: row.tmdb_missing_at,
     notes: row.notes,
     watchedAt: row.watched_at,
     lastAccessAt: row.last_access_at,
@@ -57,7 +61,9 @@ function toEntry(row: MovieLibraryRow): MovieLibraryEntry {
 
 // TTL curto para não lançados (a data pode ser adiada) e longo para lançados,
 // que só mudam título/capa. `limit` espalha o primeiro backfill entre execuções:
-// o TMDB não tem endpoint em lote, é 1 requisição por filme.
+// o TMDB não tem endpoint em lote, é 1 requisição por filme. Filme que sumiu do
+// TMDB (tmdb_missing_at) sai do backfill de genres, que para ele não tem saída,
+// e volta só pelo TTL.
 export async function findStaleMovies(
   upcomingTtlHours: number,
   releasedTtlHours: number,
@@ -68,7 +74,7 @@ export async function findStaleMovies(
      WHERE status != 'dropped'
        AND (
          synced_at IS NULL
-         OR genres IS NULL
+         OR (tmdb_missing_at IS NULL AND genres IS NULL)
          OR (movie_status = 'UPCOMING' AND synced_at < NOW() - ($1 || ' hours')::interval)
          OR (movie_status != 'UPCOMING' AND synced_at < NOW() - ($2 || ' hours')::interval)
        )
@@ -90,9 +96,11 @@ export async function updateMovieSyncData(tmdbId: number, data: MovieSyncData): 
          runtime = COALESCE($5, runtime),
          movie_status = $6,
          genres = $7,
+         imdb_id = COALESCE($8, imdb_id),
+         tmdb_missing_at = NULL,
          synced_at = NOW()
      WHERE tmdb_id = $1`,
-    [tmdbId, data.title ?? null, data.posterImage ?? null, data.releaseDate ?? null, data.runtime ?? null, data.movieStatus, data.genres]
+    [tmdbId, data.title ?? null, data.posterImage ?? null, data.releaseDate ?? null, data.runtime ?? null, data.movieStatus, data.genres, data.imdbId ?? null]
   );
 }
 

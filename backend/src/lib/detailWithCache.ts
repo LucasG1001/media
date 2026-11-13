@@ -1,6 +1,7 @@
 import type { Response } from "express";
 import type { DetailCache } from "../models/detailCacheModel.js";
 import { notifyError } from "../services/notifyService.js";
+import { isHttpNotFound } from "./httpClient.js";
 
 const DETAIL_PATH = ["detail"];
 
@@ -21,7 +22,11 @@ export async function serveDetail<T>(
   } catch (error) {
     const cached = await cache.find(externalId, path).catch(() => null);
     if (cached === null) throw error;
-    void notifyError("detailCache.fallback", error, { externalId: String(externalId) });
+    // 404 é item apagado da API externa, não indisponibilidade: o cache é a
+    // resposta definitiva e avisar a cada abertura do drawer seria só ruído.
+    if (!isHttpNotFound(error)) {
+      void notifyError("detailCache.fallback", error, { externalId: String(externalId) });
+    }
     res.setHeader("X-From-Cache", "1");
     res.json(cached);
   }

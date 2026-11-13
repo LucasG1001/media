@@ -19,6 +19,12 @@ function isRetriable(error: unknown): boolean {
   return status === 429 || status >= 500;
 }
 
+// Erro normalizado (AniListError, HardcoverError) guarda o AxiosError em `cause`.
+export function isHttpNotFound(error: unknown): boolean {
+  const source = axios.isAxiosError(error) ? error : error instanceof Error ? error.cause : undefined;
+  return axios.isAxiosError(source) && source.response?.status === 404;
+}
+
 function retryDelayMs(error: unknown, attempt: number): number {
   const axiosError = error as AxiosError;
   const header = axiosError.response?.headers?.["retry-after"] as string | undefined;

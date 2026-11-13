@@ -71,6 +71,7 @@ export interface TmdbTvDetail extends TmdbTvListItem {
   status: string | null;
   next_episode_to_air?: TmdbEpisode | null;
   last_episode_to_air?: TmdbEpisode | null;
+  external_ids?: { imdb_id?: string | null };
   videos?: { results: TmdbVideo[] };
   "watch/providers"?: {
     results: Record<string, { flatrate?: TmdbProvider[] }>;

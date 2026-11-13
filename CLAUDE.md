@@ -39,7 +39,7 @@ scripts/dev-seed.sh <arquivo.dump>               # dados reais (ou --from-vps <s
 cd backend && npm run dev        # http://localhost:3333
 cd backend && npm run build      # tsc → dist/
 cd backend && npm start          # node dist/server.js
-cd backend && npm test           # vitest (cache, httpClient, librarySyncService)
+cd backend && npm test           # vitest (lib/ e services/)
 
 # frontend (Vite)
 cd frontend && npm run dev       # http://localhost:5173 (proxy /api → :3333)
@@ -221,6 +221,11 @@ direto** (ver `game_modes` e `tags`).
 **`genres`** (`TEXT[]`, nas cinco mídias com catálogo; `NULL` = nunca buscado, `[]` = sem gênero) — gravado
 pelo drawer e pelos jobs de refresh (`genres IS NULL` entra no `findStale*`); alimenta o filtro
 facetado de Gêneros da biblioteca (ver `docs/frontend-colecoes.md`).
+
+**`imdb_id`** (`TEXT`) + **`tmdb_missing_at`** (`TIMESTAMPTZ`), só em `movie_library` e
+`series_library`, `readonly` no model — o TMDB apaga ids sem redirecionar. O refresh trata o 404 à
+parte: troca o `tmdb_id` quando o `imdb_id` acha o novo, senão marca `tmdb_missing_at` e avisa uma
+vez. **A linha nunca é removida.** Ver `docs/sincronizacao.md` §2.9.
 
 **`detail_cache`** (`JSONB`) + **`detail_cached_at`** — última resposta de detalhe da API externa,
 para o drawer abrir inteiro com ela fora. Existe nas cinco mídias com catálogo (não em

@@ -263,6 +263,73 @@ export async function notifySeriesFinished(entry: SeriesLibraryEntry, totalEpiso
   });
 }
 
+// ---------- item que sumiu do TMDB ----------
+
+export type TmdbMediaType = "filme" | "serie";
+
+const TMDB_MEDIA_LABEL: Record<TmdbMediaType, string> = { filme: "Filme", serie: "Série" };
+
+function tmdbUrl(mediaType: TmdbMediaType, tmdbId: number): string {
+  return `https://www.themoviedb.org/${mediaType === "filme" ? "movie" : "tv"}/${tmdbId}`;
+}
+
+export async function notifyTmdbRelocated(args: {
+  mediaType: TmdbMediaType;
+  title: string;
+  image: string | null;
+  oldId: number;
+  newId: number;
+}): Promise<void> {
+  const url = tmdbUrl(args.mediaType, args.newId);
+  await send("tmdb-id-alterado", {
+    title: `🔀 ${args.title}`,
+    description: "O TMDB trocou o id deste item. A biblioteca já aponta para o novo.",
+    image: args.image?.startsWith("http") ? args.image : undefined,
+    url,
+    fields: [
+      { name: "Tipo", value: TMDB_MEDIA_LABEL[args.mediaType], inline: true },
+      { name: "Id antigo", value: String(args.oldId), inline: true },
+      { name: "Id novo", value: String(args.newId), inline: true },
+    ],
+    buttons: [{ text: "🔗 TMDB", url }],
+  });
+}
+
+export async function notifyTmdbMissing(args: {
+  mediaType: TmdbMediaType;
+  title: string;
+  image: string | null;
+  tmdbId: number;
+  candidate: { id: number; title: string } | null;
+  conflictId: number | null;
+}): Promise<void> {
+  const fields: NotifyField[] = [
+    { name: "Tipo", value: TMDB_MEDIA_LABEL[args.mediaType], inline: true },
+    { name: "Id removido", value: String(args.tmdbId), inline: true },
+  ];
+  const buttons: NotifyButton[] = [];
+  let description = "Foi removido do TMDB e não achei substituto. O item continua na sua biblioteca.";
+
+  if (args.conflictId != null) {
+    description = "Foi removido do TMDB e o id novo já é outro item da sua biblioteca. Nada foi alterado.";
+    fields.push({ name: "Id novo", value: String(args.conflictId), inline: true });
+    buttons.push({ text: "🔗 Id novo", url: tmdbUrl(args.mediaType, args.conflictId) });
+  } else if (args.candidate) {
+    description =
+      "Foi removido do TMDB. Há um possível substituto (mesmo título e data) — confira antes de trocar; nada foi alterado.";
+    fields.push({ name: "Candidato", value: `${args.candidate.title} (${args.candidate.id})` });
+    buttons.push({ text: "🔗 Candidato", url: tmdbUrl(args.mediaType, args.candidate.id) });
+  }
+
+  await send("tmdb-item-removido", {
+    title: `🕳️ ${args.title}`,
+    description,
+    image: args.image?.startsWith("http") ? args.image : undefined,
+    fields,
+    buttons: buttons.length > 0 ? buttons : undefined,
+  });
+}
+
 // ---------- coleções ----------
 
 type CollectionMediaType = "anime" | "filme" | "jogo" | "livro";

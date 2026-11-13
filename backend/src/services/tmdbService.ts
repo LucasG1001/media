@@ -3,6 +3,7 @@ import type {
   TmdbMovieListItem,
   TmdbMovieDetail,
   TmdbCollectionResponse,
+  TmdbFindResponse,
   TmdbListResponse,
   MovieCard,
   MovieDetail,
@@ -116,6 +117,7 @@ export interface MovieSyncResult {
   runtime: number | null;
   movieStatus: string;
   genres: string[];
+  imdbId: string | null;
 }
 
 export async function fetchMovieSyncData(id: number): Promise<MovieSyncResult> {
@@ -127,7 +129,13 @@ export async function fetchMovieSyncData(id: number): Promise<MovieSyncResult> {
     runtime: data.runtime,
     movieStatus: deriveStatus(data.release_date || null),
     genres: (data.genres ?? []).map((g) => g.name),
+    imdbId: data.imdb_id || null,
   };
+}
+
+export async function findMovieIdsByImdbId(imdbId: string): Promise<number[]> {
+  const data = await queryTmdb<TmdbFindResponse>(`/find/${imdbId}`, { external_source: "imdb_id" });
+  return (data.movie_results ?? []).map((movie) => movie.id);
 }
 
 export async function discoverCollection(tmdbId: number): Promise<{ collectionId: number; members: MovieCard[] } | null> {

@@ -94,21 +94,24 @@ episódio use o estado anterior antes de ele ser sobrescrito.
 ```
 status != 'dropped' AND (
   synced_at IS NULL
-  OR air_status IS NULL
+  OR (tmdb_missing_at IS NULL AND (air_status IS NULL OR genres IS NULL))
   OR (next_airing_episode IS NOT NULL AND synced_at < agora - 12h)
   OR (next_airing_episode IS NULL     AND synced_at < agora - 7 dias)
 )
 ```
 
 TTL de **12 horas** para série com episódio agendado e **7 dias** para as demais. O
-`air_status IS NULL` é o backfill da coluna: cada série entra uma vez e sai.
+`air_status IS NULL` e o `genres IS NULL` são backfill de coluna: cada série entra uma vez e sai.
+Série apagada do TMDB (`tmdb_missing_at`) fica fora dos dois, porque para ela não há saída — ver §2.9.
 
-**Como roda:** lotes de **10 em paralelo**, 1 requisição TMDB (`/tv/:id`) por série. O teto existe
+**Como roda:** lotes de **10 em paralelo**, 1 requisição TMDB (`/tv/:id`, com
+`append_to_response=external_ids` para trazer o `imdb_id`) por série. O teto existe
 porque o TMDB não tem endpoint em lote e há momentos em que a biblioteca inteira fica stale de uma
 vez — foi exatamente o que o `air_status IS NULL` provocou quando foi adicionado.
 
 **O que grava:** `title`, `poster_image`, `first_air_date`, `seasons`, `episodes`, `series_status`,
-`air_status`, `next_airing_episode`, `season_list`, `synced_at`.
+`air_status`, `next_airing_episode`, `season_list`, `genres`, `imdb_id`, `synced_at` — e zera
+`tmdb_missing_at`.
 
 `season_list` é atualizado a cada refresh, então **temporada nova aparece sozinha**. O
 `season_states` (seu status/nota por temporada) nunca é tocado.
@@ -125,6 +128,7 @@ episódio).
 ```
 status != 'dropped' AND (
   synced_at IS NULL
+  OR (tmdb_missing_at IS NULL AND genres IS NULL)
   OR (movie_status  = 'UPCOMING' AND synced_at < agora - 12h)
   OR (movie_status != 'UPCOMING' AND synced_at < agora - 7 dias)
 )
@@ -139,9 +143,11 @@ o título e a capa. Por isso o TTL curto vale só para quem ainda não lançou.
 execução**. O teto espalha o primeiro backfill: uma biblioteca de 500 filmes leva ~2h30 (100 a cada
 30 min) para completar a primeira volta. Depois disso o volume por execução cai para quase nada.
 
-**O que grava:** `title`, `poster_image`, `release_date`, `runtime`, `movie_status`, `synced_at`.
+**O que grava:** `title`, `poster_image`, `release_date`, `runtime`, `movie_status`, `genres`,
+`imdb_id`, `synced_at` — e zera `tmdb_missing_at`.
 
-**O que notifica:** nada. Aviso de lançamento é do job das 09:00 (§4).
+**O que notifica:** nada. Aviso de lançamento é do job das 09:00 (§4). Filme apagado do TMDB tem
+tratamento próprio — ver §2.9.
 
 ### 2.4 Jogos — `refreshStaleGames`
 
@@ -221,6 +227,46 @@ está em [offline.md](offline.md).
 
 ---
 
+### 2.9 Item apagado do TMDB (404) — filmes e séries
+
+`services/tmdbMissingService.ts` · chamado pelos refreshes de §2.2 e §2.3
+
+O TMDB apaga ids sem redirecionar: duplicata mesclada em outro id, ou placeholder removido (o caso
+que motivou isto foi um "Untitled … Film 2" que entrou pelo sync de coleções e depois sumiu junto
+com a coleção). O `/movie/:id` e o `/tv/:id` passam a responder 404 para sempre.
+
+**404 não é erro do job.** Sem tratamento a linha nunca ganha `synced_at`, volta em todo tick e
+dispara o mesmo `notifyError` a cada 30 min. O refresh desvia o 404 (`isHttpNotFound`) para o
+`resolveMissing*`; qualquer outro status continua indo para o `notifyError`.
+
+**A linha nunca é removida** — o que entrou na biblioteca fica. O que acontece, em ordem:
+
+1. **Tem `imdb_id`** → `/find/{imdb_id}?external_source=imdb_id`. Se devolver **um único** id
+   diferente, `repoint` troca só o `tmdb_id` (status, nota, anotação e coleção intactos), zera
+   `synced_at` e `detail_cache` para os jobs rebuscarem pelo id novo, e avisa (`tmdb-id-alterado`).
+   Se o id novo **já é outra linha** da biblioteca, nada é trocado e o aviso diz isso.
+2. **Sem troca** → `markMissing` grava `synced_at = NOW()` e `tmdb_missing_at` (só no primeiro 404).
+   A linha sai da fila e volta pelo TTL normal; cada nova sondagem repete o passo 1, então um id
+   novo que apareça depois ainda é pego. Se o TMDB restaurar o id, o sync normal zera
+   `tmdb_missing_at`.
+3. **Aviso único** (`tmdb-item-removido`), só quando `tmdb_missing_at` ainda era `NULL`. Sem
+   `imdb_id`, tenta um palpite por busca de título: aceita só **um** resultado com título
+   (normalizado) e data idênticos, e **apenas sugere** — título e data iguais ainda podem ser outro
+   filme, então troca automática é exclusiva do `imdb_id`.
+
+`imdb_id` é gravado pelo próprio refresh (zero requisição extra) e **não** entra no `findStale*`:
+há título sem `imdb_id` no TMDB, a condição não teria saída. Preenche sozinho conforme cada linha
+vence o TTL — até lá, item que sumir só tem o palpite por título.
+
+Efeitos colaterais tratados no mesmo pacote: o `serveDetail` responde o `detail_cache` **sem**
+`notifyError` quando a falha é 404 (senão cada abertura do drawer avisaria); o sync de coleções não
+usa item com `tmdb_missing_at` como semente (§3); o backfill de `last_aired_episode` ignora 404.
+
+Jogos e livros não passam por aqui: IGDB e Hardcover respondem em lote e o item removido
+simplesmente não volta (§2.4, §2.5) — sem erro, mas a linha continua stale e é pedida em todo tick.
+
+---
+
 ## 3. Sync de coleções — diário, 04:00
 
 `services/collectionSyncService.ts` · APIs: AniList, TMDB, IGDB, Hardcover
@@ -233,7 +279,8 @@ sequência/OVA/filme novo de uma franquia que você terminou aparece sozinho na 
 
 **Como escolhe as sementes:** um item por coleção (`franchise_id`/`collection_id`) que tenha
 concluído. Item concluído **sem** coleção também vira semente — é o que descobre a franquia de um
-anime avulso pela primeira vez.
+anime avulso pela primeira vez. Filme com `tmdb_missing_at` nunca é semente (`selectSeeds`): a
+descoberta começa pelo detalhe do filme e daria 404 todo dia.
 
 **Custo por semente:**
 
@@ -340,6 +387,9 @@ Colunas alimentadas por API externa. As demais (`status`, `score`, `is_cover`,
 | `detail_cache` / `detail_cached_at` | — | ✅ (o `GET /:id` grava) | ✅ (`backfillDetailCache`) | — |
 | `series_name` / `series_position` (livros) | — | — | — | ✅ (`COALESCE`) — `readonly` no model |
 | `synced_at` | — | — | ✅ | — |
+| `imdb_id` (filmes/séries) | — | — | ✅ (`COALESCE`) | — |
+| `tmdb_missing_at` (filmes/séries) | — | — | ✅ (grava no 404, zera no sync) | — |
+| `tmdb_id` (filmes/séries) | ✅ | — | só na troca de id do §2.9 | — |
 | `last_notified_episode` | — | — | ✅ | — |
 | `release_notified_at` | — | — | — | job das 09:00 |
 
@@ -381,6 +431,7 @@ de propósito. TMDB, IGDB e YouTube não têm limiter — só o retry.
 
 Todo job embrulha suas falhas em `notifyError`, que loga e manda ao Telegram pela notify-api, com
 deduplicação de erro repetido. **Job nunca derruba o processo** e `notifyService` nunca lança.
+A exceção é o 404 do TMDB, que não é falha e tem caminho próprio (§2.9).
 
 ---
 

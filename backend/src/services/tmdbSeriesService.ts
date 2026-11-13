@@ -12,6 +12,7 @@ import type {
   SeasonDetail,
   TmdbSeasonDetail,
 } from "../types/series.js";
+import type { TmdbFindResponse } from "../types/movie.js";
 
 const TMDB_URL = "https://api.themoviedb.org/3";
 const CACHE_TTL_MS = 60 * 60 * 1000;
@@ -159,10 +160,13 @@ export interface SeriesSyncResult {
   lastAiredEpisode: { season: number; episode: number; airDate: string } | null;
   seasonList: SeasonMeta[];
   genres: string[];
+  imdbId: string | null;
 }
 
+// O /tv/:id não traz imdb_id no corpo como o /movie/:id; vem em external_ids,
+// anexado na mesma requisição.
 export async function fetchSeriesSyncData(id: number): Promise<SeriesSyncResult> {
-  const data = await queryTmdb<TmdbTvDetail>(`/tv/${id}`, {});
+  const data = await queryTmdb<TmdbTvDetail>(`/tv/${id}`, { append_to_response: "external_ids" });
   const next = data.next_episode_to_air ?? null;
   const nextAiringEpisode =
     next && next.air_date
@@ -189,5 +193,11 @@ export async function fetchSeriesSyncData(id: number): Promise<SeriesSyncResult>
     lastAiredEpisode,
     seasonList: toSeasonList(data),
     genres: (data.genres ?? []).map((g) => g.name),
+    imdbId: data.external_ids?.imdb_id || null,
   };
+}
+
+export async function findSeriesIdsByImdbId(imdbId: string): Promise<number[]> {
+  const data = await queryTmdb<TmdbFindResponse>(`/find/${imdbId}`, { external_source: "imdb_id" });
+  return (data.tv_results ?? []).map((series) => series.id);
 }

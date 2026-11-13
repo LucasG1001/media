@@ -68,6 +68,8 @@ const TABLES: TableSpec[] = [
       { column: "watched_at", get: (e) => e.watchedAt ?? null },
       { column: "last_access_at", get: (e) => e.lastAccessAt ?? null },
       { column: "synced_at", get: (e) => e.syncedAt ?? null },
+      { column: "imdb_id", get: (e) => e.imdbId ?? null },
+      { column: "tmdb_missing_at", get: (e) => e.tmdbMissingAt ?? null },
       { column: "notes", get: (e) => e.notes ?? null },
     ],
   },
@@ -90,6 +92,8 @@ const TABLES: TableSpec[] = [
       { column: "next_airing_episode", get: (e) => e.nextAiringEpisode ?? null, json: true },
       { column: "last_aired_episode", get: (e) => e.lastAiredEpisode ?? null, json: true },
       { column: "synced_at", get: (e) => e.syncedAt ?? null },
+      { column: "imdb_id", get: (e) => e.imdbId ?? null },
+      { column: "tmdb_missing_at", get: (e) => e.tmdbMissingAt ?? null },
       { column: "watched_at", get: (e) => e.watchedAt ?? null },
       { column: "last_access_at", get: (e) => e.lastAccessAt ?? null },
       // Estado por temporada (status/nota/anotação/último acesso) — sem isto o

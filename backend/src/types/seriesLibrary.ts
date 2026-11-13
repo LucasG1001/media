@@ -48,6 +48,9 @@ export interface SeriesLibraryEntry {
   nextAiringEpisode: SeriesNextAiringEpisode | null;
   lastAiredEpisode: SeriesLastAiredEpisode | null;
   syncedAt: string | null;
+  imdbId: string | null;
+  // Primeiro 404 do TMDB para este id; NULL = o item existe lá.
+  tmdbMissingAt: string | null;
   lastNotifiedEpisode: number | null;
   seasonList: SeriesSeasonMeta[] | null;
   seasonStates: Record<string, SeriesSeasonState> | null;
@@ -101,6 +104,8 @@ export interface SeriesLibraryRow {
   next_airing_episode: SeriesNextAiringEpisode | null;
   last_aired_episode: SeriesLastAiredEpisode | null;
   synced_at: string | null;
+  imdb_id: string | null;
+  tmdb_missing_at: string | null;
   last_notified_episode: number | null;
   season_list: SeriesSeasonMeta[] | null;
   season_states: Record<string, SeriesSeasonState> | null;

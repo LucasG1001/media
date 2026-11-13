@@ -1,6 +1,8 @@
 import { findStaleSeries, updateSeriesSyncData, findDueSeriesEpisodes, markSeriesEpisodeNotified } from "../models/seriesLibraryModel.js";
 import { chunk } from "../lib/chunk.js";
 import { singleFlight } from "../lib/singleFlight.js";
+import { isHttpNotFound } from "../lib/httpClient.js";
+import { resolveMissingSeries } from "./tmdbMissingService.js";
 import { fetchSeriesSyncData, type SeriesSyncResult } from "./tmdbSeriesService.js";
 import { notifySeriesNewEpisode, notifySeriesFinished, notifyError } from "./notifyService.js";
 import type { SeriesLibraryEntry } from "../types/seriesLibrary.js";
@@ -43,27 +45,41 @@ async function doRefresh(): Promise<void> {
     await Promise.all(
       batch.map(async (entry) => {
         try {
-          const fresh = await fetchSeriesSyncData(entry.tmdbId);
-          if (entry.syncedAt) await detectAndNotify(entry, fresh);
-          await updateSeriesSyncData(entry.tmdbId, {
-            title: fresh.title,
-            posterImage: fresh.posterImage,
-            firstAirDate: fresh.firstAirDate,
-            seasons: fresh.seasons,
-            episodes: fresh.episodes,
-            seriesStatus: fresh.seriesStatus,
-            airStatus: fresh.airStatus,
-            nextAiringEpisode: fresh.nextAiringEpisode,
-            lastAiredEpisode: fresh.lastAiredEpisode,
-            seasonList: fresh.seasonList,
-            genres: fresh.genres,
-          });
+          await refreshSeries(entry);
         } catch (error) {
           await notifyError("seriesLibrarySyncService.refreshStaleSeries", error, { tmdbId: String(entry.tmdbId) });
         }
       })
     );
   }
+}
+
+// 404 não é falha do job: o TMDB apagou o id. Sem tratar, a linha nunca ganha
+// synced_at e volta a cada tick disparando o mesmo erro.
+async function refreshSeries(entry: SeriesLibraryEntry): Promise<void> {
+  let fresh: SeriesSyncResult;
+  try {
+    fresh = await fetchSeriesSyncData(entry.tmdbId);
+  } catch (error) {
+    if (!isHttpNotFound(error)) throw error;
+    await resolveMissingSeries(entry);
+    return;
+  }
+  if (entry.syncedAt) await detectAndNotify(entry, fresh);
+  await updateSeriesSyncData(entry.tmdbId, {
+    title: fresh.title,
+    posterImage: fresh.posterImage,
+    firstAirDate: fresh.firstAirDate,
+    seasons: fresh.seasons,
+    episodes: fresh.episodes,
+    seriesStatus: fresh.seriesStatus,
+    airStatus: fresh.airStatus,
+    nextAiringEpisode: fresh.nextAiringEpisode,
+    lastAiredEpisode: fresh.lastAiredEpisode,
+    seasonList: fresh.seasonList,
+    genres: fresh.genres,
+    imdbId: fresh.imdbId,
+  });
 }
 
 export const notifyDueSeriesEpisodes = singleFlight(doNotifyDue);

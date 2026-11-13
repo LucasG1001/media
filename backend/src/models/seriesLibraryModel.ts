@@ -28,6 +28,8 @@ export const seriesLibraryModel = createLibraryModel<SeriesLibraryEntry, CreateS
     { column: "next_airing_episode", field: "nextAiringEpisode", default: null, readonly: true },
     { column: "last_aired_episode", field: "lastAiredEpisode", default: null, readonly: true },
     { column: "synced_at", field: "syncedAt", default: null, readonly: true },
+    { column: "imdb_id", field: "imdbId", default: null, readonly: true },
+    { column: "tmdb_missing_at", field: "tmdbMissingAt", default: null, readonly: true },
     { column: "last_notified_episode", field: "lastNotifiedEpisode", default: null, readonly: true },
     // readonly: entram na leitura (getAll etc.), mas são escritos só pelas
     // funções dedicadas abaixo (JSONB precisa de JSON.stringify explícito).
@@ -60,6 +62,8 @@ function toSeriesEntry(row: SeriesLibraryRow): SeriesLibraryEntry {
     nextAiringEpisode: row.next_airing_episode,
     lastAiredEpisode: row.last_aired_episode,
     syncedAt: row.synced_at,
+    imdbId: row.imdb_id,
+    tmdbMissingAt: row.tmdb_missing_at,
     lastNotifiedEpisode: row.last_notified_episode,
     seasonList: row.season_list,
     seasonStates: row.season_states,
@@ -72,6 +76,8 @@ function toSeriesEntry(row: SeriesLibraryRow): SeriesLibraryEntry {
   };
 }
 
+// Série que sumiu do TMDB (tmdb_missing_at) sai dos backfills de air_status e
+// genres, que para ela não têm saída, e volta só pelo TTL.
 export async function findStaleSeries(
   ongoingTtlHours: number,
   endedTtlHours: number
@@ -81,8 +87,7 @@ export async function findStaleSeries(
      WHERE status != 'dropped'
        AND (
          synced_at IS NULL
-         OR air_status IS NULL
-         OR genres IS NULL
+         OR (tmdb_missing_at IS NULL AND (air_status IS NULL OR genres IS NULL))
          OR (next_airing_episode IS NOT NULL AND synced_at < NOW() - ($1 || ' hours')::interval)
          OR (next_airing_episode IS NULL AND synced_at < NOW() - ($2 || ' hours')::interval)
        )`,
@@ -121,6 +126,7 @@ export interface SeriesSyncData {
   lastAiredEpisode: SeriesLastAiredEpisode | null;
   seasonList: SeriesSeasonMeta[];
   genres: string[];
+  imdbId: string | null;
 }
 
 // Título/pôster usam COALESCE(NULLIF(...)): o TMDB em pt-BR às vezes devolve
@@ -139,6 +145,8 @@ export async function updateSeriesSyncData(tmdbId: number, data: SeriesSyncData)
          air_status = COALESCE($10, air_status),
          last_aired_episode = COALESCE($11::jsonb, last_aired_episode),
          genres = $12,
+         imdb_id = COALESCE($13, imdb_id),
+         tmdb_missing_at = NULL,
          synced_at = NOW()
      WHERE tmdb_id = $1`,
     [
@@ -154,6 +162,7 @@ export async function updateSeriesSyncData(tmdbId: number, data: SeriesSyncData)
       data.airStatus ?? null,
       data.lastAiredEpisode ? JSON.stringify(data.lastAiredEpisode) : null,
       data.genres,
+      data.imdbId ?? null,
     ]
   );
 }

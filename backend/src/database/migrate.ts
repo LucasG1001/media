@@ -517,4 +517,15 @@ export async function migrate(): Promise<void> {
          AND jsonb_typeof(detail_cache->'detail'->'genres') = 'array';
     `);
   }
+
+  // O TMDB apaga ids (duplicata mesclada, placeholder removido) sem redirecionar.
+  // imdb_id é a âncora para reencontrar o item via /find (NULL = nunca buscado);
+  // tmdb_missing_at marca o primeiro 404 (NULL = existe). A linha nunca é removida.
+  for (const table of ["movie_library", "series_library"]) {
+    await pool.query(`
+      ALTER TABLE ${table}
+      ADD COLUMN IF NOT EXISTS imdb_id         TEXT,
+      ADD COLUMN IF NOT EXISTS tmdb_missing_at TIMESTAMPTZ;
+    `);
+  }
 }
