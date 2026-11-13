@@ -7,6 +7,7 @@ import {
   buildTierTiles,
   countUnrated,
   groupTierRows,
+  releaseYearOf,
   tierYears,
 } from "./tierList";
 import { buildFranchiseGroups } from "./franchiseGroups";
@@ -154,23 +155,46 @@ describe("buildTierTiles", () => {
     expect(byKey.get("franchise-2")?.row).toBe("mid");
   });
 
-  it("collects the years in which members were completed", () => {
+  it("marks each completed member with its release and completion years", () => {
     const tiles = tilesOf([
-      anime({ franchiseId: 1, score: 9, watchedAt: "2025-03-10T12:00:00.000Z" }),
-      anime({ franchiseId: 1, score: 9, watchedAt: "2026-07-01T12:00:00.000Z" }),
-      anime({ franchiseId: 1, score: 9, watchedAt: null }),
+      anime({ franchiseId: 1, score: 9, seasonYear: 2019, watchedAt: "2025-03-10T12:00:00.000Z" }),
+      anime({ franchiseId: 1, score: 9, seasonYear: 2026, watchedAt: "2026-07-01T12:00:00.000Z" }),
+      anime({ franchiseId: 1, score: 9, seasonYear: null, watchedAt: null }),
     ]);
 
-    expect(tiles[0].years).toEqual([2026, 2025]);
+    expect(tiles[0].marks).toEqual(
+      expect.arrayContaining([
+        { released: 2019, completed: 2025 },
+        { released: 2026, completed: 2026 },
+        { released: null, completed: null },
+      ])
+    );
+    expect(tiles[0].marks).toHaveLength(3);
   });
 
-  it("does not take the year of a member that is not completed", () => {
+  it("does not mark members that are planned or dropped when something was completed", () => {
     const tiles = tilesOf([
-      anime({ franchiseId: 1, score: 9, watchedAt: "2025-03-10T12:00:00.000Z" }),
-      anime({ franchiseId: 1, status: "dropped", watchedAt: "2024-03-10T12:00:00.000Z" }),
+      anime({ franchiseId: 1, score: 9, seasonYear: 2020, watchedAt: "2025-03-10T12:00:00.000Z" }),
+      anime({ franchiseId: 1, status: "dropped", seasonYear: 2023 }),
+      anime({ franchiseId: 1, status: "plan_to_watch", seasonYear: 2026 }),
     ]);
 
-    expect(tiles[0].years).toEqual([2025]);
+    expect(tiles[0].marks).toEqual([{ released: 2020, completed: 2025 }]);
+  });
+
+  it("marks a dropped collection by the release year of what was dropped", () => {
+    const tiles = tilesOf([
+      anime({ franchiseId: 1, status: "dropped", seasonYear: 2026, watchedAt: "2026-02-01T12:00:00.000Z" }),
+      anime({ franchiseId: 1, status: "plan_to_watch", seasonYear: 2027 }),
+    ]);
+
+    expect(tiles[0].row).toBe("dropped");
+    expect(tiles[0].marks).toEqual([{ released: 2026, completed: null }]);
+  });
+
+  it("falls back to the end date when the anime has no season year", () => {
+    const tiles = tilesOf([anime({ score: 8, seasonYear: null, endDate: "2021-12-24" })]);
+    expect(tiles[0].marks[0].released).toBe(2021);
   });
 
   it("treats a series as the collection of its seasons", () => {
@@ -195,7 +219,26 @@ describe("buildTierTiles", () => {
     expect(tiles[0].externalId).toBe(entry.tmdbId);
     expect(tiles[0].score).toBe(7.5);
     expect(tiles[0].row).toBe("good");
-    expect(tiles[0].years).toEqual([2026, 2025]);
+    expect(tiles[0].marks).toEqual(
+      expect.arrayContaining([
+        { released: 2020, completed: 2025 },
+        { released: 2021, completed: 2026 },
+      ])
+    );
+  });
+});
+
+describe("releaseYearOf", () => {
+  it("reads the year from the text, so January 1st does not slip to the previous year", () => {
+    expect(releaseYearOf("2020-01-01")).toBe(2020);
+    expect(releaseYearOf("1999-12-31")).toBe(1999);
+    expect(releaseYearOf("2015")).toBe(2015);
+  });
+
+  it("returns null when there is no usable date", () => {
+    expect(releaseYearOf(null)).toBeNull();
+    expect(releaseYearOf("")).toBeNull();
+    expect(releaseYearOf("sem data")).toBeNull();
   });
 });
 
@@ -208,7 +251,7 @@ describe("groupTierRows", () => {
       anime({ score: 9.5, title: "Meio" }),
     ]);
 
-    const rows = groupTierRows(tiles, null);
+    const rows = groupTierRows(tiles);
     expect(rows.top.map((t) => t.title)).toEqual(["Dez", "Meio", "Alfa", "Zeta"]);
   });
 
@@ -218,39 +261,76 @@ describe("groupTierRows", () => {
       anime({ franchiseId: 1, score: 8, watchedAt: "2026-03-10T12:00:00.000Z" }),
     ]);
 
-    expect(groupTierRows(tiles, 2025).top).toHaveLength(1);
-    expect(groupTierRows(tiles, 2026).top).toHaveLength(1);
-    expect(groupTierRows(tiles, 2024).top).toHaveLength(0);
+    expect(groupTierRows(tiles, { released: null, completed: 2025 }).top).toHaveLength(1);
+    expect(groupTierRows(tiles, { released: null, completed: 2026 }).top).toHaveLength(1);
+    expect(groupTierRows(tiles, { released: null, completed: 2024 }).top).toHaveLength(0);
   });
 
-  it("hides dropped and undated collections when a year is selected", () => {
+  it("hides dropped and undated collections when a completion year is selected", () => {
     const tiles = tilesOf([
       anime({ status: "dropped" }),
       anime({ score: 8, watchedAt: null }),
       anime({ score: 0, watchedAt: "2026-01-10T12:00:00.000Z" }),
     ]);
 
-    const all = groupTierRows(tiles, null);
+    const all = groupTierRows(tiles);
     expect(all.dropped).toHaveLength(1);
     expect(all.good).toHaveLength(1);
     expect(all.unrated).toHaveLength(1);
 
-    const filtered = groupTierRows(tiles, 2026);
+    const filtered = groupTierRows(tiles, { released: null, completed: 2026 });
     expect(filtered.dropped).toHaveLength(0);
     expect(filtered.good).toHaveLength(0);
     expect(filtered.unrated).toHaveLength(1);
   });
+
+  it("filters by release year and keeps the band of the whole collection", () => {
+    const tiles = tilesOf([
+      anime({ franchiseId: 1, score: 10, seasonYear: 2019 }),
+      anime({ franchiseId: 1, score: 2, seasonYear: 2026 }),
+      anime({ score: 8, seasonYear: 2026 }),
+      anime({ score: 8, seasonYear: 2018 }),
+    ]);
+
+    const rows = groupTierRows(tiles, { released: 2026, completed: null });
+    expect(rows.mid.map((t) => t.key)).toEqual(["franchise-1"]);
+    expect(rows.good).toHaveLength(1);
+    expect(rows.bottom).toHaveLength(0);
+  });
+
+  it("shows dropped collections under the release year filter", () => {
+    const tiles = tilesOf([
+      anime({ status: "dropped", seasonYear: 2026 }),
+      anime({ status: "dropped", seasonYear: 2020 }),
+    ]);
+
+    expect(groupTierRows(tiles, { released: 2026, completed: null }).dropped).toHaveLength(1);
+    expect(groupTierRows(tiles, { released: 2026, completed: 2026 }).dropped).toHaveLength(0);
+  });
+
+  it("requires both years to match on the same member", () => {
+    const tiles = tilesOf([
+      anime({ franchiseId: 1, score: 8, seasonYear: 2020, watchedAt: "2026-03-10T12:00:00.000Z" }),
+      anime({ franchiseId: 1, score: 8, seasonYear: 2026, watchedAt: "2027-03-10T12:00:00.000Z" }),
+    ]);
+
+    expect(groupTierRows(tiles, { released: 2026, completed: 2026 }).good).toHaveLength(0);
+    expect(groupTierRows(tiles, { released: 2020, completed: 2026 }).good).toHaveLength(1);
+    expect(groupTierRows(tiles, { released: 2026, completed: 2027 }).good).toHaveLength(1);
+  });
 });
 
 describe("tierYears / countUnrated", () => {
-  it("lists the years with completions, most recent first", () => {
+  it("lists the years of each kind, most recent first", () => {
     const tiles = tilesOf([
-      anime({ score: 8, watchedAt: "2024-06-10T12:00:00.000Z" }),
-      anime({ score: 8, watchedAt: "2026-06-10T12:00:00.000Z" }),
-      anime({ score: 8, watchedAt: "2024-08-10T12:00:00.000Z" }),
+      anime({ score: 8, seasonYear: 2010, watchedAt: "2024-06-10T12:00:00.000Z" }),
+      anime({ score: 8, seasonYear: 2022, watchedAt: "2026-06-10T12:00:00.000Z" }),
+      anime({ score: 8, seasonYear: 2010, watchedAt: "2024-08-10T12:00:00.000Z" }),
+      anime({ status: "dropped", seasonYear: 2025 }),
     ]);
 
-    expect(tierYears(tiles)).toEqual([2026, 2024]);
+    expect(tierYears(tiles, "completed")).toEqual([2026, 2024]);
+    expect(tierYears(tiles, "released")).toEqual([2025, 2022, 2010]);
   });
 
   it("counts what is still missing a score", () => {

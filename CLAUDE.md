@@ -166,7 +166,8 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 - **Dashboard**: agrega no cliente sobre as bibliotecas já carregadas, em carrosséis de agenda e de
   lançamentos recentes. **Ver `docs/frontend-dashboard.md`** antes de mexer nele.
 - **Tier List**: visão **somente leitura e derivada** (sem tabela nem endpoint) das coleções de uma
-  mídia em faixas pela média da coleção, com filtro de ano e exportação em PNG. **Ver
+  mídia em faixas pela média da coleção, com filtros de ano (lançamento e conclusão) e exportação
+  em PNG. **Ver
   `docs/frontend-tierlist.md`** antes de mexer nele.
 - **Offline**: toda imagem de dado dinâmico passa por `components/CoverImage` (que aplica
   `utils/imageUrl.ts` e trata `onError`) — **nunca use `<img>` cru para URL de terceiro**. O estado de

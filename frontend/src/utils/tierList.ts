@@ -45,6 +45,21 @@ export function bandRangeLabel(id: TierBandId): string {
   return `Nota ${from} até abaixo de ${below}`;
 }
 
+// Um membro que conta para os filtros de ano: quando foi lançado e quando foi
+// concluído. Os dois ficam juntos porque os filtros combinados valem para o
+// mesmo membro.
+export interface TierMark {
+  released: number | null;
+  completed: number | null;
+}
+
+export interface TierYearFilter {
+  released: number | null;
+  completed: number | null;
+}
+
+export const NO_YEAR_FILTER: TierYearFilter = { released: null, completed: null };
+
 export interface TierTile {
   key: string;
   media: TierMedia;
@@ -52,11 +67,11 @@ export interface TierTile {
   externalId: number;
   title: string;
   cover: string | null;
-  // Média da coleção inteira (0 = sem nota). Não muda com o filtro de ano.
+  // Média da coleção inteira (0 = sem nota). Não muda com os filtros de ano.
   score: number;
   row: TierRowId;
-  // Anos em que algum membro foi concluído; vazio em "dropped".
-  years: number[];
+  // Membros concluídos; em "dropped", os abandonados (sem ano de conclusão).
+  marks: TierMark[];
   count: number;
 }
 
@@ -66,8 +81,20 @@ export interface TierAdapter<T> {
   cover: (representative: T) => string | null;
   status: (member: T) => string;
   completedAt: (member: T) => string | null;
+  releasedYear: (member: T) => number | null;
   // Concluído e revisita: a revisita já foi consumida uma vez.
   done: readonly string[];
+}
+
+// Data de lançamento vem como "AAAA-MM-DD". O ano sai do texto, não de `Date`:
+// data sem hora é lida como meia-noite UTC, e em fuso negativo 1º de janeiro
+// viraria 31 de dezembro do ano anterior.
+export function releaseYearOf(date: string | null | undefined): number | null {
+  if (!date) return null;
+  const match = /^(\d{4})/.exec(date);
+  if (match) return Number(match[1]);
+  const parsed = new Date(date);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.getFullYear();
 }
 
 export const ANIME_TIER: TierAdapter<LibraryEntry> = {
@@ -76,6 +103,7 @@ export const ANIME_TIER: TierAdapter<LibraryEntry> = {
   cover: (e) => e.coverImage,
   status: (e) => e.status,
   completedAt: (e) => e.watchedAt,
+  releasedYear: (e) => e.seasonYear ?? releaseYearOf(e.endDate),
   done: ["watched", "rewatching"],
 };
 
@@ -85,6 +113,7 @@ export const MOVIE_TIER: TierAdapter<MovieLibraryEntry> = {
   cover: (e) => e.posterImage,
   status: (e) => e.status,
   completedAt: (e) => e.watchedAt,
+  releasedYear: (e) => releaseYearOf(e.releaseDate),
   done: ["watched", "rewatching"],
 };
 
@@ -95,6 +124,7 @@ export const SERIES_TIER: TierAdapter<SeasonMember> = {
   cover: (m) => m.poster,
   status: (m) => m.status,
   completedAt: (m) => m.lastAccessAt,
+  releasedYear: (m) => releaseYearOf(m.airDate),
   done: ["watched", "rewatching"],
 };
 
@@ -104,6 +134,7 @@ export const GAME_TIER: TierAdapter<GameLibraryEntry> = {
   cover: (e) => e.backgroundImage,
   status: (e) => e.status,
   completedAt: (e) => e.finishedAt,
+  releasedYear: (e) => releaseYearOf(e.released),
   done: ["beaten", "replaying"],
 };
 
@@ -113,6 +144,7 @@ export const BOOK_TIER: TierAdapter<BookLibraryEntry> = {
   cover: (e) => e.coverImage,
   status: (e) => e.status,
   completedAt: (e) => e.readAt,
+  releasedYear: (e) => releaseYearOf(e.publishedDate),
   done: ["read", "rereading"],
 };
 
@@ -137,14 +169,20 @@ export function buildTierTiles<T extends { score: number }>(
     const score = averageScore(group.members);
 
     let row: TierRowId;
-    if (completed.length > 0) row = score > 0 ? bandOf(score) : "unrated";
-    else if (group.members.some((m) => adapter.status(m) === "dropped")) row = "dropped";
-    else continue;
-
-    const years = new Set<number>();
-    for (const member of completed) {
-      const year = yearOf(adapter.completedAt(member));
-      if (year !== null) years.add(year);
+    let marks: TierMark[];
+    if (completed.length > 0) {
+      row = score > 0 ? bandOf(score) : "unrated";
+      marks = completed.map((m) => ({
+        released: adapter.releasedYear(m),
+        completed: yearOf(adapter.completedAt(m)),
+      }));
+    } else {
+      // Membro só planejado nunca marca ano: uma sequência ainda não vista não
+      // pode colocar a coleção no ano dela.
+      const dropped = group.members.filter((m) => adapter.status(m) === "dropped");
+      if (dropped.length === 0) continue;
+      row = "dropped";
+      marks = dropped.map((m) => ({ released: adapter.releasedYear(m), completed: null }));
     }
 
     tiles.push({
@@ -155,7 +193,7 @@ export function buildTierTiles<T extends { score: number }>(
       cover: adapter.cover(group.representative),
       score,
       row,
-      years: [...years].sort((a, b) => b - a),
+      marks,
       count: group.count,
     });
   }
@@ -168,12 +206,22 @@ function byScoreThenTitle(a: TierTile, b: TierTile): number {
   return a.title.localeCompare(b.title, "pt-BR");
 }
 
-// `year` nulo = todos os anos. Com ano, só passa a coleção que teve membro
-// concluído nele — e ela mantém a faixa da média inteira, então a mesma coleção
-// aparece igual em cada ano em que foi assistida. "dropped" não tem data e some.
+// Os filtros só decidem quem aparece: a coleção mantém a faixa da média inteira,
+// então aparece igual em cada ano em que bate. Os dois anos juntos precisam bater
+// no MESMO membro (lançado em X e concluído em Y). "dropped" não tem ano de
+// conclusão, então some com esse filtro e aparece com o de lançamento.
+function matchesYears(tile: TierTile, filter: TierYearFilter): boolean {
+  if (filter.released === null && filter.completed === null) return true;
+  return tile.marks.some(
+    (mark) =>
+      (filter.released === null || mark.released === filter.released) &&
+      (filter.completed === null || mark.completed === filter.completed)
+  );
+}
+
 export function groupTierRows(
   tiles: readonly TierTile[],
-  year: number | null
+  filter: TierYearFilter = NO_YEAR_FILTER
 ): Record<TierRowId, TierTile[]> {
   const rows: Record<TierRowId, TierTile[]> = {
     top: [],
@@ -186,17 +234,21 @@ export function groupTierRows(
   };
 
   for (const tile of tiles) {
-    if (year !== null && !tile.years.includes(year)) continue;
-    rows[tile.row].push(tile);
+    if (matchesYears(tile, filter)) rows[tile.row].push(tile);
   }
 
   for (const id of TIER_ROW_ORDER) rows[id].sort(byScoreThenTitle);
   return rows;
 }
 
-export function tierYears(tiles: readonly TierTile[]): number[] {
+export function tierYears(tiles: readonly TierTile[], kind: keyof TierMark): number[] {
   const years = new Set<number>();
-  for (const tile of tiles) for (const year of tile.years) years.add(year);
+  for (const tile of tiles) {
+    for (const mark of tile.marks) {
+      const year = mark[kind];
+      if (year !== null) years.add(year);
+    }
+  }
   return [...years].sort((a, b) => b - a);
 }
 

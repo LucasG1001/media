@@ -84,7 +84,8 @@ export function TierListPage() {
   const { styles: tierStyles, defaults: tierDefaults, save: saveTierStyles } = useTierStyles();
 
   const [media, setMedia] = useState<TierMedia>(readStoredMedia);
-  const [year, setYear] = useState<number | null>(null);
+  const [releasedYear, setReleasedYear] = useState<number | null>(null);
+  const [completedYear, setCompletedYear] = useState<number | null>(null);
   const [selected, setSelected] = useState<Selection | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -116,11 +117,20 @@ export function TierListPage() {
   };
 
   const tiles = tilesByMedia[media];
-  const years = useMemo(() => tierYears(tiles), [tiles]);
+  const releasedYears = useMemo(() => tierYears(tiles, "released"), [tiles]);
+  const completedYears = useMemo(() => tierYears(tiles, "completed"), [tiles]);
   // O ano escolhido pode não existir na mídia para a qual se trocou: cai em "todos"
   // por derivação, sem efeito para "consertar" o estado.
-  const activeYear = year !== null && years.includes(year) ? year : null;
-  const rows = useMemo(() => groupTierRows(tiles, activeYear), [tiles, activeYear]);
+  const activeReleased = releasedYear !== null && releasedYears.includes(releasedYear) ? releasedYear : null;
+  const activeCompleted = completedYear !== null && completedYears.includes(completedYear) ? completedYear : null;
+  const rows = useMemo(
+    () => groupTierRows(tiles, { released: activeReleased, completed: activeCompleted }),
+    [tiles, activeReleased, activeCompleted]
+  );
+
+  const filterParts: string[] = [];
+  if (activeReleased !== null) filterParts.push(`lançado em ${activeReleased}`);
+  if (activeCompleted !== null) filterParts.push(`concluído em ${activeCompleted}`);
 
   const current = MEDIA.find((m) => m.id === media) ?? MEDIA[0];
   const isLoading = loadingByMedia[media] && tiles.length === 0;
@@ -145,7 +155,13 @@ export function TierListPage() {
       if (rows.dropped.length > 0) exportRows.push("dropped");
       const blob = await renderTierListImage({
         title: `Tier List · ${current.label}`,
-        subtitle: activeYear !== null ? String(activeYear) : "Todos os anos",
+        subtitle:
+          [
+            activeReleased !== null ? `Lançados em ${activeReleased}` : null,
+            activeCompleted !== null ? `Concluídos em ${activeCompleted}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ") || "Todos os anos",
         rows: exportRows.map((id) => ({
           label: tierStyles[id].label,
           color: tierStyles[id].color,
@@ -161,7 +177,14 @@ export function TierListPage() {
           fontFamily: cssVar("--font-family"),
         },
       });
-      downloadBlob(blob, `tierlist-${current.slug}-${activeYear ?? "todos"}.png`);
+      const suffix =
+        [
+          activeReleased !== null ? `lancado-${activeReleased}` : null,
+          activeCompleted !== null ? `concluido-${activeCompleted}` : null,
+        ]
+          .filter(Boolean)
+          .join("-") || "todos";
+      downloadBlob(blob, `tierlist-${current.slug}-${suffix}.png`);
     } catch {
       setExportError("Não foi possível gerar a imagem.");
     } finally {
@@ -273,14 +296,27 @@ export function TierListPage() {
         <div className={styles.actions}>
           <select
             className={styles.select}
-            aria-label="Ano de conclusão"
-            value={activeYear ?? ""}
-            onChange={(e) => setYear(e.target.value ? Number(e.target.value) : null)}
+            aria-label="Ano de lançamento"
+            value={activeReleased ?? ""}
+            onChange={(e) => setReleasedYear(e.target.value ? Number(e.target.value) : null)}
           >
-            <option value="">Todos os anos</option>
-            {years.map((y) => (
+            <option value="">Lançado: todos</option>
+            {releasedYears.map((y) => (
               <option key={y} value={y}>
-                {y}
+                Lançado em {y}
+              </option>
+            ))}
+          </select>
+          <select
+            className={styles.select}
+            aria-label="Ano de conclusão"
+            value={activeCompleted ?? ""}
+            onChange={(e) => setCompletedYear(e.target.value ? Number(e.target.value) : null)}
+          >
+            <option value="">Concluído: todos</option>
+            {completedYears.map((y) => (
+              <option key={y} value={y}>
+                Concluído em {y}
               </option>
             ))}
           </select>
@@ -304,20 +340,21 @@ export function TierListPage() {
         <div className={styles.empty}>Carregando…</div>
       ) : isEmpty ? (
         <div className={styles.empty}>
-          {activeYear !== null
-            ? `Nada concluído em ${current.label} em ${activeYear}.`
+          {filterParts.length > 0
+            ? `Nada em ${current.label} ${filterParts.join(" e ")}.`
             : `Nada concluído em ${current.label} ainda.`}
         </div>
       ) : (
         <>
           <section className={styles.board} aria-label={`Tier list de ${current.label}`}>
             {TIER_BANDS.map((band) => renderRow(band.id, bandRangeLabel(band.id)))}
-            {activeYear === null && rows.dropped.length > 0 && renderRow("dropped", "Status abandonado")}
+            {rows.dropped.length > 0 && renderRow("dropped", "Status abandonado")}
           </section>
 
-          {activeYear !== null && (
+          {activeCompleted !== null && (
             <p className={styles.note}>
-              {tierStyles.dropped.label} só aparece em “Todos os anos”: o abandono não tem data registrada.
+              {tierStyles.dropped.label} não aparece com o filtro “Concluído em”: o abandono não tem data
+              registrada. Use “Lançado em” para vê-lo.
             </p>
           )}
 
