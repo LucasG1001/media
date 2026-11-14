@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { visibleTracks, toMusicGroups, type MusicListOptions } from "./musicList";
-import { collectionNav } from "./collectionNav";
+import { visibleTracks, trackNeighbors, pickInitialTrack, type MusicListOptions } from "./musicList";
 import type { MusicLibraryEntry } from "../types/musicLibrary";
 
 function track(videoId: string, patch: Partial<MusicLibraryEntry> = {}): MusicLibraryEntry {
@@ -87,30 +86,72 @@ describe("visibleTracks", () => {
   });
 });
 
-describe("toMusicGroups", () => {
-  it("vira um grupo de um só por música, na mesma ordem", () => {
-    const tracks = [track("a"), track("b")];
-    const groups = toMusicGroups(tracks);
-    expect(groups.map((g) => g.key)).toEqual(["track-a", "track-b"]);
-    expect(groups.every((g) => g.count === 1 && g.members.length === 1)).toBe(true);
-    expect(groups[0].representative).toBe(tracks[0]);
+// A lista da direita é fixa; quem muda é só a música atual dentro dela.
+describe("trackNeighbors", () => {
+  const entries = [track("c"), track("a"), track("b"), track("d"), track("x", { status: "removed" })];
+  const tracks = visibleTracks(entries, base);
+
+  it("devolve a anterior e a próxima na ordem da lista", () => {
+    const { previous, next } = trackNeighbors(tracks, "b");
+    expect(previous?.videoId).toBe("a");
+    expect(next?.videoId).toBe("c");
+  });
+
+  it("dá a volta nas pontas", () => {
+    expect(trackNeighbors(tracks, "d").next?.videoId).toBe("a");
+    expect(trackNeighbors(tracks, "a").previous?.videoId).toBe("d");
+  });
+
+  // Link direto para uma música que a aba ou a busca escondem.
+  it("fora da lista, a próxima é a primeira e não há anterior", () => {
+    const { previous, next } = trackNeighbors(tracks, "x");
+    expect(previous).toBeUndefined();
+    expect(next?.videoId).toBe("a");
+  });
+
+  it("sozinha na lista, não tem vizinha", () => {
+    expect(trackNeighbors([track("so")], "so")).toEqual({});
+  });
+
+  it("com a lista vazia não há para onde ir", () => {
+    expect(trackNeighbors([], "a")).toEqual({ next: undefined });
+  });
+
+  it("não altera a lista recebida", () => {
+    trackNeighbors(tracks, "b");
+    expect(ids(tracks)).toEqual(["a", "b", "c", "d"]);
   });
 });
 
-// Sem coleção, o anterior/próximo do drawer percorre a lista visível inteira.
-describe("navegação pela lista visível", () => {
-  const entries = [track("c"), track("a"), track("b"), track("x", { status: "removed" })];
-  const tracks = visibleTracks(entries, base);
-
-  it("segue a ordem da tela e ignora o que o filtro tirou", () => {
-    const nav = collectionNav([{ members: tracks }], (m) => m.videoId === "b");
-    expect(nav).toMatchObject({ index: 1, total: 3 });
-    expect(nav?.prev?.videoId).toBe("a");
-    expect(nav?.next?.videoId).toBe("c");
+// A música em que a página abre.
+describe("pickInitialTrack", () => {
+  it("abre na última música tocada", () => {
+    const entries = [
+      track("a", { lastAccessAt: "2026-01-01T00:00:00Z" }),
+      track("b", { lastAccessAt: "2026-11-10T00:00:00Z" }),
+      track("c"),
+    ];
+    expect(pickInitialTrack(entries)?.videoId).toBe("b");
   });
 
-  it("não tem anterior na primeira nem próximo na última", () => {
-    expect(collectionNav([{ members: tracks }], (m) => m.videoId === "a")?.prev).toBeNull();
-    expect(collectionNav([{ members: tracks }], (m) => m.videoId === "c")?.next).toBeNull();
+  it("sem nenhuma tocada, abre na primeira em ordem alfabética", () => {
+    const entries = [track("1", { title: "zebra" }), track("2", { title: "Água" })];
+    expect(pickInitialTrack(entries)?.videoId).toBe("2");
+  });
+
+  it("prefere uma curtida a uma removida tocada mais recentemente", () => {
+    const entries = [
+      track("removida", { status: "removed", lastAccessAt: "2026-11-12T00:00:00Z" }),
+      track("curtida", { lastAccessAt: "2020-01-01T00:00:00Z" }),
+    ];
+    expect(pickInitialTrack(entries)?.videoId).toBe("curtida");
+  });
+
+  it("só cai nas removidas quando não há curtida", () => {
+    expect(pickInitialTrack([track("r", { status: "removed" })])?.videoId).toBe("r");
+  });
+
+  it("não tem música inicial com a biblioteca vazia", () => {
+    expect(pickInitialTrack([])).toBeUndefined();
   });
 });

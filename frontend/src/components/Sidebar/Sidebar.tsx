@@ -44,7 +44,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const location = useLocation();
   const [chooserOpen, setChooserOpen] = useState(false);
 
-  const current = NAV_ITEMS.find((item) => item.path === location.pathname);
+  // Prefixo, não igualdade: `/musica/:videoId` ainda é a mídia Música.
+  const current = NAV_ITEMS.find(
+    (item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
+  );
   const CenterIcon = current ? current.icon : MediaIcon;
   const centerLabel = current ? current.label : "Mídia";
 

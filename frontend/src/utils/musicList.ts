@@ -1,9 +1,6 @@
-import type { MusicLibraryEntry, MusicLibraryStatus, MusicCard } from "../types/musicLibrary";
-import type { CollectionGroup } from "./buildCollectionGroups";
+import type { MusicLibraryEntry, MusicLibraryStatus } from "../types/musicLibrary";
 import type { SortDir } from "../hooks/useSingleSort";
 import { lastAccessTimeOf } from "./lastAccess";
-
-export type MusicGroup = CollectionGroup<MusicLibraryEntry>;
 
 export interface MusicListOptions {
   status: MusicLibraryStatus;
@@ -45,9 +42,8 @@ function matchesSearch(entry: MusicLibraryEntry, query: string): boolean {
   );
 }
 
-// A lista que está na tela: aba de status → busca (título/canal) → ordenação. É
-// também a sequência do anterior/próximo do drawer, já que não há coleção para
-// delimitá-la. O desempate por videoId não inverte com a direção: é só o que
+// A lista da tela de reprodução: aba de status → busca (título/canal) →
+// ordenação. O desempate por videoId não inverte com a direção: é só o que
 // impede a ordem de trocar entre renders.
 export function visibleTracks(entries: MusicLibraryEntry[], options: MusicListOptions): MusicLibraryEntry[] {
   const query = options.search.trim().toLowerCase();
@@ -58,25 +54,34 @@ export function visibleTracks(entries: MusicLibraryEntry[], options: MusicListOp
     .sort((a, b) => sign * compare(a, b) || a.videoId.localeCompare(b.videoId));
 }
 
-// O FranchiseGrid trabalha sobre grupos; aqui cada música é um grupo de um só.
-export function toMusicGroups(tracks: MusicLibraryEntry[]): MusicGroup[] {
-  return tracks.map((track) => ({
-    key: `track-${track.videoId}`,
-    representative: track,
-    members: [track],
-    count: 1,
-    completedCount: 1,
-  }));
+export interface TrackNeighbors {
+  previous?: MusicLibraryEntry;
+  next?: MusicLibraryEntry;
 }
 
-export function musicLibraryEntryToCard(entry: MusicLibraryEntry): MusicCard {
+// Anterior e próxima da música atual na lista visível. A lista é circular: depois
+// da última vem a primeira. Música fora da lista (a aba ou a busca a escondem)
+// tem a primeira como próxima e nenhuma anterior; sozinha na lista, não tem
+// vizinha.
+export function trackNeighbors(tracks: MusicLibraryEntry[], currentVideoId: string): TrackNeighbors {
+  const index = tracks.findIndex((track) => track.videoId === currentVideoId);
+  if (index === -1) return { next: tracks[0] };
+  if (tracks.length < 2) return {};
   return {
-    id: entry.videoId,
-    title: entry.title,
-    thumbnail: entry.thumbnail,
-    channelTitle: entry.channelTitle,
-    channelThumbnail: entry.channelThumbnail,
-    durationSeconds: entry.durationSeconds,
-    viewCount: entry.viewCount,
+    previous: tracks[(index - 1 + tracks.length) % tracks.length],
+    next: tracks[(index + 1) % tracks.length],
   };
+}
+
+// A música em que a página abre: a última tocada entre as curtidas; sem nenhuma
+// tocada ainda, a primeira em ordem alfabética. Só cai nas removidas quando não
+// há curtida nenhuma — biblioteca só de removidas ainda precisa abrir em algo.
+export function pickInitialTrack(entries: MusicLibraryEntry[]): MusicLibraryEntry | undefined {
+  const liked = entries.filter((entry) => entry.status === "liked");
+  const pool = liked.length > 0 ? liked : entries;
+  if (pool.length === 0) return undefined;
+  const byAccess = [...pool].sort(
+    (a, b) => compareNumbers(lastAccessTimeOf(b), lastAccessTimeOf(a)) || comparatorFor("alpha")(a, b) || a.videoId.localeCompare(b.videoId)
+  );
+  return byAccess[0];
 }

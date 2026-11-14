@@ -1,25 +1,21 @@
 import { useState, useCallback, useMemo } from "react";
-import { TabNav } from "../../components/TabNav/TabNav";
-import { FranchiseGrid } from "../../components/FranchiseGrid/FranchiseGrid";
-import { YoutubeDrawer } from "../../components/YoutubeDrawer/YoutubeDrawer";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { MusicWatch } from "../../components/MusicWatch/MusicWatch";
+import { MusicQueueControls } from "../../components/MusicWatch/MusicQueueControls";
 import { YoutubeLibraryModal } from "../../components/YoutubeLibraryModal/YoutubeLibraryModal";
-import { LibraryControls } from "../../components/LibraryControls/LibraryControls";
-import { musicCardConfig } from "../../config/cards";
 import { useMusicLibrary } from "../../hooks/useMusicLibrary";
 import { useSingleSort } from "../../hooks/useSingleSort";
-import type { MusicCard, MusicLibraryStatus } from "../../types/musicLibrary";
-import { MUSIC_LIBRARY_STATUS_LABELS } from "../../types/musicLibrary";
-import { visibleTracks, toMusicGroups, musicLibraryEntryToCard } from "../../utils/musicList";
-import { collectionNav } from "../../utils/collectionNav";
+import type { MusicLibraryStatus } from "../../types/musicLibrary";
+import { visibleTracks, trackNeighbors, pickInitialTrack } from "../../utils/musicList";
 import { useOnline } from "../../context/connectivityContext";
-// Mesma moldura da página do YouTube (faixa de adicionar, grade 16:9): o CSS é
-// compartilhado em vez de copiado.
-import styles from "../YouTubePage/YouTubePage.module.css";
+import styles from "./MusicPage.module.css";
 
-const STATUS_TABS = (Object.entries(MUSIC_LIBRARY_STATUS_LABELS) as [MusicLibraryStatus, string][]).map(
-  ([id, label]) => ({ id, label })
-);
+const MUSIC_PATH = "/musica";
+const AUTOPLAY_STORAGE_KEY = "music-autoplay";
 
+// Música não tem tela de biblioteca: a página É a tela de reprodução. `/musica`
+// redireciona para a última música tocada, e a lista da direita (com busca,
+// ordenação e abas) faz o papel da biblioteca.
 export function MusicPage() {
   const online = useOnline();
   const [activeStatus, setActiveStatus] = useState<MusicLibraryStatus>("liked");
@@ -28,18 +24,20 @@ export function MusicPage() {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [addNotice, setAddNotice] = useState<string | null>(null);
-  const [drawerVideoId, setDrawerVideoId] = useState<string | null>(null);
-  const [modalVideoId, setModalVideoId] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [autoplay, setAutoplay] = useState(() => localStorage.getItem(AUTOPLAY_STORAGE_KEY) !== "false");
   const sort = useSingleSort("alpha", "asc");
+  // Segmento opcional numa rota só: a página não desmonta ao trocar de música,
+  // então o player, a busca e a ordenação sobrevivem à troca.
+  const { videoId: watchVideoId } = useParams<{ videoId?: string }>();
+  const navigate = useNavigate();
 
   const {
     entries,
     loading,
     error,
     update: updateEntry,
-    updateMany: updateManyEntries,
     remove: removeEntry,
-    removeMany: removeManyEntries,
     findByVideoId,
     registerAccess,
     addFromUrl,
@@ -61,6 +59,9 @@ export function MusicPage() {
           `Playlist "${name}": ${imported} ${imported === 1 ? "música adicionada" : "músicas adicionadas"}` +
             (skipped > 0 ? ` (${skipped} já ${skipped === 1 ? "estava" : "estavam"} na biblioteca)` : "")
         );
+      } else if (result) {
+        // Sem grade para ver o card novo aparecer, o aviso é a confirmação.
+        setAddNotice(`"${result.title}" adicionada.`);
       }
     } catch (e) {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
@@ -70,136 +71,113 @@ export function MusicPage() {
     }
   }, [urlInput, adding, addFromUrl]);
 
-  const handleCardClick = useCallback((card: MusicCard) => {
-    setDrawerVideoId(card.id);
-  }, []);
+  const openTrack = useCallback(
+    (videoId: string) => {
+      navigate(`${MUSIC_PATH}/${videoId}`);
+    },
+    [navigate]
+  );
 
-  const handleOpenModal = useCallback((card: MusicCard) => {
-    setModalVideoId(card.id);
+  const changeAutoplay = useCallback((value: boolean) => {
+    setAutoplay(value);
+    localStorage.setItem(AUTOPLAY_STORAGE_KEY, String(value));
   }, []);
 
   const tracks = useMemo(
     () => visibleTracks(entries, { status: activeStatus, search, sortField: sort.field, sortDir: sort.dir }),
     [entries, activeStatus, search, sort.field, sort.dir]
   );
-  const groups = useMemo(() => toMusicGroups(tracks), [tracks]);
 
-  const gridKey = `${activeStatus}-${sort.field}-${sort.dir}-${search}`;
+  const watchEntry = watchVideoId ? findByVideoId(watchVideoId) : undefined;
+  const initialTrack = useMemo(() => pickInitialTrack(entries), [entries]);
 
-  const drawerEntry = drawerVideoId ? findByVideoId(drawerVideoId) : undefined;
-  const modalEntry = modalVideoId ? findByVideoId(modalVideoId) : undefined;
-
-  // Sem coleção para delimitar a sequência, o anterior/próximo percorre a lista
-  // que está na tela inteira — um pseudo-grupo com todas as músicas visíveis.
-  const drawerNav = useMemo(() => {
-    if (!drawerEntry) return null;
-    return collectionNav([{ members: tracks }], (m) => m.id === drawerEntry.id);
-  }, [drawerEntry, tracks]);
-
-  return (
-    <div className={styles.page}>
+  const addBar = (
+    <>
       <h1 className={styles.srOnly}>Música</h1>
-
-      <div className={styles.topRow}>
-        <div className={styles.tabWrapper}>
-          <TabNav plain tabs={STATUS_TABS} activeTab={activeStatus} onTabChange={(id) => setActiveStatus(id as MusicLibraryStatus)} />
-        </div>
-        <div className={styles.addBar}>
-          <input
-            className={styles.addInput}
-            type="text"
-            value={urlInput}
-            placeholder="Cole o link de uma música ou playlist do YouTube..."
-            onChange={(e) => setUrlInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleAdd();
-            }}
-          />
-          <button
-            className={styles.addButton}
-            onClick={handleAdd}
-            disabled={adding || !urlInput.trim() || !online}
-            title={online ? undefined : "Sem conexão — adicionar música precisa de internet."}
-          >
-            {adding ? "Adicionando..." : "Adicionar"}
-          </button>
-        </div>
+      <div className={styles.addBar}>
+        <input
+          className={styles.addInput}
+          type="text"
+          value={urlInput}
+          placeholder="Cole o link de uma música ou playlist do YouTube..."
+          onChange={(e) => setUrlInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void handleAdd();
+          }}
+        />
+        <button
+          className={styles.addButton}
+          onClick={() => { void handleAdd(); }}
+          disabled={adding || !urlInput.trim() || !online}
+          title={online ? undefined : "Sem conexão — adicionar música precisa de internet."}
+        >
+          {adding ? "Adicionando..." : "Adicionar"}
+        </button>
       </div>
       {addError && <div className={styles.addError}>{addError}</div>}
       {addNotice && <div className={styles.addNotice}>{addNotice}</div>}
+    </>
+  );
 
-      <LibraryControls
-        searchValue={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Buscar por título ou canal..."
-        count={groups.length}
-        filterGroups={[]}
-        onClearFilters={() => undefined}
-        sort={{
-          active: sort.field,
-          dir: sort.dir,
-          options: [
-            { field: "alpha", label: "Alfabética" },
-            { field: "date", label: "Data" },
-            { field: "views", label: "Visualizações" },
-            { field: "access", label: "Último acesso" },
-          ],
-          onSelect: sort.select,
-        }}
+  if (!watchEntry) {
+    // `/musica` puro, ou um id que não está (mais) na biblioteca: cai na música
+    // inicial. `replace` para o voltar do navegador não ficar preso no redirect.
+    if (initialTrack) return <Navigate to={`${MUSIC_PATH}/${initialTrack.videoId}`} replace />;
+    return (
+      <div className={styles.page}>
+        {addBar}
+        {!loading && (
+          <div className={styles.empty}>
+            {error ?? "Nada por aqui ainda. Cole o link de uma música do YouTube para começar!"}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.page}>
+      {addBar}
+
+      <MusicWatch
+        // Sem `key`: remontar a tela recriaria o player e derrubaria a tela
+        // cheia a cada música.
+        entry={watchEntry}
+        tracks={tracks}
+        autoplay={autoplay}
+        onAutoplayChange={changeAutoplay}
+        onSelect={openTrack}
+        onPlayed={() => { void registerAccess(watchEntry.id); }}
+        onEdit={() => setModalOpen(true)}
+        onNotesChange={(notes) => { void updateEntry(watchEntry.id, { notes }); }}
+        controls={
+          <MusicQueueControls
+            status={activeStatus}
+            onStatusChange={setActiveStatus}
+            search={search}
+            onSearchChange={setSearch}
+            sortField={sort.field}
+            sortDir={sort.dir}
+            onSortSelect={sort.select}
+          />
+        }
       />
 
-      <FranchiseGrid
-        groups={groups}
-        loading={loading}
-        error={error}
-        cardConfig={musicCardConfig}
-        entryToCard={musicLibraryEntryToCard}
-        getExternalId={(e) => e.videoId}
-        getLibraryEntry={(id) => findByVideoId(id)}
-        onCardClick={handleCardClick}
-        onAddToLibrary={handleOpenModal}
-        onDeleteGroup={(group) => removeManyEntries(group.members.map((m) => m.id))}
-        statusLabels={MUSIC_LIBRARY_STATUS_LABELS}
-        onBulkSetStatus={(ids, status) => updateManyEntries(ids, status)}
-        expandTitle="Ver músicas"
-        animationKey={gridKey}
-        gridClassName={styles.youtubeGrid}
-        emptyMessage="Nada por aqui ainda."
-        emptyHint="Cole o link de uma música do YouTube para começar!"
-      />
-
-      {drawerEntry && (
-        <YoutubeDrawer
-          // Sem `key`, como no YouTube: remontar o drawer derrubaria a tela cheia
-          // a cada música.
-          entry={drawerEntry}
-          onClose={() => setDrawerVideoId(null)}
-          onOpen={() => { void registerAccess(drawerEntry.id); }}
-          onNotesChange={(notes) => { void updateEntry(drawerEntry.id, { notes }); }}
-          nav={
-            drawerNav
-              ? {
-                  index: drawerNav.index,
-                  total: drawerNav.total,
-                  onPrev: drawerNav.prev ? () => setDrawerVideoId(drawerNav.prev!.videoId) : undefined,
-                  onNext: drawerNav.next ? () => setDrawerVideoId(drawerNav.next!.videoId) : undefined,
-                }
-              : undefined
-          }
-        />
-      )}
-
-      {modalEntry && (
+      {modalOpen && (
         <YoutubeLibraryModal
-          entry={modalEntry}
-          onClose={() => setModalVideoId(null)}
+          entry={watchEntry}
+          onClose={() => setModalOpen(false)}
           onSave={(id, data) => {
             void updateEntry(id, data);
-            setModalVideoId(null);
+            setModalOpen(false);
           }}
           onRemove={(id) => {
+            // Remover a música atual segue para a próxima da lista; sem próxima,
+            // a rota fica órfã e o redirect acima escolhe outra (ou o vazio).
+            const { next } = trackNeighbors(tracks, watchEntry.videoId);
+            setModalOpen(false);
+            if (next) navigate(`${MUSIC_PATH}/${next.videoId}`, { replace: true });
             void removeEntry(id);
-            setModalVideoId(null);
           }}
         />
       )}

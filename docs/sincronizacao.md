@@ -15,7 +15,7 @@ sistema operacional).
 
 | Quando | O que roda | Mídias | Bate em API externa? |
 |---|---|---|---|
-| Boot + a cada 30 min | `runSyncTick` — refresh das entradas "stale" | Anime, Séries, Filmes, Jogos, Livros | Sim |
+| Boot + a cada 30 min | `runSyncTick` — refresh das entradas "stale" | Anime, Séries, Filmes, Jogos, Livros, Música | Sim |
 | Boot + a cada 30 min | `notifyDueSeriesEpisodes` | Séries | Não (só banco + Telegram) |
 | Boot + a cada 30 min | `backfillDetailCache` — preenche `detail_cache` | Anime, Filmes, Séries, Jogos, Livros | Sim, só se houver linha pendente |
 | Boot + a cada 30 min | `warmupImages` — baixa capas faltantes e poda o cache | Todas | Sim (só as CDNs de imagem) |
@@ -26,7 +26,8 @@ sistema operacional).
 | Boot (one-shot) | `backfillReleaseDates` | Anime, Séries | Sim, só se houver linha pendente |
 | Ao abrir o drawer | `handle*Load` na página | Todas | Sim (detalhe do item) |
 
-Só o **YouTube** e a **Música** ficam fora da sincronização de fundo — têm fluxo próprio de importação. Livros
+Só o **YouTube** fica fora da sincronização de fundo — ele tem fluxo próprio de importação. Música
+entrou só para manter visualizações, título e miniatura em dia (§2.10). Livros
 entraram junto com a migração para a Hardcover: livro **tem** data de lançamento futura de verdade
 (a série traz volume anunciado para anos à frente) e título/capa que envelhecem como qualquer outro.
 
@@ -40,7 +41,7 @@ O invariante é que **o job grava o mesmo conjunto de campos que o drawer grava*
 atalho, não a única forma de o dado sair do lugar. Antes isso não valia, e por isso título e capa
 envelheciam indefinidamente em item que você nunca abria.
 
-**Listar a biblioteca nunca espera sincronização.** Os seis `GET /api/*-library` só fazem
+**Listar a biblioteca nunca espera sincronização.** Os sete `GET /api/*-library` só fazem
 `findAll`. O de anime já teve um `await refreshStaleEntries()` — o que fazia a página de Anime, e o
 Dashboard junto, travar numa ida à AniList com rate limiter de 2 s. Endpoint de leitura devolve o
 que está no banco; atualizar é responsabilidade do job.
@@ -49,7 +50,7 @@ que está no banco; atualizar é responsabilidade do job.
 
 ## 2. `runSyncTick` — boot e a cada 30 min
 
-Dispara cinco jobs independentes, sem esperar um pelo outro. Todos são `singleFlight`: se uma
+Dispara seis jobs independentes, sem esperar um pelo outro. Todos são `singleFlight`: se uma
 execução ainda estiver rodando quando o próximo tick chegar, a nova chamada devolve a mesma
 promessa em vez de começar de novo. Uma execução lenta atrasa, nunca empilha.
 
@@ -264,6 +265,30 @@ usa item com `tmdb_missing_at` como semente (§3); o backfill de `last_aired_epi
 
 Jogos e livros não passam por aqui: IGDB e Hardcover respondem em lote e o item removido
 simplesmente não volta (§2.4, §2.5) — sem erro, mas a linha continua stale e é pedida em todo tick.
+
+### 2.10 Música — `refreshStaleMusic`
+
+`services/musicLibrarySyncService.ts` · API: YouTube Data API (`videos.list`)
+
+**Quem entra:** `findStaleMusicVideoIds(24)` — `synced_at` nulo ou mais velho que 24 h, fora as
+`removed`. Não há TTL curto: música não tem lançamento para acompanhar, o que envelhece é a contagem
+de visualizações. **Sem teto por execução**, porque o `videos.list` aceita 50 ids por requisição.
+
+**Como roda:** lotes de 50 (`fetchVideosByIds`), `try/catch` **dentro** do loop de lote. Custa
+**1 unidade de cota por lote** (a cota padrão é 10 000/dia). **Passa sem cache**, pelo mesmo motivo
+dos livros: o conjunto de ids é determinístico. Sem `YOUTUBE_API_KEY` o job sai antes de consultar o
+banco — relatar a mesma falta de chave a cada tick só faria ruído.
+
+**O que grava:** `title`, `thumbnail`, `channel_title` (as três com `COALESCE(NULLIF(...))`),
+`duration_seconds`, `view_count` (`NULLIF(..., 0)`: o YouTube omite o bloco quando a estatística é
+oculta e o mapper devolve 0), `description`, `synced_at`. **Não toca `updated_at`** — o `findAll`
+ordena por ele e um refresh de fundo não pode reordenar a biblioteca. `channel_thumbnail` fica de
+fora: o avatar viria de outro endpoint (`channels.list`), uma segunda chamada por lote.
+
+**Vídeo que não volta na resposta** (apagado ou privado) só ganha `synced_at` (`markMusicSynced`); os
+dados ficam como estão e a linha nunca é removida. Sem marcar, ela ficaria stale para sempre e
+voltaria em todo tick. Quem mostra que o vídeo não toca mais é o player (ver
+`docs/frontend-musica.md`).
 
 ---
 

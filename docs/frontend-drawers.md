@@ -58,6 +58,9 @@ em cima do vídeo, controle que aparece a cada passada de mouse atrapalha. Na po
 `autoPlay` é **opt-in** (só o YouTube, onde o vídeo é o conteúdo): o clique que abriu o drawer vale
 como gesto do usuário, então o autoplay costuma passar.
 
+**Música não usa o `TrailerEmbed` nem drawer**: a tela de reprodução dela tem o `YoutubePlayer`
+(IFrame Player API, controles e tela cheia nativos) — ver `docs/frontend-musica.md` §6.
+
 ## 5. Anotações
 
 O drawer não conhece a biblioteca (recebe só o ID externo e busca na API externa), então

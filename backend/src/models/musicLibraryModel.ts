@@ -29,6 +29,7 @@ export const musicLibraryModel = createLibraryModel<
     { column: "notes", field: "notes", default: null },
     // Mesmo motivo do YouTube: o acesso é abrir a música (touchAccess), não o status.
     { column: "last_access_at", field: "lastAccessAt", default: null, readonly: true },
+    { column: "synced_at", field: "syncedAt", default: null, readonly: true },
   ],
   statusField: "status",
   completion: { column: "liked_at", field: "likedAt", whenStatus: "liked" },
@@ -87,6 +88,51 @@ export async function touchAccess(id: string): Promise<MusicLibraryEntry | null>
   );
   if ((result.rowCount ?? 0) === 0) return null;
   return musicLibraryModel.findById(id);
+}
+
+export interface MusicSyncData {
+  title: string;
+  thumbnail: string | null;
+  channelTitle: string | null;
+  durationSeconds: number;
+  viewCount: number;
+  description: string | null;
+}
+
+export async function findStaleMusicVideoIds(ttlHours: number): Promise<string[]> {
+  const result = await pool.query<{ video_id: string }>(
+    `SELECT video_id FROM music_library
+      WHERE status != 'removed'
+        AND (synced_at IS NULL OR synced_at < NOW() - ($1 || ' hours')::interval)
+      ORDER BY synced_at ASC NULLS FIRST`,
+    [ttlHours]
+  );
+  return result.rows.map((row) => row.video_id);
+}
+
+// COALESCE(NULLIF(...)): resposta com campo vazio não pode apagar um valor bom —
+// duração e views vêm 0 quando o YouTube omite o bloco (estatística oculta).
+// Não toca `updated_at`: refresh de fundo não pode reordenar a biblioteca.
+export async function updateMusicSyncData(videoId: string, data: MusicSyncData): Promise<void> {
+  await pool.query(
+    `UPDATE music_library
+        SET title = COALESCE(NULLIF($2, ''), title),
+            thumbnail = COALESCE(NULLIF($3, ''), thumbnail),
+            channel_title = COALESCE(NULLIF($4, ''), channel_title),
+            duration_seconds = COALESCE(NULLIF($5::int, 0), duration_seconds),
+            view_count = COALESCE(NULLIF($6::bigint, 0), view_count),
+            description = COALESCE($7, description),
+            synced_at = NOW()
+      WHERE video_id = $1`,
+    [videoId, data.title, data.thumbnail, data.channelTitle, data.durationSeconds, data.viewCount, data.description]
+  );
+}
+
+// Vídeo que sumiu do YouTube (apagado/privado) não volta na resposta. Sem marcar
+// o sync, a linha ficaria stale para sempre e voltaria em todo tick.
+export async function markMusicSynced(videoIds: string[]): Promise<void> {
+  if (videoIds.length === 0) return;
+  await pool.query(`UPDATE music_library SET synced_at = NOW() WHERE video_id = ANY($1::text[])`, [videoIds]);
 }
 
 // Leva o vídeo do YouTube para Música: copia o que é do vídeo e do usuário (nota,

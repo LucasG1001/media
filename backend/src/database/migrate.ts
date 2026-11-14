@@ -381,6 +381,8 @@ export async function migrate(): Promise<void> {
     );
   `);
 
+  await pool.query(`ALTER TABLE music_library ADD COLUMN IF NOT EXISTS synced_at TIMESTAMPTZ;`);
+
   // Anotação livre do usuário. NULL = nunca anotado. Séries não têm coluna: a
   // anotação é por temporada e mora dentro de season_states.
   await pool.query(`ALTER TABLE anime_library   ADD COLUMN IF NOT EXISTS notes TEXT;`);

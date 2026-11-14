@@ -42,8 +42,8 @@ Todos member-level e combinados em **E** entre si, **OU** dentro de cada um (men
 - jogos = Status + **Lançamento** (`gameStatus`) + Modos de jogo + Gêneros
 - livros = Status + **Lançamento** (`bookStatus`) + Gêneros
 - YouTube tem só **Coleção**, e o resto do recorte é por tag dentro da expansão
-- Música não tem filtro: sem coleção nem tag, o recorte é só a aba de status e a busca (ver
-  `docs/frontend-musica.md`)
+- Música não usa o `FranchiseGrid`: a biblioteca dela é a lista ao lado do player, recortada só
+  pela aba de status e pela busca (ver `docs/frontend-musica.md`)
 
 **Gêneros é E e facetado** (`utils/genreFacets.ts`): o item precisa ter **todos** os marcados, e as
 opções (com contagem) são recalculadas sobre os itens que já passam nos outros grupos **e** nos

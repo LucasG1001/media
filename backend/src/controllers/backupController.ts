@@ -207,6 +207,7 @@ const TABLES: TableSpec[] = [
       { column: "score", get: (e) => e.score ?? 0 },
       { column: "liked_at", get: (e) => e.likedAt ?? null },
       { column: "last_access_at", get: (e) => e.lastAccessAt ?? null },
+      { column: "synced_at", get: (e) => e.syncedAt ?? null },
       { column: "notes", get: (e) => e.notes ?? null },
     ],
   },

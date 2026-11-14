@@ -41,16 +41,6 @@ export interface UpdateMusicLibraryEntry {
   notes?: string | null;
 }
 
-export interface MusicCard {
-  id: string;
-  title: string;
-  thumbnail: string | null;
-  channelTitle: string | null;
-  channelThumbnail: string | null;
-  durationSeconds: number | null;
-  viewCount: number | null;
-}
-
 export const MUSIC_LIBRARY_STATUS_LABELS: Record<MusicLibraryStatus, string> = {
   liked: "Gostei",
   removed: "Removido",

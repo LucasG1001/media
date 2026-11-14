@@ -101,6 +101,8 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     por item (o TMDB não tem lote) e por isso têm teto por execução; jogos vão em lote na IGDB e
     livros em lote na Hardcover (`id: {_in: [...]}`) — o de livros passa **sem cache** (o conjunto de
     ids é determinístico, então o cache de 1 h faria o tick seguinte só bumpar `synced_at`).
+  - **`musicLibrarySyncService.ts`** — refresh de Música (visualizações, título, miniatura): TTL de
+    24 h, lotes de 50 no `videos.list`, também sem cache.
   - **`releaseNotifyService.ts`** — avisa lançamentos de filmes/jogos/livros.
   - **`notifyService.ts`** — envia ao Telegram via notify-api; nunca lança. O relatório de erro
     inclui status HTTP e corpo da resposta quando o erro carrega um `AxiosError` em `cause` — por
@@ -109,8 +111,8 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   - **`imageCacheService.ts`** / **`imageWarmupService.ts`** — baixam e servem as capas do disco
     (dedupe de download concorrente, warm-up e prune) e **`detailCacheBackfillService.ts`** —
     preenche o `detail_cache` de quem ainda não tem. Ver `docs/offline.md`.
-- **Jobs (agendados em `server.ts`):** refresh de anime, séries, filmes, jogos e livros **no boot e a
-  cada 30 min** (`runSyncTick`; rodar na subida evita deixar tudo parado meia hora após um restart —
+- **Jobs (agendados em `server.ts`):** refresh de anime, séries, filmes, jogos, livros e música **no
+  boot e a cada 30 min** (`runSyncTick`; rodar na subida evita deixar tudo parado meia hora após um restart —
   todos são `singleFlight`, então execução longa não se sobrepõe ao tick seguinte);
   **backfill de `detail_cache`** e **warm-up/prune do cache de imagem** no mesmo tick;
   **collection sync** diário (04:00); **notificação de lançamentos** diária (09:00). No boot roda
@@ -162,9 +164,10 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 - **YouTube = coleção + tag escopada à coleção** (tag só existe dentro de coleção; o filtro de tag
   vive dentro da expansão). **Ver `docs/frontend-youtube-tags.md`** antes de mexer na página do
   YouTube ou em tags.
-- **Música = YouTube sem coleção nem tag**: lista plana, reusa drawer/modal/CSS do YouTube e recebe
-  vídeos pela ação "Mover para Música". **Ver `docs/frontend-musica.md`** antes de mexer em Música
-  ou nessa ação.
+- **Música = YouTube sem coleção nem tag, e sem grade nem drawer**: a página **é** a tela de
+  reprodução (`/musica` abre na última música tocada, pausada; player pela IFrame API e a
+  biblioteca como lista fixa ao lado). Entra por link ou pela ação "Mover para Música". **Ver
+  `docs/frontend-musica.md`** antes de mexer em Música, no `YoutubePlayer` ou nessa ação.
 - **Drawers, trailer e anotações**: navegação de coleção (`DrawerNav` + `utils/collectionNav.ts`),
   teclado (`hooks/useDrawerKeys.ts`), tela cheia própria do `TrailerEmbed` e a regra de que
   **nenhum drawer leva `key` por item**. **Ver `docs/frontend-drawers.md`** antes de mexer em drawer,
@@ -209,7 +212,7 @@ timestamp de conclusão**, que marca a _primeira_ conclusão e é zerado ao sair
   sem `season_list`.
 - **YouTube e Música são a exceção**: não são dirigidos por status (o `whenStatus` deles é `liked`,
   o default) — quem grava é o `touchAccess` próprio de cada um via
-  `POST /api/{youtube,music}-library/:id/access`, chamado ao **abrir o drawer** do vídeo (e sem tocar `updated_at`: abrir é passivo e não pode reordenar a
+  `POST /api/{youtube,music}-library/:id/access`, chamado ao **abrir o drawer** do vídeo no YouTube e, em Música, quando ela **começa a tocar** (e sem tocar `updated_at`: abrir é passivo e não pode reordenar a
   biblioteca). Por isso a coluna é `readonly` na config do model. O drawer só **grava**, não exibe:
   quem mostra a data é o chip do card, sempre visível na biblioteca.
 - Coluna nova em biblioteca precisa entrar também nas listas de `backupController`, senão se perde
@@ -265,7 +268,7 @@ anterior não é dedutível (nem toda exibição é semanal). Vem do `Page.airin
 ocorrência de cada `mediaId` é o episódio mais recente dele) e é gravada **só para anime
 `RELEASING`**, que o refresh revisita de hora em hora. Tem backfill de boot mesmo assim: a linha só
 entra no refresh depois de ficar stale, então sem ele o carrossel de episódios nasce vazio.
-`synced_at` (todas as cinco tabelas) guarda o
+`synced_at` (as cinco tabelas com catálogo e `music_library`) guarda o
 último refresh; `NULL` entra na próxima execução do job. **`book_status` não usa o `deriveStatus` do
 TMDB**: lá data nula significa "sem data marcada" e cai em `UPCOMING`, mas na Hardcover data nula é
 "não se sabe" e o livro em geral é antigo — `deriveBookStatus` cai no ano e só então em `RELEASED`,

@@ -50,7 +50,7 @@ function App() {
                 <Route path="/livros" element={<BooksPage />} />
                 <Route path="/jogos" element={<GamesPage />} />
                 <Route path="/youtube" element={<YouTubePage />} />
-                <Route path="/musica" element={<MusicPage />} />
+                <Route path="/musica/:videoId?" element={<MusicPage />} />
                 <Route path="/config" element={<SettingsPage />} />
               </Routes>
             </main>

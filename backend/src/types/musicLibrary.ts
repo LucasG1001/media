@@ -16,6 +16,7 @@ export interface MusicLibraryEntry {
   score: number;
   likedAt: string | null;
   lastAccessAt: string | null;
+  syncedAt: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;

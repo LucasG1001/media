@@ -7,6 +7,7 @@ import { migrate } from "./database/migrate.js";
 import { refreshStaleEntries } from "./services/librarySyncService.js";
 import { refreshStaleSeries, notifyDueSeriesEpisodes } from "./services/seriesLibrarySyncService.js";
 import { refreshStaleMovies, refreshStaleGames, refreshStaleBooks } from "./services/releaseLibrarySyncService.js";
+import { refreshStaleMusic } from "./services/musicLibrarySyncService.js";
 import { refreshCollections } from "./services/collectionSyncService.js";
 import { notifyDueReleases } from "./services/releaseNotifyService.js";
 import { backfillGameModes } from "./services/gameModesBackfillService.js";
@@ -102,6 +103,7 @@ async function start(): Promise<void> {
     refreshStaleMovies().catch((error) => void notifyError("Job refreshStaleMovies", error));
     refreshStaleGames().catch((error) => void notifyError("Job refreshStaleGames", error));
     refreshStaleBooks().catch((error) => void notifyError("Job refreshStaleBooks", error));
+    refreshStaleMusic().catch((error) => void notifyError("Job refreshStaleMusic", error));
     backfillDetailCache().catch((error) => void notifyError("Job backfillDetailCache", error));
     warmupImages().catch((error) => void notifyError("Job warmupImages", error));
   };

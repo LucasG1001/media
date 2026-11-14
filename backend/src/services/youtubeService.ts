@@ -1,4 +1,4 @@
-import { cachedRequest } from "../lib/httpClient.js";
+import { cachedRequest, httpRequest } from "../lib/httpClient.js";
 import { chunk } from "../lib/chunk.js";
 
 const YOUTUBE_API_URL = "https://www.googleapis.com/youtube/v3/videos";
@@ -167,6 +167,29 @@ export async function fetchVideo(videoId: string): Promise<YoutubeVideoData> {
   const video = mapVideoItem(item);
   video.channelThumbnail = video.channelId ? await fetchChannelThumbnail(video.channelId, key) : null;
   return video;
+}
+
+export const YOUTUBE_VIDEOS_BATCH_SIZE = 50;
+
+// Para o refresh de fundo: um lote de até 50 ids numa requisição só, **sem
+// cache** (o conjunto de ids é determinístico — com cache o tick seguinte só
+// bumparia `synced_at`) e sem avatar de canal, que custaria outra chamada.
+// Vídeo apagado ou privado simplesmente não volta no mapa.
+export async function fetchVideosByIds(videoIds: string[]): Promise<Map<string, YoutubeVideoData>> {
+  const key = process.env.YOUTUBE_API_KEY;
+  if (!key) {
+    throw new YoutubeServiceError("missing_key", "YOUTUBE_API_KEY não configurada.");
+  }
+  const map = new Map<string, YoutubeVideoData>();
+  if (videoIds.length === 0) return map;
+
+  const data = await httpRequest<YoutubeApiResponse>({
+    url: YOUTUBE_API_URL,
+    method: "get",
+    params: { id: videoIds.join(","), part: "snippet,contentDetails,statistics", key },
+  });
+  for (const item of data.items ?? []) map.set(item.id, mapVideoItem(item));
+  return map;
 }
 
 async function fetchChannelThumbnails(channelIds: string[], key: string): Promise<Map<string, string>> {
