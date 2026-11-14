@@ -3,15 +3,10 @@ import type { MovieCard } from "../types/movie";
 import type { SeriesCard } from "../types/series";
 import type { BookCard } from "../types/book";
 import type { GameCard } from "../types/game";
-import type { YoutubeCard } from "../types/youtubeLibrary";
 import type { SeasonMember } from "../utils/seasonGroups";
 import type { MediaCardConfig } from "../components/MediaCard/MediaCard";
 import { StoreGlyph } from "../components/MediaCard/StoreIcons";
-import { CardTags } from "../components/TagChip/CardTags";
-import { formatDuration } from "../utils/formatDuration";
-import { formatViews } from "../utils/formatViews";
 import cardStyles from "../components/MediaCard/MediaCard.module.css";
-import ytStyles from "./youtubeCard.module.css";
 import { CoverImage } from "../components/CoverImage/CoverImage";
 
 function scoreColorFn(high: number, mid: number): (score: number) => string {
@@ -154,42 +149,6 @@ export const bookCardConfig: MediaCardConfig<BookCard> = {
     <div className={cardStyles.meta}>
       <span className={cardStyles.author}>{b.authors.length > 0 ? b.authors.join(", ") : "—"}</span>
       <span className={cardStyles.year}>{b.releaseYear ?? b.publishedDate?.slice(0, 4) ?? "—"}</span>
-    </div>
-  ),
-};
-
-function youtubeStatusColor(status: string | undefined): string {
-  switch (status) {
-    case "liked":
-      return "var(--color-success)";
-    case "removed":
-      return "var(--color-error)";
-    default:
-      return "var(--color-text-secondary)";
-  }
-}
-
-export const youtubeCardConfig: MediaCardConfig<YoutubeCard> = {
-  getTitle: (v) => v.title,
-  getImage: (v) => v.thumbnail,
-  placeholderEmoji: "▶️",
-  coverAspect: "16 / 9",
-  libraryStatusColor: youtubeStatusColor,
-  renderMeta: () => null,
-  renderBelow: (v) => (
-    <div className={ytStyles.below}>
-      <CoverImage className={ytStyles.avatar} src={v.channelThumbnail} alt="" />
-      <div className={ytStyles.text}>
-        <div className={ytStyles.title} title={v.title}>{v.title}</div>
-        {v.channelTitle && <div className={ytStyles.channel}>{v.channelTitle}</div>}
-        <div className={ytStyles.stats}>
-          {formatDuration(v.durationSeconds)} · {formatViews(v.viewCount)}
-        </div>
-        {/* Vídeo avulso não tem tag: sem coleção, nem a linha de chips aparece. */}
-        {v.collectionId != null && (
-          <CardTags entryId={v.entryId} collectionId={v.collectionId} tags={v.tags} />
-        )}
-      </div>
     </div>
   ),
 };

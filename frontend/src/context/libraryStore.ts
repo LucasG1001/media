@@ -51,7 +51,7 @@ export interface LibraryStore<TEntry, TCreate, TUpdate> {
   mutate: (id: string, optimistic: Partial<TEntry>, serverCall: () => Promise<TEntry>) => Promise<TEntry | null>;
   updateMany: (ids: string[], status: string) => Promise<boolean>;
   setCover: (id: string) => Promise<TEntry | null>;
-  // Acesso sem transição de status: só o YouTube usa, ao abrir o drawer do vídeo.
+  // Acesso sem transição de status: só o YouTube usa, quando o item começa a tocar.
   registerAccess: (id: string) => Promise<TEntry | null>;
   remove: (id: string) => Promise<boolean>;
   removeMany: (ids: string[]) => Promise<boolean>;

@@ -1,41 +1,16 @@
 import styles from "./SelectionBar.module.css";
 import { useOnline } from "../../context/connectivityContext";
 
-export interface SelectionAction {
-  label: string;
-  onClick: () => void;
-}
-
 interface SelectionBarProps {
   count: number;
   statusLabels: Record<string, string>;
   onApply: (status: string) => void;
   onClear: () => void;
-  onFormGroup?: () => void;
-  onAddToGroup?: () => void;
-  onRemoveFromGroup?: () => void;
-  // Ações extra da mídia (ex.: classificar vídeos do YouTube).
-  extraActions?: SelectionAction[];
-  formGroupLabel?: string;
-  addToGroupLabel?: string;
-  removeFromGroupLabel?: string;
 }
 
 const OFFLINE_HINT = "Sem conexão — não dá para alterar agora.";
 
-export function SelectionBar({
-  count,
-  statusLabels,
-  onApply,
-  onClear,
-  onFormGroup,
-  onAddToGroup,
-  onRemoveFromGroup,
-  extraActions,
-  formGroupLabel = "Formar grupo",
-  addToGroupLabel = "Adicionar ao grupo",
-  removeFromGroupLabel = "Remover do grupo",
-}: SelectionBarProps) {
+export function SelectionBar({ count, statusLabels, onApply, onClear }: SelectionBarProps) {
   const online = useOnline();
   const offlineHint = online ? undefined : OFFLINE_HINT;
 
@@ -54,37 +29,12 @@ export function SelectionBar({
             {label}
           </button>
         ))}
-        {onFormGroup && (
-          <button type="button" className={styles.groupButton} onClick={onFormGroup} disabled={!online} title={offlineHint}>
-            {formGroupLabel}
-          </button>
-        )}
-        {onAddToGroup && (
-          <button type="button" className={styles.groupButton} onClick={onAddToGroup} disabled={!online} title={offlineHint}>
-            {addToGroupLabel}
-          </button>
-        )}
-        {extraActions?.map((action) => (
-          <button key={action.label} type="button" className={styles.groupButton} onClick={action.onClick} disabled={!online} title={offlineHint}>
-            {action.label}
-          </button>
-        ))}
-        {onRemoveFromGroup && (
-          <button type="button" className={styles.groupButtonDanger} onClick={onRemoveFromGroup} disabled={!online} title={offlineHint}>
-            {removeFromGroupLabel}
-          </button>
-        )}
       </div>
       <select
         className={styles.select}
         value=""
         onChange={(e) => {
-          const v = e.target.value;
-          if (v === "__form_group__") onFormGroup?.();
-          else if (v === "__add_to_group__") onAddToGroup?.();
-          else if (v === "__remove_from_group__") onRemoveFromGroup?.();
-          else if (v.startsWith("__extra_")) extraActions?.[Number(v.slice(8))]?.onClick();
-          else if (v) onApply(v);
+          if (e.target.value) onApply(e.target.value);
         }}
         aria-label="Ações"
         disabled={!online}
@@ -94,12 +44,6 @@ export function SelectionBar({
         {Object.entries(statusLabels).map(([status, label]) => (
           <option key={status} value={status}>{label}</option>
         ))}
-        {onFormGroup && <option value="__form_group__">{formGroupLabel}</option>}
-        {onAddToGroup && <option value="__add_to_group__">{addToGroupLabel}</option>}
-        {extraActions?.map((action, i) => (
-          <option key={action.label} value={`__extra_${i}`}>{action.label}</option>
-        ))}
-        {onRemoveFromGroup && <option value="__remove_from_group__">{removeFromGroupLabel}</option>}
       </select>
     </div>
   );

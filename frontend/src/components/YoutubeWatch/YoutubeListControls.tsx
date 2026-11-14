@@ -1,12 +1,12 @@
 import { TabNav } from "../TabNav/TabNav";
-import type { MusicLibraryStatus } from "../../types/musicLibrary";
-import { MUSIC_LIBRARY_STATUS_LABELS } from "../../types/musicLibrary";
+import type { YoutubeLibraryStatus } from "../../types/youtubeLibrary";
+import { YOUTUBE_LIBRARY_STATUS_LABELS } from "../../types/youtubeLibrary";
 import type { SortDir } from "../../hooks/useSingleSort";
-import styles from "./MusicQueueControls.module.css";
+import styles from "./YoutubeListControls.module.css";
 
-interface MusicQueueControlsProps {
-  status: MusicLibraryStatus;
-  onStatusChange: (status: MusicLibraryStatus) => void;
+interface YoutubeListControlsProps {
+  status: YoutubeLibraryStatus;
+  onStatusChange: (status: YoutubeLibraryStatus) => void;
   search: string;
   onSearchChange: (value: string) => void;
   sortField: string;
@@ -14,9 +14,11 @@ interface MusicQueueControlsProps {
   // Mesmo contrato do `useSingleSort`: escolher o critério ativo inverte a
   // direção, escolher outro troca o critério.
   onSortSelect: (field: string) => void;
+  groupByChannel: boolean;
+  onGroupByChannelChange: (value: boolean) => void;
 }
 
-const STATUS_TABS = (Object.entries(MUSIC_LIBRARY_STATUS_LABELS) as [MusicLibraryStatus, string][]).map(
+const STATUS_TABS = (Object.entries(YOUTUBE_LIBRARY_STATUS_LABELS) as [YoutubeLibraryStatus, string][]).map(
   ([id, label]) => ({ id, label })
 );
 
@@ -27,9 +29,9 @@ const SORT_OPTIONS = [
   { field: "access", label: "Último acesso" },
 ];
 
-// O que recorta e ordena a lista da tela de reprodução. Vive acima dela porque
-// Música não tem mais uma tela de biblioteca: é por aqui que se acha uma música.
-export function MusicQueueControls({
+// O que recorta, ordena e agrupa a lista da tela de reprodução. Vive acima dela
+// porque o YouTube não tem tela de biblioteca: é por aqui que se acha um item.
+export function YoutubeListControls({
   status,
   onStatusChange,
   search,
@@ -37,7 +39,9 @@ export function MusicQueueControls({
   sortField,
   sortDir,
   onSortSelect,
-}: MusicQueueControlsProps) {
+  groupByChannel,
+  onGroupByChannelChange,
+}: YoutubeListControlsProps) {
   const ascending = sortDir === "asc";
 
   return (
@@ -46,14 +50,14 @@ export function MusicQueueControls({
         plain
         tabs={STATUS_TABS}
         activeTab={status}
-        onTabChange={(id) => onStatusChange(id as MusicLibraryStatus)}
+        onTabChange={(id) => onStatusChange(id as YoutubeLibraryStatus)}
       />
       <input
         className={styles.search}
         type="search"
         value={search}
         placeholder="Buscar por título ou canal..."
-        aria-label="Buscar música"
+        aria-label="Buscar na biblioteca"
         onChange={(event) => onSearchChange(event.target.value)}
       />
       <div className={styles.sortRow}>
@@ -79,6 +83,14 @@ export function MusicQueueControls({
           {ascending ? "↑" : "↓"}
         </button>
       </div>
+      <label className={styles.group}>
+        <input
+          type="checkbox"
+          checked={groupByChannel}
+          onChange={(event) => onGroupByChannelChange(event.target.checked)}
+        />
+        Agrupar por canal
+      </label>
     </div>
   );
 }

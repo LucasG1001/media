@@ -53,3 +53,19 @@
 .direction:hover {
   background: var(--color-bg-hover);
 }
+
+.group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  align-self: flex-start;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.group input {
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}

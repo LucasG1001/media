@@ -8,7 +8,7 @@ export interface CollectionNav<T> {
 // Vizinhos de um item dentro da coleção a que ele pertence, para navegar sem
 // fechar o drawer. A sequência é a **que está na tela**: os grupos já chegam
 // filtrados e ordenados pelo pipeline da página, e `membersOf` cobre o caso em
-// que a expansão reduz ainda mais (o filtro de tag do YouTube).
+// que a página mostra menos membros do que o grupo tem.
 //
 // Devolve null quando o item não está em coleção nenhuma (veio do catálogo) ou
 // quando a coleção tem um item só — aí não há para onde navegar.

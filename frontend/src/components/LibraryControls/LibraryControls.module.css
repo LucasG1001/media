@@ -216,7 +216,7 @@
 }
 
 /* Opções de filtro em grade, não em flex-wrap: os rótulos têm larguras muito
-   diferentes (nome de coleção do YouTube, por exemplo) e o wrap deixava cada
+   diferentes (gêneros, por exemplo) e o wrap deixava cada
    linha começando num ponto diferente. A grade alinha as colunas. */
 .filterOptions {
   display: grid;

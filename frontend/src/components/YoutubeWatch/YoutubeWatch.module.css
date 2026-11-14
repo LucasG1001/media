@@ -158,20 +158,52 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--spacing-md);
-}
-
-.queueTitle {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
+  flex-wrap: wrap;
+  gap: var(--spacing-sm) var(--spacing-md);
 }
 
 .queueCount {
-  margin-left: var(--spacing-xs);
+  flex-shrink: 0;
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-regular);
   color: var(--color-text-tertiary);
+}
+
+/* Canal aberto: o botão de saída fica fora da área que rola, para estar sempre
+   à mão por mais comprida que seja a lista do canal. */
+.channelBar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+.exit {
+  flex-shrink: 0;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-full);
+  background: var(--color-accent-subtle);
+  border: 1px solid var(--color-accent);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition-fast);
+}
+
+.exit:hover {
+  background: var(--color-accent-glow);
+}
+
+.channelBarName {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .autoplay {
@@ -210,7 +242,12 @@
   overscroll-behavior: contain;
 }
 
-.row {
+.rowItem {
+  position: relative;
+}
+
+.row,
+.channelRow {
   display: flex;
   gap: var(--spacing-md);
   width: 100%;
@@ -224,15 +261,93 @@
   transition: background var(--transition-fast);
 }
 
-.row:hover {
+.row:hover,
+.channelRow:hover {
   background: var(--color-bg-hover);
 }
 
-/* A música atual fica no lugar em que já estava na lista, só destacada. */
+.channelRow {
+  align-items: center;
+  padding: var(--spacing-sm);
+}
+
+.channelAvatar,
+.channelAvatarPlaceholder {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-tertiary);
+}
+
+.channelAvatar {
+  object-fit: cover;
+}
+
+.channelAvatarPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.channelRowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chevron {
+  flex-shrink: 0;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-tertiary);
+}
+
+/* Manda o item para a outra aba sem abri-lo. Aparece no hover da linha; em
+   tela de toque não há hover, então fica sempre visível. */
+.move {
+  position: absolute;
+  right: var(--spacing-xs);
+  bottom: var(--spacing-xs);
+  padding: 2px var(--spacing-sm);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.rowItem:hover .move,
+.move:focus-visible {
+  opacity: 1;
+}
+
+.move:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-accent);
+}
+
+@media (hover: none) {
+  .move {
+    opacity: 1;
+  }
+}
+
+/* O item atual fica no lugar em que já estava na lista, só destacado. Na lista
+   de canais o destaque marca o canal do item que está tocando. */
 .rowCurrent,
 .rowCurrent:hover {
   background: var(--color-accent-subtle);
   box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.row.rowCurrent {
   cursor: default;
 }
 

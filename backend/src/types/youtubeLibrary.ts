@@ -1,9 +1,8 @@
 export type YoutubeLibraryStatus = "liked" | "removed";
 
-export interface YoutubeCollection {
-  id: number;
-  name: string;
-}
+// Música e vídeo vivem na mesma tabela; `kind` é o que decide a aba em que o
+// item aparece.
+export type YoutubeKind = "music" | "video";
 
 export interface YoutubeLibraryEntry {
   id: string;
@@ -17,15 +16,13 @@ export interface YoutubeLibraryEntry {
   viewCount: number | null;
   publishedAt: string | null;
   description: string | null;
+  kind: YoutubeKind;
   status: YoutubeLibraryStatus;
   score: number;
   likedAt: string | null;
   lastAccessAt: string | null;
+  syncedAt: string | null;
   notes: string | null;
-  collectionId: number | null;
-  isCover: boolean;
-  // N tags por vídeo; `[]` = sem tag. Só faz sentido dentro de coleção.
-  tags: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -41,9 +38,9 @@ export interface CreateYoutubeLibraryEntry {
   viewCount?: number | null;
   publishedAt?: string | null;
   description?: string | null;
+  kind?: YoutubeKind;
   status?: YoutubeLibraryStatus;
   score?: number;
-  tags?: string[];
 }
 
 export interface UpdateYoutubeLibraryEntry {
@@ -54,8 +51,8 @@ export interface UpdateYoutubeLibraryEntry {
   viewCount?: number | null;
   publishedAt?: string | null;
   description?: string | null;
+  kind?: YoutubeKind;
   status?: YoutubeLibraryStatus;
   score?: number;
   notes?: string | null;
-  tags?: string[];
 }

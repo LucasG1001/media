@@ -6,8 +6,8 @@ grupos. São **invariantes** — valem para todas as mídias com coleção. Cons
 `hooks/useSingleSort.ts`, `FranchiseGrid`/`FranchiseCard` ou no pipeline de biblioteca de uma página.
 
 Séries são um caso próprio (coleção sintetizada de temporadas): ver
-`docs/frontend-series-temporadas.md`. YouTube tem o filtro de tag dentro da expansão: ver
-`docs/frontend-youtube-tags.md`.
+`docs/frontend-series-temporadas.md`. O YouTube não usa o `FranchiseGrid` nem tem coleção: ver
+`docs/frontend-youtube.md`.
 
 ---
 
@@ -41,9 +41,8 @@ Todos member-level e combinados em **E** entre si, **OU** dentro de cada um (men
 - séries = Status + **Exibição** + Gêneros
 - jogos = Status + **Lançamento** (`gameStatus`) + Modos de jogo + Gêneros
 - livros = Status + **Lançamento** (`bookStatus`) + Gêneros
-- YouTube tem só **Coleção**, e o resto do recorte é por tag dentro da expansão
-- Música não usa o `FranchiseGrid`: a biblioteca dela é a lista ao lado do player, recortada só
-  pela aba de status e pela busca (ver `docs/frontend-musica.md`)
+- YouTube não entra aqui: a biblioteca dele é a lista ao lado do player, recortada por tipo
+  (músicas/vídeos), status, busca e canal (ver `docs/frontend-youtube.md`)
 
 **Gêneros é E e facetado** (`utils/genreFacets.ts`): o item precisa ter **todos** os marcados, e as
 opções (com contagem) são recalculadas sobre os itens que já passam nos outros grupos **e** nos

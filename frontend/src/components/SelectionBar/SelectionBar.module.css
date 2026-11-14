@@ -84,49 +84,6 @@
   transform: scale(0.96);
 }
 
-.groupButton {
-  padding: 8px 14px;
-  border-radius: var(--radius-sm);
-  background: var(--color-accent);
-  color: #fff;
-  border: 1px solid var(--color-accent);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: opacity var(--transition-fast), transform var(--transition-fast);
-}
-
-.groupButton:hover {
-  opacity: 0.9;
-}
-
-.groupButton:active {
-  transform: scale(0.96);
-}
-
-.groupButtonDanger {
-  padding: 8px 14px;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-error);
-  border: 1px solid var(--color-error);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background var(--transition-fast), transform var(--transition-fast);
-}
-
-.groupButtonDanger:hover {
-  background: var(--color-error);
-  color: #fff;
-}
-
-.groupButtonDanger:active {
-  transform: scale(0.96);
-}
-
 .select {
   display: none;
   flex: 1;
@@ -177,8 +134,6 @@
 }
 
 .statusButton:disabled,
-.groupButton:disabled,
-.groupButtonDanger:disabled,
 .select:disabled {
   opacity: 0.4;
   cursor: not-allowed;

@@ -1,4 +1,3 @@
-import { useState, type ReactNode } from "react";
 import { MediaCard, type MediaCardConfig } from "../MediaCard/MediaCard";
 import { averageScore } from "../../utils/librarySort";
 import { latestAccess } from "../../utils/lastAccess";
@@ -35,9 +34,6 @@ interface FranchiseCardProps<
   selected?: boolean;
   onLongPress?: () => void;
   onToggleSelect?: () => void;
-  collectionName?: string | null;
-  onRenameCollection?: (name: string) => void;
-  collectionExtra?: ReactNode;
 }
 
 export function FranchiseCard<
@@ -60,9 +56,6 @@ export function FranchiseCard<
   selected,
   onLongPress,
   onToggleSelect,
-  collectionName,
-  onRenameCollection,
-  collectionExtra,
 }: FranchiseCardProps<E, T>) {
   const card = entryToCard(group.representative);
   // Nota exibida = média da coleção (mesmo critério da ordenação por nota), não a
@@ -71,78 +64,12 @@ export function FranchiseCard<
   const displayEntry = libraryEntry
     ? { ...libraryEntry, score: averageScore(group.members), lastAccessAt: latestAccess(group.members) }
     : libraryEntry;
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(collectionName ?? "");
-  const deleteLabel = collectionName || group.representative.title;
-
-  const commitName = () => {
-    const trimmed = draft.trim();
-    if (trimmed && trimmed !== collectionName) onRenameCollection?.(trimmed);
-    setEditing(false);
-  };
-
-  const countText = `${group.count} ${group.count === 1 ? "vídeo" : "vídeos"}${
-    group.completedCount > 0 ? ` · ${group.completedCount} gostei` : ""
-  }`;
-
-  const config: MediaCardConfig<T> =
-    collectionName != null
-      ? {
-          ...cardConfig,
-          renderBelow: () => (
-            <div className={styles.collectionBelow}>
-              {editing ? (
-                <input
-                  className={styles.nameInput}
-                  value={draft}
-                  autoFocus
-                  onChange={(e) => setDraft(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  onBlur={commitName}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") commitName();
-                    else if (e.key === "Escape") {
-                      setDraft(collectionName ?? "");
-                      setEditing(false);
-                    }
-                  }}
-                />
-              ) : (
-                <div className={styles.nameRow}>
-                  <span className={styles.nameText} title={collectionName || undefined}>
-                    {collectionName || "Sem nome"}
-                  </span>
-                  {onRenameCollection && (
-                    <button
-                      type="button"
-                      className={styles.editButton}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDraft(collectionName ?? "");
-                        setEditing(true);
-                      }}
-                      title="Renomear coleção"
-                      aria-label="Renomear coleção"
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              )}
-              {collectionExtra ?? <div className={styles.countLine}>{countText}</div>}
-            </div>
-          ),
-        }
-      : cardConfig;
 
   return (
     <div className={styles.wrapper}>
       <MediaCard
         item={card}
-        config={config}
+        config={cardConfig}
         libraryEntry={displayEntry}
         onClick={coverIsCollectionOnly ? onToggle : () => onCardClick(card)}
         onAdd={() => onAddToLibrary(card)}
@@ -158,7 +85,7 @@ export function FranchiseCard<
         className={styles.deleteButton}
         onClick={(e) => {
           e.stopPropagation();
-          if (window.confirm(`Remover toda a coleção "${deleteLabel}" (${group.count} itens) da biblioteca?`)) onDelete();
+          if (window.confirm(`Remover toda a coleção "${group.representative.title}" (${group.count} itens) da biblioteca?`)) onDelete();
         }}
         title="Remover coleção da biblioteca"
         aria-label="Remover coleção da biblioteca"

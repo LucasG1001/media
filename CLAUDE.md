@@ -5,7 +5,7 @@ Este arquivo orienta o Claude Code (claude.ai/code) ao trabalhar neste repositó
 ## Visão geral
 
 **Media Tracker** é um app pessoal full-stack (usuário único, sem auth, online-only) para
-acompanhar coleções de mídia. Sete domínios de mídia, cada um com catálogo (busca em API externa)
+acompanhar coleções de mídia. Seis domínios de mídia, cada um com catálogo (busca em API externa)
 e biblioteca pessoal (CRUD em PostgreSQL):
 
 - **Anime** — AniList (GraphQL); descoberta de franquia (sequências/OVAs/filmes).
@@ -14,10 +14,9 @@ e biblioteca pessoal (CRUD em PostgreSQL):
 - **Jogos** — IGDB (auth via Twitch OAuth); coleções/sagas; filtro por modos de jogo (`game_modes`).
 - **Livros** — Hardcover (GraphQL); coleções por **série** (`featured_series`), com dedupe
   obrigatório e trava de autor.
-- **YouTube** — vídeos curtidos/salvos (YouTube Data API); modelo à parte (status `liked`/`removed`).
-  Coleções (tabela própria) e, **dentro de cada uma**, organização por **tags** (N por vídeo).
-- **Música** — a mesma fonte e o mesmo modelo do YouTube, em tabela própria e **sem coleção nem
-  tag**; entra por link ou movida do YouTube.
+- **YouTube** — músicas e vídeos salvos (YouTube Data API), na mesma tabela e separados por `kind`;
+  modelo à parte (status `liked`/`removed`, sem coleção nem tag) e sem grade: a página é a tela de
+  reprodução.
 
 Recursos transversais: **Dashboard** agregado, **Tier List** (coleções em faixas pela nota), **sync de coleções** (descobre e adiciona novos
 lançamentos de franquias já concluídas), **notificações no Telegram** (novos episódios, itens de
@@ -73,14 +72,13 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 
 - **`server.ts`** — Express, registra as rotas de cada mídia (`/api/anime`, `/api/library`,
   `/api/movie`, `/api/movie-library`, `/api/series`, `/api/game`, `/api/book`,
-  `/api/youtube-library`, `/api/music-library`, `/api/backup`, `/api/img`, `/api/health`, …), roda
-  `migrate()` e agenda os
+  `/api/youtube-library`, `/api/backup`, `/api/img`, `/api/health`, …), roda `migrate()` e agenda os
   jobs (abaixo).
 - **`lib/` (reutilizáveis — prefira-os a reinventar):**
   - **`createLibraryModel.ts` / `createLibraryController.ts`** — factories que geram o CRUD padrão
     das bibliotecas (findAll/create/update/updateManyStatus/setCover/remove + timestamp de
     conclusão + `lastAccess` — último acesso, ver esquema; os `CASE`s vêm de `lib/completionSql.ts`).
-    Movie/series/game/book/youtube/music adotam por completo;
+    Movie/series/game/book/youtube adotam por completo;
     anime usa a factory pro CRUD e mantém funções próprias (JSONB, franquia, sync) standalone.
   - **`httpClient.ts`** — wrapper axios com retry (429/5xx, respeita `Retry-After`), cache opcional
     e **rate limiter opt-in** por chamada. **`rateLimiter.ts`** — throttle proativo + pacing por
@@ -101,8 +99,8 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
     por item (o TMDB não tem lote) e por isso têm teto por execução; jogos vão em lote na IGDB e
     livros em lote na Hardcover (`id: {_in: [...]}`) — o de livros passa **sem cache** (o conjunto de
     ids é determinístico, então o cache de 1 h faria o tick seguinte só bumpar `synced_at`).
-  - **`musicLibrarySyncService.ts`** — refresh de Música (visualizações, título, miniatura): TTL de
-    24 h, lotes de 50 no `videos.list`, também sem cache.
+  - **`youtubeLibrarySyncService.ts`** — refresh do YouTube, músicas e vídeos (visualizações,
+    título, miniatura): TTL de 24 h, lotes de 50 no `videos.list`, também sem cache.
   - **`releaseNotifyService.ts`** — avisa lançamentos de filmes/jogos/livros.
   - **`notifyService.ts`** — envia ao Telegram via notify-api; nunca lança. O relatório de erro
     inclui status HTTP e corpo da resposta quando o erro carrega um `AxiosError` em `cause` — por
@@ -111,7 +109,7 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   - **`imageCacheService.ts`** / **`imageWarmupService.ts`** — baixam e servem as capas do disco
     (dedupe de download concorrente, warm-up e prune) e **`detailCacheBackfillService.ts`** —
     preenche o `detail_cache` de quem ainda não tem. Ver `docs/offline.md`.
-- **Jobs (agendados em `server.ts`):** refresh de anime, séries, filmes, jogos, livros e música **no
+- **Jobs (agendados em `server.ts`):** refresh de anime, séries, filmes, jogos, livros e YouTube **no
   boot e a cada 30 min** (`runSyncTick`; rodar na subida evita deixar tudo parado meia hora após um restart —
   todos são `singleFlight`, então execução longa não se sobrepõe ao tick seguinte);
   **backfill de `detail_cache`** e **warm-up/prune do cache de imagem** no mesmo tick;
@@ -141,7 +139,7 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 ### Frontend (`frontend/src/`)
 
 - **`App.tsx`** — BrowserRouter + Sidebar; páginas `Dashboard`, `TierList`, `Anime`, `Movies`,
-  `Series`, `Games`, `Books`, `YouTube`, `Music`, `Settings`.
+  `Series`, `Games`, `Books`, `YouTube`, `Settings`.
 - **Padrão de página de mídia**: catálogo (`useMediaList`) + biblioteca (`use*Library`); a
   biblioteca é um `FranchiseGrid` sobre grupos de coleção montados num `useMemo`
   (`build*CollectionGroups` com `memberFilter` → `filterGroupsBySearch` → `sortGroups`), com
@@ -152,8 +150,8 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 - **Componentes compartilhados**: `MediaCard`/`MediaGrid` (catálogo), `FranchiseGrid` (biblioteca
   agrupada por franquia/coleção), `LibraryModalBase` (modal de status/nota), `LibraryControls`
   (busca + Filtros + Ordenação), `NotesBlock` (anotação livre). Config visual por mídia em
-  **`config/cards.tsx`**. Props, slots de inversão de controle (`renderExpansion`, `extraActions`) e
-  comportamento dos painéis: **ver `docs/frontend-componentes.md`** antes de mexer neles.
+  **`config/cards.tsx`**. Props e comportamento dos painéis: **ver `docs/frontend-componentes.md`**
+  antes de mexer neles.
 - **Biblioteca = coleções (invariantes que valem para todas as mídias)**: agrupamento, filtro
   member-level que decide quais coleções aparecem e o numerador do badge (a expansão fica inteira), ordenação por grupo (data = mais
   antigo, nota = média) e "capa é só coleção". **Ver `docs/frontend-colecoes.md`** antes de mexer em
@@ -161,13 +159,10 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 - **Séries = coleção de temporadas**: a coleção não vem de linhas do banco — é sintetizada de
   `season_list`/`season_states`, e a nota da série é sempre a média das temporadas. **Ver
   `docs/frontend-series-temporadas.md`** antes de mexer em séries/temporadas.
-- **YouTube = coleção + tag escopada à coleção** (tag só existe dentro de coleção; o filtro de tag
-  vive dentro da expansão). **Ver `docs/frontend-youtube-tags.md`** antes de mexer na página do
-  YouTube ou em tags.
-- **Música = YouTube sem coleção nem tag, e sem grade nem drawer**: a página **é** a tela de
-  reprodução (`/musica` abre na última música tocada, pausada; player pela IFrame API e a
-  biblioteca como lista fixa ao lado). Entra por link ou pela ação "Mover para Música". **Ver
-  `docs/frontend-musica.md`** antes de mexer em Música, no `YoutubePlayer` ou nessa ação.
+- **YouTube = tela de reprodução, sem grade nem drawer**: `/youtube` abre no último item tocado,
+  pausado; player pela IFrame API e a biblioteca como lista fixa ao lado, com abas Músicas | Vídeos
+  e agrupamento por canal. **Ver `docs/frontend-youtube.md`** antes de mexer na página do YouTube
+  ou no `YoutubePlayer`.
 - **Drawers, trailer e anotações**: navegação de coleção (`DrawerNav` + `utils/collectionNav.ts`),
   teclado (`hooks/useDrawerKeys.ts`), tela cheia própria do `TrailerEmbed` e a regra de que
   **nenhum drawer leva `key` por item**. **Ver `docs/frontend-drawers.md`** antes de mexer em drawer,
@@ -190,17 +185,17 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 ### Esquema do banco (uma tabela por mídia)
 
 `anime_library`, `movie_library`, `series_library`, `game_library`, `books_library` (plural),
-`youtube_library`, `music_library`. Colunas em `TEXT`/`JSONB`, sem CHECK de enum (migração de status
+`youtube_library`. Colunas em `TEXT`/`JSONB`, sem CHECK de enum (migração de status
 = `UPDATE`). Convenções comuns a todas: `is_cover` (capa da
 coleção), timestamp de conclusão (`watched_at`/`finished_at`/`read_at`), coluna de
 coleção (`franchise_id`/`collection_id`) e `notes`
 (`TEXT`, anotação livre do usuário; `NULL` = nunca anotado) — este **menos em `series_library`**, onde
-a anotação é por temporada, dentro de `season_states`. **`music_library` é a exceção às duas de
-coleção**: tem as colunas de `youtube_library` sem `collection_id`, `is_cover` e `tags`.
+a anotação é por temporada, dentro de `season_states`. **`youtube_library` é a exceção às duas de
+coleção**: não tem `is_cover` nem coluna de coleção.
 
 **`last_access_at`** (`TIMESTAMPTZ`; `NULL` = nunca) — última vez assistido/jogado, **distinto do
 timestamp de conclusão**, que marca a _primeira_ conclusão e é zerado ao sair do status concluído —
-**exceto** para a revisita, que o preserva (ver status abaixo). Existe em todas as sete mídias. Regras:
+**exceto** para a revisita, que o preserva (ver status abaixo). Existe em todas as seis mídias. Regras:
 
 - **Só a transição para o status concluído grava.** Salvar de novo mexendo apenas na nota **não**
   mexe na data, e **sair** do status concluído **não limpa** (item abandonado mantém a última vez que
@@ -210,11 +205,10 @@ timestamp de conclusão**, que marca a _primeira_ conclusão e é zerado ao sair
 - **Séries**: o que vale é o da **temporada**, dentro de `season_states` (`setSeasonState` aplica a
   mesma regra em JS via `mergeSeasonState`). A coluna da série só é gravada pelo fallback de série
   sem `season_list`.
-- **YouTube e Música são a exceção**: não são dirigidos por status (o `whenStatus` deles é `liked`,
-  o default) — quem grava é o `touchAccess` próprio de cada um via
-  `POST /api/{youtube,music}-library/:id/access`, chamado ao **abrir o drawer** do vídeo no YouTube e, em Música, quando ela **começa a tocar** (e sem tocar `updated_at`: abrir é passivo e não pode reordenar a
-  biblioteca). Por isso a coluna é `readonly` na config do model. O drawer só **grava**, não exibe:
-  quem mostra a data é o chip do card, sempre visível na biblioteca.
+- **YouTube é a exceção**: não é dirigido por status (o `whenStatus` dele é `liked`, o default) —
+  quem grava é o `touchAccess` próprio dele via `POST /api/youtube-library/:id/access`, chamado
+  quando o item **começa a tocar** (e sem tocar `updated_at`: tocar é passivo e não pode reordenar
+  a biblioteca). Por isso a coluna é `readonly` na config do model.
 - Coluna nova em biblioteca precisa entrar também nas listas de `backupController`, senão se perde
   no round-trip de export/import.
 
@@ -225,12 +219,10 @@ e `cover_season` (INTEGER, temporada usada como capa da coleção). `game_librar
 série da Hardcover é float8 com meio-valor real; ordena a expansão). As duas são **`readonly` no
 model**: só `bulkUpsertBooks` (descoberta de série) as escreve, porque a série em destaque de um
 livro pode ser outra que não a coleção em que ele está — drawer e job de refresh gravando-as
-embaralhariam a ordem. `youtube_library` tem `tags` (`TEXT[] NOT NULL DEFAULT '{}'`, N tags por vídeo, `[]` = sem
-tag; **só valem dentro de coleção** — ver `docs/frontend-youtube-tags.md`) e sua coleção é a tabela à parte
-`youtube_collection` (`id SERIAL`, `name`), referenciada por `collection_id ON DELETE SET NULL` e
-podada quando fica vazia (`pruneEmptyCollections`). Colunas JSONB são
+embaralhariam a ordem. `youtube_library` tem `kind` (`TEXT NOT NULL DEFAULT 'video'`; `'music'` |
+`'video'` — a aba em que o item aparece; ver `docs/frontend-youtube.md`). Colunas JSONB são
 escritas com `JSON.stringify` explícito (ver `seriesLibraryModel`); `TEXT[]` vai como **array JS
-direto** (ver `game_modes` e `tags`).
+direto** (ver `game_modes`).
 
 **`genres`** (`TEXT[]`, nas cinco mídias com catálogo; `NULL` = nunca buscado, `[]` = sem gênero) — gravado
 pelo drawer e pelos jobs de refresh (`genres IS NULL` entra no `findStale*`); alimenta o filtro
@@ -243,7 +235,7 @@ vez. **A linha nunca é removida.** Ver `docs/sincronizacao.md` §2.9.
 
 **`detail_cache`** (`JSONB`) + **`detail_cached_at`** — última resposta de detalhe da API externa,
 para o drawer abrir inteiro com ela fora. Existe nas cinco mídias com catálogo (não em
-`youtube_library` nem `music_library`, cujo drawer já vem do banco) e é **`readonly` no model**. `NULL` = nunca
+`youtube_library`, cuja tela já vem do banco) e é **`readonly` no model**. `NULL` = nunca
 cacheado; `'{}'` = última tentativa falhou. **Única coluna de biblioteca deliberadamente fora do
 `backupController`** — é cache re-derivável. Fora das tabelas de mídia existe **`image_cache`**
 (metadado do cache de capas; os bytes ficam em disco, no volume `image_cache`). As duas coisas estão
@@ -268,7 +260,7 @@ anterior não é dedutível (nem toda exibição é semanal). Vem do `Page.airin
 ocorrência de cada `mediaId` é o episódio mais recente dele) e é gravada **só para anime
 `RELEASING`**, que o refresh revisita de hora em hora. Tem backfill de boot mesmo assim: a linha só
 entra no refresh depois de ficar stale, então sem ele o carrossel de episódios nasce vazio.
-`synced_at` (as cinco tabelas com catálogo e `music_library`) guarda o
+`synced_at` (todas as seis tabelas) guarda o
 último refresh; `NULL` entra na próxima execução do job. **`book_status` não usa o `deriveStatus` do
 TMDB**: lá data nula significa "sem data marcada" e cai em `UPCOMING`, mas na Hardcover data nula é
 "não se sabe" e o livro em geral é antigo — `deriveBookStatus` cai no ano e só então em `RELEASED`,
@@ -279,7 +271,7 @@ senão clássico sem data viraria "Em breve" e ficaria preso no TTL de 12 h para
 model) e `dropped`. Não existe status "em progresso" de primeira vez. A revisita conta como concluído
 para o sync de coleções e **preserva a data de conclusão** (entrar e sair dela não a zera); é ela
 o "em andamento" do Dashboard. Não reaproveite `watching`/`playing`/`reading`: o `migrate()` os
-converte em `plan_to_*` a cada boot. YouTube e Música usam `liked`/`removed`.
+converte em `plan_to_*` a cada boot. YouTube usa `liked`/`removed`.
 
 ## Convenções
 

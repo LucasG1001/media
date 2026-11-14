@@ -19,8 +19,7 @@ que gravam em vez de acumulá-las.
 
 ## 1. Cache de imagem
 
-Seis das sete mídias gravam no banco a **URL absoluta da CDN** (AniList, TMDB, Hardcover, YouTube —
-que também atende Música);
+Cinco das seis mídias gravam no banco a **URL absoluta da CDN** (AniList, TMDB, Hardcover, YouTube);
 jogos gravam o caminho de proxy `/api/game/image/...` desde uma migração antiga. Nada disso é tocado:
 a coluna continua guardando a URL de origem, que é o que os jobs de refresh atualizam.
 
@@ -50,7 +49,7 @@ absoluta em `/api/img?u=<encoded>`, e todo `<img>` de dado dinâmico passa por
 Roda no fim do `runSyncTick` (boot + cada 30 min), `singleFlight`. Duas metades:
 
 - **Download do que falta.** `findReferencedImageUrls()` junta `cover_image`/`poster_image`/
-  `background_image`/`thumbnail`/`channel_thumbnail` das sete tabelas **mais os pôsteres dentro do
+  `background_image`/`thumbnail`/`channel_thumbnail` das seis tabelas **mais os pôsteres dentro do
   JSONB `season_list`**; o caminho de proxy dos jogos volta a ser URL absoluta antes de baixar.
   Concorrência fixa de 6, teto de 300 por execução, `try/catch` por item — as regras do §10 de
   [sincronizacao.md](sincronizacao.md). URL que falhou não é retentada dentro de 24 h.
@@ -66,7 +65,7 @@ dev cai em `backend/.cache/images`, que está no `.gitignore`.
 ## 2. `detail_cache`
 
 `detail_cache JSONB` + `detail_cached_at TIMESTAMPTZ` em `anime_library`, `movie_library`,
-`series_library`, `game_library` e `books_library`. YouTube e Música não têm: o `YoutubeDrawer` já
+`series_library`, `game_library` e `books_library`. O YouTube não tem: a tela de reprodução dele já
 renderiza da entrada do banco. As duas colunas são **`readonly` no model** (mesmo padrão de `synced_at`).
 
 - **Formato**: objeto com caminhos. O detalhe da mídia fica em `detail_cache->'detail'`; séries
@@ -146,7 +145,7 @@ O `Caddyfile` do container `web` marca `sw.js`, `index.html` e `manifest.webmani
   de "Sem conexão" quando está vazio e offline.
 - **Escrita desabilitada** (`disabled` + `title` explicativo): `LibraryModalBase` (Salvar, Remover,
   capa), `SelectionBar` (todas as ações em lote e o select mobile), o add-by-URL do
-  `YouTubePage` e do `MusicPage` e os três botões de backup do `SettingsPage`.
+  `YouTubePage` e os três botões de backup do `SettingsPage`.
 - **`components/DrawerFallback`**: corpo mínimo quando não há nem detalhe da API nem `detail_cache` —
   capa, título, aviso e **`NotesBlock`**. Antes esse caso mostrava só `"Erro ao carregar detalhes."`
   num painel vazio, e a anotação (o único dado do drawer que é do usuário) desaparecia junto. Os seis

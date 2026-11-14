@@ -16,14 +16,9 @@ na biblioteca, dentro do `FranchiseGrid` — as props que mudam seu comportament
 
 ## 2. Biblioteca — `FranchiseGrid`
 
-Biblioteca agrupada por franquia/coleção. Aceita:
-
-- **`renderExpansion`** — inversão de controle da expansão: a página decide o que vai antes dos
-  cards e **quais membros** volta para o `renderMembers` (é o que o YouTube usa para o filtro de
-  tag; ver `docs/frontend-youtube-tags.md`).
-- **`extraActions`** — ações extra repassadas à `SelectionBar` com os ids selecionados, habilitadas
-  só com a seleção numa única coleção. `anySelection: true` libera a ação para qualquer seleção (é o
-  "Mover para Música" do YouTube).
+Biblioteca agrupada por franquia/coleção, com seleção em lote só de **status** (`SelectionBar`).
+Os slots que existiam para o YouTube antigo (`renderExpansion`, `extraActions`, formar/renomear
+grupo) foram removidos junto com as coleções e tags dele.
 
 ## 3. Imagem — `CoverImage`
 

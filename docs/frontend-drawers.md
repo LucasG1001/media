@@ -2,7 +2,7 @@
 
 Navegação de coleção dentro do drawer, teclado, tela cheia própria do player e o bloco de
 anotação. Vale para os seis drawers (`AnimeDrawer`, `MovieDrawer`, `SeriesDrawer`, `SeasonDrawer`,
-`GameDrawer`, `BookDrawer`, `YoutubeDrawer`). Consulte antes de mexer em `hooks/useDrawerKeys.ts`,
+`GameDrawer`, `BookDrawer`). Consulte antes de mexer em `hooks/useDrawerKeys.ts`,
 `DrawerNav`, `utils/collectionNav.ts`, `TrailerEmbed`, `DrawerFallback` ou no bloco de anotação de um
 drawer.
 
@@ -19,8 +19,7 @@ sobreposto ao player (`"float"`). A sequência sai de `utils/collectionNav.ts` (
 genérico sobre os grupos **já filtrados e ordenados** pela página — a ordem é sempre a que está na
 tela. Devolve `null` para item fora de coleção ou coleção de 1, e só é ligado na aba **biblioteca**
 (no catálogo a lista exibida é outra). Em séries a coleção são as **temporadas**, então navega entre
-elas. No YouTube a sequência usa `visibleMembers` do filtro de tag (ver
-`docs/frontend-youtube-tags.md`).
+elas.
 
 ## 2. Nenhum drawer leva `key` por item
 
@@ -55,11 +54,11 @@ então não é preciso zona invisível roubando clique do player), encostada na 
 em cima do vídeo, controle que aparece a cada passada de mouse atrapalha. Na ponta da coleção a seta
 **some** em vez de ficar desabilitada.
 
-`autoPlay` é **opt-in** (só o YouTube, onde o vídeo é o conteúdo): o clique que abriu o drawer vale
-como gesto do usuário, então o autoplay costuma passar.
+`autoPlay` é **opt-in**: o clique que abriu o drawer vale como gesto do usuário, então o autoplay
+costuma passar.
 
-**Música não usa o `TrailerEmbed` nem drawer**: a tela de reprodução dela tem o `YoutubePlayer`
-(IFrame Player API, controles e tela cheia nativos) — ver `docs/frontend-musica.md` §6.
+**O YouTube não usa o `TrailerEmbed` nem drawer**: a tela de reprodução dele tem o `YoutubePlayer`
+(IFrame Player API, controles e tela cheia nativos) — ver `docs/frontend-youtube.md` §6.
 
 ## 5. Anotações
 

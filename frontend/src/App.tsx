@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Sidebar } from "./components/Sidebar/Sidebar";
 import { LibraryProvider } from "./context/LibraryContext";
 import { ConnectivityProvider } from "./context/ConnectivityProvider";
@@ -11,7 +11,6 @@ import { SeriesPage } from "./pages/SeriesPage/SeriesPage";
 import { BooksPage } from "./pages/BooksPage/BooksPage";
 import { GamesPage } from "./pages/GamesPage/GamesPage";
 import { YouTubePage } from "./pages/YouTubePage/YouTubePage";
-import { MusicPage } from "./pages/MusicPage/MusicPage";
 import { SettingsPage } from "./pages/SettingsPage/SettingsPage";
 import { TierListPage } from "./pages/TierListPage/TierListPage";
 import styles from "./App.module.css";
@@ -49,8 +48,9 @@ function App() {
                 <Route path="/series" element={<SeriesPage />} />
                 <Route path="/livros" element={<BooksPage />} />
                 <Route path="/jogos" element={<GamesPage />} />
-                <Route path="/youtube" element={<YouTubePage />} />
-                <Route path="/musica/:videoId?" element={<MusicPage />} />
+                <Route path="/youtube/:videoId?" element={<YouTubePage />} />
+                {/* A mídia Música foi fundida no YouTube; links antigos caem lá. */}
+                <Route path="/musica/*" element={<Navigate to="/youtube" replace />} />
                 <Route path="/config" element={<SettingsPage />} />
               </Routes>
             </main>

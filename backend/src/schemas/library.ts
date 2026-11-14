@@ -5,8 +5,6 @@ const nullableString = z.string().nullish();
 const nullableNumber = z.number().nullish();
 const notes = z.string().max(20000).nullish();
 const genres = z.array(z.string().min(1).max(80)).max(50).optional();
-// Tag do vídeo: string não vazia. Só o YouTube usa.
-const tag = z.string().min(1).max(60);
 
 export const movieCreateSchema = z.object({
   tmdbId: z.number(),
@@ -91,6 +89,7 @@ export const animeUpdateSchema = z.object({
 });
 
 const youtubeStatus = z.enum(["liked", "removed"]);
+const youtubeKind = z.enum(["music", "video"]);
 
 export const youtubeCreateSchema = z.object({
   videoId: z.string().min(1),
@@ -103,34 +102,11 @@ export const youtubeCreateSchema = z.object({
   viewCount: nullableNumber,
   publishedAt: nullableString,
   description: nullableString,
+  kind: youtubeKind.optional(),
   status: youtubeStatus.optional(),
   score,
-  tags: z.array(tag).max(50).optional(),
 });
 export const youtubeUpdateSchema = youtubeCreateSchema.partial().extend({ notes });
 
-export const youtubeFromUrlSchema = z.object({ url: z.string().min(1) });
-export const youtubeBulkTagSchema = z.object({
-  ids: z.array(z.string().min(1)).min(1),
-  tag,
-});
-export const youtubeFormGroupSchema = z.object({
-  ids: z.array(z.string().min(1)).min(1),
-  name: z.string().min(1),
-});
-export const youtubeAddToGroupSchema = z.object({
-  ids: z.array(z.string().min(1)).min(1),
-  collectionId: z.number(),
-});
-export const youtubeRemoveFromGroupSchema = z.object({
-  ids: z.array(z.string().min(1)).min(1),
-});
-export const youtubeRenameSchema = z.object({ name: z.string().min(1) });
-export const youtubeMoveToMusicSchema = z.object({
-  ids: z.array(z.string().min(1)).min(1),
-});
-
-// Música é o YouTube sem coleção — e, sem coleção, sem tag.
-export const musicCreateSchema = youtubeCreateSchema.omit({ tags: true });
-export const musicUpdateSchema = musicCreateSchema.partial().extend({ notes });
-export const musicFromUrlSchema = z.object({ url: z.string().min(1) });
+// `kind` é a aba em que o link foi colado; ausente, entra como vídeo.
+export const youtubeFromUrlSchema = z.object({ url: z.string().min(1), kind: youtubeKind.optional() });

@@ -145,7 +145,7 @@ export function MediaCard<T, E extends { status: string; score: number; lastAcce
         )}
 
         {/* Com overlay o pill entra no fluxo dele, acima do título (nada é coberto).
-            Sem overlay (YouTube, que descreve o vídeo abaixo da imagem) ele flutua
+            Sem overlay (config com `renderBelow`, que descreve o item abaixo da imagem) ele flutua
             no canto de baixo, onde a imagem está livre. */}
         {!config.renderBelow ? (
           <div className={styles.overlay}>

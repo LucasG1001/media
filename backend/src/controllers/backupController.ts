@@ -8,7 +8,7 @@ import { seriesLibraryModel } from "../models/seriesLibraryModel.js";
 import { gameLibraryModel } from "../models/gameLibraryModel.js";
 import { bookLibraryModel } from "../models/bookLibraryModel.js";
 import { youtubeLibraryModel } from "../models/youtubeLibraryModel.js";
-import { musicLibraryModel } from "../models/musicLibraryModel.js";
+import { youtubeRowsFromBackup } from "../lib/backupLegacy.js";
 import { notifyError } from "../services/notifyService.js";
 
 interface ColumnSpec {
@@ -155,15 +155,6 @@ const TABLES: TableSpec[] = [
     ],
   },
   {
-    key: "youtubeCollections",
-    table: "youtube_collection",
-    conflict: "id",
-    columns: [
-      { column: "id", get: (e) => e.id },
-      { column: "name", get: (e) => e.name },
-    ],
-  },
-  {
     key: "youtube",
     table: "youtube_library",
     conflict: "video_id",
@@ -178,31 +169,7 @@ const TABLES: TableSpec[] = [
       { column: "view_count", get: (e) => e.viewCount ?? null },
       { column: "published_at", get: (e) => e.publishedAt ?? null },
       { column: "description", get: (e) => e.description ?? null },
-      { column: "status", get: (e) => e.status ?? "liked" },
-      { column: "score", get: (e) => e.score ?? 0 },
-      { column: "collection_id", get: (e) => e.collectionId ?? null },
-      { column: "is_cover", get: (e) => e.isCover ?? false },
-      { column: "liked_at", get: (e) => e.likedAt ?? null },
-      { column: "last_access_at", get: (e) => e.lastAccessAt ?? null },
-      { column: "notes", get: (e) => e.notes ?? null },
-      { column: "tags", get: (e) => e.tags ?? [] },
-    ],
-  },
-  {
-    key: "music",
-    table: "music_library",
-    conflict: "video_id",
-    columns: [
-      { column: "video_id", get: (e) => e.videoId },
-      { column: "title", get: (e) => e.title },
-      { column: "channel_id", get: (e) => e.channelId ?? null },
-      { column: "channel_title", get: (e) => e.channelTitle ?? null },
-      { column: "channel_thumbnail", get: (e) => e.channelThumbnail ?? null },
-      { column: "thumbnail", get: (e) => e.thumbnail ?? null },
-      { column: "duration_seconds", get: (e) => e.durationSeconds ?? null },
-      { column: "view_count", get: (e) => e.viewCount ?? null },
-      { column: "published_at", get: (e) => e.publishedAt ?? null },
-      { column: "description", get: (e) => e.description ?? null },
+      { column: "kind", get: (e) => e.kind ?? "video" },
       { column: "status", get: (e) => e.status ?? "liked" },
       { column: "score", get: (e) => e.score ?? 0 },
       { column: "liked_at", get: (e) => e.likedAt ?? null },
@@ -215,15 +182,13 @@ const TABLES: TableSpec[] = [
 
 export async function exportAll(_req: Request, res: Response): Promise<void> {
   try {
-    const [anime, movies, series, games, books, youtube, music, youtubeCollectionsResult] = await Promise.all([
+    const [anime, movies, series, games, books, youtube] = await Promise.all([
       libraryModel.findAll(),
       movieLibraryModel.findAll(),
       seriesLibraryModel.findAll(),
       gameLibraryModel.findAll(),
       bookLibraryModel.findAll(),
       youtubeLibraryModel.findAll(),
-      musicLibraryModel.findAll(),
-      pool.query("SELECT id, name FROM youtube_collection ORDER BY id"),
     ]);
     res.json({
       version: 1,
@@ -233,9 +198,7 @@ export async function exportAll(_req: Request, res: Response): Promise<void> {
       series,
       games,
       books,
-      youtubeCollections: youtubeCollectionsResult.rows,
       youtube,
-      music,
     });
   } catch (error) {
     void notifyError("API backup/export", error);
@@ -318,14 +281,11 @@ export async function importAll(req: Request, res: Response): Promise<void> {
     await client.query("BEGIN");
     const imported: Record<string, number> = {};
     for (const spec of TABLES) {
-      const rows = body[spec.key];
-      if (!Array.isArray(rows)) continue;
+      // A chave do YouTube passa pelo helper para aceitar arquivo de antes da
+      // fusão com Música (chave `music` à parte, linhas sem `kind`).
+      const rows = spec.key === "youtube" ? youtubeRowsFromBackup(body) : body[spec.key];
+      if (!Array.isArray(rows) || (spec.key === "youtube" && rows.length === 0)) continue;
       imported[spec.key] = await upsertRows(client, spec, rows as Record<string, unknown>[]);
-    }
-    if (Array.isArray(body.youtubeCollections) && body.youtubeCollections.length > 0) {
-      await client.query(
-        "SELECT setval(pg_get_serial_sequence('youtube_collection', 'id'), (SELECT COALESCE(MAX(id), 1) FROM youtube_collection))"
-      );
     }
     await client.query("COMMIT");
     res.json({ imported });

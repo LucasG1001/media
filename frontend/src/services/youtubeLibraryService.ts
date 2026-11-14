@@ -1,9 +1,9 @@
 import { api } from "./api";
 import type {
   YoutubeLibraryEntry,
+  YoutubeKind,
   CreateYoutubeLibraryEntry,
   UpdateYoutubeLibraryEntry,
-  YoutubeCollection,
 } from "../types/youtubeLibrary";
 
 export async function fetchLibrary(): Promise<YoutubeLibraryEntry[]> {
@@ -17,13 +17,13 @@ export async function addToLibrary(entry: CreateYoutubeLibraryEntry): Promise<Yo
 }
 
 export interface PlaylistImportResult {
-  playlist: { name: string; imported: number; collectionId: number };
+  playlist: { name: string; imported: number; total: number };
 }
 
 export type AddFromUrlResult = YoutubeLibraryEntry | PlaylistImportResult;
 
-export async function addFromUrl(url: string): Promise<AddFromUrlResult> {
-  const response = await api.post<AddFromUrlResult>("/api/youtube-library/from-url", { url });
+export async function addFromUrl(url: string, kind: YoutubeKind): Promise<AddFromUrlResult> {
+  const response = await api.post<AddFromUrlResult>("/api/youtube-library/from-url", { url, kind });
   return response.data;
 }
 
@@ -34,11 +34,6 @@ export async function updateLibraryEntry(id: string, data: UpdateYoutubeLibraryE
 
 export async function registerAccess(id: string): Promise<YoutubeLibraryEntry> {
   const response = await api.post<YoutubeLibraryEntry>(`/api/youtube-library/${id}/access`);
-  return response.data;
-}
-
-export async function setCover(id: string): Promise<YoutubeLibraryEntry> {
-  const response = await api.put<YoutubeLibraryEntry>(`/api/youtube-library/${id}/cover`);
   return response.data;
 }
 
@@ -53,40 +48,4 @@ export async function removeManyFromLibrary(ids: string[]): Promise<void> {
 export async function updateManyStatus(ids: string[], status: string): Promise<YoutubeLibraryEntry[]> {
   const response = await api.post<{ entries: YoutubeLibraryEntry[] }>("/api/youtube-library/bulk-update-status", { ids, status });
   return response.data.entries;
-}
-
-export async function addTagMany(ids: string[], tag: string): Promise<void> {
-  await api.post("/api/youtube-library/bulk-add-tag", { ids, tag });
-}
-
-export async function removeTagMany(ids: string[], tag: string): Promise<void> {
-  await api.post("/api/youtube-library/bulk-remove-tag", { ids, tag });
-}
-
-export async function moveToMusic(ids: string[]): Promise<number> {
-  const response = await api.post<{ moved: number }>("/api/youtube-library/move-to-music", { ids });
-  return response.data.moved;
-}
-
-export async function listCollections(): Promise<YoutubeCollection[]> {
-  const response = await api.get<YoutubeCollection[]>("/api/youtube-library/collections");
-  return response.data;
-}
-
-export async function formGroup(ids: string[], name: string): Promise<YoutubeCollection> {
-  const response = await api.post<{ collection: YoutubeCollection }>("/api/youtube-library/collections", { ids, name });
-  return response.data.collection;
-}
-
-export async function addToGroup(ids: string[], collectionId: number): Promise<void> {
-  await api.post("/api/youtube-library/collections/add", { ids, collectionId });
-}
-
-export async function removeFromGroup(ids: string[]): Promise<void> {
-  await api.post("/api/youtube-library/collections/remove", { ids });
-}
-
-export async function renameCollection(id: number, name: string): Promise<YoutubeCollection> {
-  const response = await api.put<{ collection: YoutubeCollection }>(`/api/youtube-library/collections/${id}`, { name });
-  return response.data.collection;
 }

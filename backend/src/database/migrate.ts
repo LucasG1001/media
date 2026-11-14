@@ -305,46 +305,42 @@ export async function migrate(): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS books_library_hardcover_id_key ON books_library (hardcover_id);
   `);
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS youtube_collection (
-      id          SERIAL PRIMARY KEY,
-      name        TEXT NOT NULL,
-      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-  `);
-
+  // YouTube: músicas e vídeos na mesma tabela, separados por `kind`. Sem coleção
+  // nem tag — os dois modelos foram removidos (ver os DROPs abaixo).
   await pool.query(`
     CREATE TABLE IF NOT EXISTS youtube_library (
       id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       video_id          TEXT NOT NULL UNIQUE,
       title             TEXT NOT NULL,
+      channel_id        TEXT,
       channel_title     TEXT,
+      channel_thumbnail TEXT,
       thumbnail         TEXT,
       duration_seconds  INTEGER,
       view_count        BIGINT,
       published_at      TEXT,
       description       TEXT,
-      status            TEXT NOT NULL DEFAULT 'plan_to_watch',
+      kind              TEXT NOT NULL DEFAULT 'video',
+      status            TEXT NOT NULL DEFAULT 'liked',
       score             NUMERIC(3,1) DEFAULT 0,
       liked_at          TIMESTAMPTZ,
-      collection_id     INTEGER REFERENCES youtube_collection(id) ON DELETE SET NULL,
-      is_cover          BOOLEAN NOT NULL DEFAULT FALSE,
+      last_access_at    TIMESTAMPTZ,
+      synced_at         TIMESTAMPTZ,
+      notes             TEXT,
       created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
 
+  // Banco antigo: o que já existia em youtube_library vira `video` pelo DEFAULT.
   await pool.query(`
     ALTER TABLE youtube_library
     ADD COLUMN IF NOT EXISTS channel_id TEXT,
     ADD COLUMN IF NOT EXISTS channel_thumbnail TEXT,
-    ADD COLUMN IF NOT EXISTS collection_id INTEGER REFERENCES youtube_collection(id) ON DELETE SET NULL,
-    ADD COLUMN IF NOT EXISTS is_cover BOOLEAN NOT NULL DEFAULT FALSE;
-  `);
-
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS idx_youtube_library_collection_id ON youtube_library (collection_id);
+    ADD COLUMN IF NOT EXISTS notes TEXT,
+    ADD COLUMN IF NOT EXISTS last_access_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS synced_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'video';
   `);
 
   await pool.query(`
@@ -357,31 +353,46 @@ export async function migrate(): Promise<void> {
     ALTER TABLE youtube_library ALTER COLUMN status SET DEFAULT 'liked';
   `);
 
-  // Música: as colunas do youtube_library sem coleção, capa de coleção e tags.
+  // A mídia Música tinha tabela própria e foi fundida aqui como `kind = 'music'`.
+  // Vídeo que existia nas duas fica numa linha só, como música; nota e anotação
+  // da linha de música valem quando preenchidas, senão ficam as do vídeo.
+  // `synced_at` não é copiado (a coluna pode nem existir lá): NULL entra no
+  // próximo refresh. Roda uma vez: a tabela de origem é removida no mesmo bloco.
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS music_library (
-      id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      video_id          TEXT NOT NULL UNIQUE,
-      title             TEXT NOT NULL,
-      channel_id        TEXT,
-      channel_title     TEXT,
-      channel_thumbnail TEXT,
-      thumbnail         TEXT,
-      duration_seconds  INTEGER,
-      view_count        BIGINT,
-      published_at      TEXT,
-      description       TEXT,
-      status            TEXT NOT NULL DEFAULT 'liked',
-      score             NUMERIC(3,1) DEFAULT 0,
-      liked_at          TIMESTAMPTZ,
-      last_access_at    TIMESTAMPTZ,
-      notes             TEXT,
-      created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
+    DO $$
+    BEGIN
+      IF to_regclass('public.music_library') IS NOT NULL THEN
+        INSERT INTO youtube_library
+          (video_id, title, channel_id, channel_title, channel_thumbnail, thumbnail,
+           duration_seconds, view_count, published_at, description, kind, status, score,
+           liked_at, last_access_at, notes, created_at, updated_at)
+        SELECT video_id, title, channel_id, channel_title, channel_thumbnail, thumbnail,
+               duration_seconds, view_count, published_at, description, 'music', status, score,
+               liked_at, last_access_at, notes, created_at, updated_at
+          FROM music_library
+        ON CONFLICT (video_id) DO UPDATE SET
+          kind = 'music',
+          notes = COALESCE(NULLIF(EXCLUDED.notes, ''), youtube_library.notes),
+          score = CASE WHEN COALESCE(EXCLUDED.score, 0) > 0 THEN EXCLUDED.score ELSE youtube_library.score END,
+          last_access_at = GREATEST(youtube_library.last_access_at, EXCLUDED.last_access_at);
+        DROP TABLE music_library;
+      END IF;
+    END $$;
   `);
 
-  await pool.query(`ALTER TABLE music_library ADD COLUMN IF NOT EXISTS synced_at TIMESTAMPTZ;`);
+  // Coleções e tags do YouTube foram removidas, e com elas os modelos de
+  // classificação anteriores (tag única, categoria/subcategoria). Derrubar a
+  // coluna leva junto a FK e o índice, por isso a tabela de coleção cai depois.
+  await pool.query(`
+    ALTER TABLE youtube_library
+    DROP COLUMN IF EXISTS collection_id,
+    DROP COLUMN IF EXISTS is_cover,
+    DROP COLUMN IF EXISTS tags,
+    DROP COLUMN IF EXISTS tag,
+    DROP COLUMN IF EXISTS category,
+    DROP COLUMN IF EXISTS subcategory;
+  `);
+  await pool.query(`DROP TABLE IF EXISTS youtube_collection;`);
 
   // Anotação livre do usuário. NULL = nunca anotado. Séries não têm coluna: a
   // anotação é por temporada e mora dentro de season_states.
@@ -390,28 +401,6 @@ export async function migrate(): Promise<void> {
   await pool.query(`ALTER TABLE game_library    ADD COLUMN IF NOT EXISTS notes TEXT;`);
   await pool.query(`ALTER TABLE books_library   ADD COLUMN IF NOT EXISTS notes TEXT;`);
   await pool.query(`ALTER TABLE youtube_library ADD COLUMN IF NOT EXISTS notes TEXT;`);
-
-  // Tags do vídeo (só o YouTube): N por vídeo, `{}` = sem tag — sem dualidade
-  // NULL/vazio. O vocabulário sai do DISTINCT dos próprios dados, não de tabela.
-  await pool.query(`
-    ALTER TABLE youtube_library ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
-  `);
-
-  // Modelos anteriores de classificação do YouTube (tag única escopada à coleção e o
-  // par categoria/subcategoria) foram substituídos pelo array `tags`.
-  await pool.query(`
-    ALTER TABLE youtube_library
-    DROP COLUMN IF EXISTS tag,
-    DROP COLUMN IF EXISTS category,
-    DROP COLUMN IF EXISTS subcategory;
-  `);
-
-  // Tag só existe dentro de coleção: vídeo avulso não pode carregar tag. Roda a cada
-  // boot e só toca linha inconsistente (mesmo espírito do reset de score em séries).
-  await pool.query(`
-    UPDATE youtube_library SET tags = '{}'
-     WHERE collection_id IS NULL AND cardinality(tags) > 0;
-  `);
 
   // Última vez assistido/jogado. Distinta do timestamp de conclusão, que marca a
   // PRIMEIRA conclusão e é zerado ao sair do status concluído. NULL = nunca.

@@ -5,9 +5,9 @@ import {
   bookCreateSchema,
   animeCreateSchema,
   seriesUpdateSchema,
-  musicCreateSchema,
-  musicUpdateSchema,
-  youtubeMoveToMusicSchema,
+  youtubeCreateSchema,
+  youtubeUpdateSchema,
+  youtubeFromUrlSchema,
 } from "./library.js";
 
 describe("library schemas", () => {
@@ -52,25 +52,31 @@ describe("library schemas", () => {
   });
 });
 
-describe("music schemas", () => {
-  it("accepts a valid music payload", () => {
-    expect(musicCreateSchema.safeParse({ videoId: "abc", title: "X", status: "liked" }).success).toBe(true);
+describe("youtube schemas", () => {
+  it("accepts a valid payload for each kind", () => {
+    expect(youtubeCreateSchema.safeParse({ videoId: "abc", title: "X", kind: "music" }).success).toBe(true);
+    expect(youtubeCreateSchema.safeParse({ videoId: "abc", title: "X", kind: "video" }).success).toBe(true);
   });
 
-  it("only knows the liked/removed statuses", () => {
-    expect(musicCreateSchema.safeParse({ videoId: "abc", title: "X", status: "watched" }).success).toBe(false);
+  it("only knows the liked/removed statuses and the music/video kinds", () => {
+    expect(youtubeCreateSchema.safeParse({ videoId: "abc", title: "X", status: "watched" }).success).toBe(false);
+    expect(youtubeCreateSchema.safeParse({ videoId: "abc", title: "X", kind: "podcast" }).success).toBe(false);
   });
 
-  // Sem coleção não há tag: o campo é descartado em vez de chegar ao model.
-  it("drops tags from create and update", () => {
-    const created = musicCreateSchema.parse({ videoId: "abc", title: "X", tags: ["rock"] });
-    expect(created).not.toHaveProperty("tags");
-    const updated = musicUpdateSchema.parse({ notes: "n", tags: ["rock"] });
-    expect(updated).toEqual({ notes: "n" });
+  // Mover um item de aba é um update de `kind`, sem endpoint próprio.
+  it("lets an update change only the kind", () => {
+    expect(youtubeUpdateSchema.parse({ kind: "music" })).toEqual({ kind: "music" });
   });
 
-  it("requires at least one id to move from YouTube", () => {
-    expect(youtubeMoveToMusicSchema.safeParse({ ids: [] }).success).toBe(false);
-    expect(youtubeMoveToMusicSchema.safeParse({ ids: ["uuid-1"] }).success).toBe(true);
+  // Coleções e tags foram removidas: o campo é descartado em vez de chegar ao model.
+  it("drops tags and collection fields", () => {
+    const parsed = youtubeUpdateSchema.parse({ notes: "n", tags: ["rock"], collectionId: 3 });
+    expect(parsed).toEqual({ notes: "n" });
+  });
+
+  it("takes the kind of the tab the link was pasted in", () => {
+    expect(youtubeFromUrlSchema.parse({ url: "u", kind: "music" })).toEqual({ url: "u", kind: "music" });
+    expect(youtubeFromUrlSchema.parse({ url: "u" })).toEqual({ url: "u" });
+    expect(youtubeFromUrlSchema.safeParse({ url: "u", kind: "x" }).success).toBe(false);
   });
 });

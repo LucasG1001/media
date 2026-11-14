@@ -1,22 +1,31 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, fireEvent, cleanup, screen } from "@testing-library/react";
-import { MusicQueueControls } from "./MusicQueueControls";
+import { YoutubeListControls } from "./YoutubeListControls";
 
 afterEach(cleanup);
 
-function setup(props: Partial<Parameters<typeof MusicQueueControls>[0]> = {}) {
+function setup(props: Partial<Parameters<typeof YoutubeListControls>[0]> = {}) {
   const handlers = {
     onStatusChange: vi.fn(),
     onSearchChange: vi.fn(),
     onSortSelect: vi.fn(),
+    onGroupByChannelChange: vi.fn(),
   };
   render(
-    <MusicQueueControls status="liked" search="" sortField="alpha" sortDir="asc" {...handlers} {...props} />
+    <YoutubeListControls
+      status="liked"
+      search=""
+      sortField="alpha"
+      sortDir="asc"
+      groupByChannel={false}
+      {...handlers}
+      {...props}
+    />
   );
   return handlers;
 }
 
-describe("MusicQueueControls", () => {
+describe("YoutubeListControls", () => {
   it("troca a aba de status", () => {
     const { onStatusChange } = setup();
     // O TabNav repete as abas num <select> para o celular; o botão é a aba em si.
@@ -26,7 +35,7 @@ describe("MusicQueueControls", () => {
 
   it("repassa o texto da busca", () => {
     const { onSearchChange } = setup();
-    fireEvent.change(screen.getByLabelText("Buscar música"), { target: { value: "queen" } });
+    fireEvent.change(screen.getByLabelText("Buscar na biblioteca"), { target: { value: "queen" } });
     expect(onSearchChange).toHaveBeenCalledWith("queen");
   });
 
@@ -45,5 +54,16 @@ describe("MusicQueueControls", () => {
     expect(button.getAttribute("title")).toBe("Decrescente");
     fireEvent.click(button);
     expect(onSortSelect).toHaveBeenCalledWith("date");
+  });
+
+  it("liga e desliga o agrupamento por canal", () => {
+    const { onGroupByChannelChange } = setup();
+    const toggle = screen.getByLabelText("Agrupar por canal");
+    expect(toggle).toHaveProperty("checked", false);
+    fireEvent.click(toggle);
+    expect(onGroupByChannelChange).toHaveBeenCalledWith(true);
+    cleanup();
+    setup({ groupByChannel: true });
+    expect(screen.getByLabelText("Agrupar por canal")).toHaveProperty("checked", true);
   });
 });

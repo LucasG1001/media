@@ -42,9 +42,8 @@
   --color-status-finished: #3b82f6;
   --color-status-upcoming: #f59e0b;
 
-  /* Paleta dos chips de classificação do YouTube: o índice sai de um hash do nome
-     (utils/chipColor), então o mesmo valor tem sempre a mesma cor. Tons claros
-     porque o chip é texto colorido sobre fundo translúcido. */
+  /* Paleta de chips: tons claros porque o chip é texto colorido sobre fundo
+     translúcido. Hoje quem usa são as faixas do Tier List (utils/tierStyles). */
   --color-chip-1: #a78bfa;
   --color-chip-1-subtle: rgba(167, 139, 250, 0.16);
   --color-chip-2: #38bdf8;

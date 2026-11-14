@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-vi.mock("../models/musicLibraryModel.js", () => ({
-  findStaleMusicVideoIds: vi.fn(),
-  updateMusicSyncData: vi.fn().mockResolvedValue(undefined),
-  markMusicSynced: vi.fn().mockResolvedValue(undefined),
+vi.mock("../models/youtubeLibraryModel.js", () => ({
+  findStaleVideoIds: vi.fn(),
+  updateVideoSyncData: vi.fn().mockResolvedValue(undefined),
+  markVideosSynced: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("./youtubeService.js", () => ({
   fetchVideosByIds: vi.fn(),
@@ -11,9 +11,9 @@ vi.mock("./youtubeService.js", () => ({
 }));
 vi.mock("./notifyService.js", () => ({ notifyError: vi.fn().mockResolvedValue(undefined) }));
 
-const { refreshStaleMusic } = await import("./musicLibrarySyncService.js");
-const { findStaleMusicVideoIds, updateMusicSyncData, markMusicSynced } = await import(
-  "../models/musicLibraryModel.js"
+const { refreshStaleYoutube } = await import("./youtubeLibrarySyncService.js");
+const { findStaleVideoIds, updateVideoSyncData, markVideosSynced } = await import(
+  "../models/youtubeLibraryModel.js"
 );
 const { fetchVideosByIds } = await import("./youtubeService.js");
 const { notifyError } = await import("./notifyService.js");
@@ -37,7 +37,7 @@ function ids(count: number): string[] {
   return Array.from({ length: count }, (_, i) => `v${i}`);
 }
 
-describe("refreshStaleMusic", () => {
+describe("refreshStaleYoutube", () => {
   const originalKey = process.env.YOUTUBE_API_KEY;
 
   beforeEach(() => {
@@ -52,24 +52,24 @@ describe("refreshStaleMusic", () => {
 
   it("does nothing without an API key", async () => {
     delete process.env.YOUTUBE_API_KEY;
-    await refreshStaleMusic();
-    expect(findStaleMusicVideoIds).not.toHaveBeenCalled();
+    await refreshStaleYoutube();
+    expect(findStaleVideoIds).not.toHaveBeenCalled();
     expect(notifyError).not.toHaveBeenCalled();
   });
 
   it("does not call YouTube when nothing is stale", async () => {
-    vi.mocked(findStaleMusicVideoIds).mockResolvedValue([]);
-    await refreshStaleMusic();
+    vi.mocked(findStaleVideoIds).mockResolvedValue([]);
+    await refreshStaleYoutube();
     expect(fetchVideosByIds).not.toHaveBeenCalled();
   });
 
   it("writes the refreshed fields of each returned video", async () => {
-    vi.mocked(findStaleMusicVideoIds).mockResolvedValue(["a"]);
+    vi.mocked(findStaleVideoIds).mockResolvedValue(["a"]);
     vi.mocked(fetchVideosByIds).mockResolvedValue(new Map([["a", video("a", 999)]]));
 
-    await refreshStaleMusic();
+    await refreshStaleYoutube();
 
-    expect(updateMusicSyncData).toHaveBeenCalledWith("a", {
+    expect(updateVideoSyncData).toHaveBeenCalledWith("a", {
       title: "Título a",
       thumbnail: "https://i.ytimg.com/vi/a/hq.jpg",
       channelTitle: "Canal",
@@ -77,40 +77,40 @@ describe("refreshStaleMusic", () => {
       viewCount: 999,
       description: "desc",
     });
-    expect(markMusicSynced).toHaveBeenCalledWith([]);
+    expect(markVideosSynced).toHaveBeenCalledWith([]);
   });
 
   // Vídeo apagado ou privado não volta na resposta: sem marcar o sync a linha
   // ficaria stale para sempre.
   it("marks videos missing from the response as synced without touching their data", async () => {
-    vi.mocked(findStaleMusicVideoIds).mockResolvedValue(["a", "gone"]);
+    vi.mocked(findStaleVideoIds).mockResolvedValue(["a", "gone"]);
     vi.mocked(fetchVideosByIds).mockResolvedValue(new Map([["a", video("a")]]));
 
-    await refreshStaleMusic();
+    await refreshStaleYoutube();
 
-    expect(updateMusicSyncData).toHaveBeenCalledTimes(1);
-    expect(markMusicSynced).toHaveBeenCalledWith(["gone"]);
+    expect(updateVideoSyncData).toHaveBeenCalledTimes(1);
+    expect(markVideosSynced).toHaveBeenCalledWith(["gone"]);
   });
 
   it("asks YouTube in batches of 50", async () => {
-    vi.mocked(findStaleMusicVideoIds).mockResolvedValue(ids(120));
+    vi.mocked(findStaleVideoIds).mockResolvedValue(ids(120));
     vi.mocked(fetchVideosByIds).mockResolvedValue(new Map());
 
-    await refreshStaleMusic();
+    await refreshStaleYoutube();
 
     expect(vi.mocked(fetchVideosByIds).mock.calls.map(([batch]) => batch.length)).toEqual([50, 50, 20]);
   });
 
   it("keeps going when one batch fails", async () => {
-    vi.mocked(findStaleMusicVideoIds).mockResolvedValue(ids(60));
+    vi.mocked(findStaleVideoIds).mockResolvedValue(ids(60));
     vi.mocked(fetchVideosByIds)
       .mockRejectedValueOnce(new Error("quota"))
       .mockResolvedValueOnce(new Map([["v50", video("v50")]]));
 
-    await refreshStaleMusic();
+    await refreshStaleYoutube();
 
     expect(notifyError).toHaveBeenCalledTimes(1);
-    expect(updateMusicSyncData).toHaveBeenCalledTimes(1);
-    expect(updateMusicSyncData).toHaveBeenCalledWith("v50", expect.objectContaining({ title: "Título v50" }));
+    expect(updateVideoSyncData).toHaveBeenCalledTimes(1);
+    expect(updateVideoSyncData).toHaveBeenCalledWith("v50", expect.objectContaining({ title: "Título v50" }));
   });
 });

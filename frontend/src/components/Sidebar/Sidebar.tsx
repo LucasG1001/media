@@ -11,7 +11,6 @@ import {
   LogoIcon,
   MediaIcon,
   MovieIcon,
-  MusicIcon,
   SeriesIcon,
   SettingsIcon,
   TierIcon,
@@ -32,7 +31,6 @@ const NAV_ITEMS: NavItem[] = [
   { path: "/livros", label: "Livros", icon: BookIcon },
   { path: "/jogos", label: "Jogos", icon: GameIcon },
   { path: "/youtube", label: "YouTube", icon: YoutubeIcon },
-  { path: "/musica", label: "Música", icon: MusicIcon },
 ];
 
 interface SidebarProps {
@@ -44,7 +42,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const location = useLocation();
   const [chooserOpen, setChooserOpen] = useState(false);
 
-  // Prefixo, não igualdade: `/musica/:videoId` ainda é a mídia Música.
+  // Prefixo, não igualdade: `/youtube/:videoId` ainda é a mídia YouTube.
   const current = NAV_ITEMS.find(
     (item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
   );

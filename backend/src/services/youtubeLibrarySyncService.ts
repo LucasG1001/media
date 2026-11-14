@@ -1,20 +1,21 @@
 import { chunk } from "../lib/chunk.js";
 import { singleFlight } from "../lib/singleFlight.js";
-import { findStaleMusicVideoIds, updateMusicSyncData, markMusicSynced } from "../models/musicLibraryModel.js";
+import { findStaleVideoIds, updateVideoSyncData, markVideosSynced } from "../models/youtubeLibraryModel.js";
 import { fetchVideosByIds, YOUTUBE_VIDEOS_BATCH_SIZE } from "./youtubeService.js";
 import { notifyError } from "./notifyService.js";
 
-// Música não tem lançamento para acompanhar: o que envelhece é a contagem de
-// visualizações (e, raramente, título e miniatura). Uma volta por dia basta.
-const MUSIC_TTL_HOURS = 24;
+// Vídeo e música do YouTube não têm lançamento para acompanhar: o que envelhece
+// é a contagem de visualizações (e, raramente, título e miniatura). Uma volta
+// por dia basta.
+const YOUTUBE_TTL_HOURS = 24;
 
-export const refreshStaleMusic = singleFlight(doRefreshMusic);
+export const refreshStaleYoutube = singleFlight(doRefreshYoutube);
 
-async function doRefreshMusic(): Promise<void> {
+async function doRefreshYoutube(): Promise<void> {
   // Sem chave não há o que tentar — e relatar o mesmo erro a cada tick só faria ruído.
   if (!process.env.YOUTUBE_API_KEY) return;
 
-  const stale = await findStaleMusicVideoIds(MUSIC_TTL_HOURS);
+  const stale = await findStaleVideoIds(YOUTUBE_TTL_HOURS);
   if (stale.length === 0) return;
 
   for (const batch of chunk(stale, YOUTUBE_VIDEOS_BATCH_SIZE)) {
@@ -27,7 +28,7 @@ async function doRefreshMusic(): Promise<void> {
           missing.push(videoId);
           continue;
         }
-        await updateMusicSyncData(videoId, {
+        await updateVideoSyncData(videoId, {
           title: video.title,
           thumbnail: video.thumbnail,
           channelTitle: video.channelTitle,
@@ -36,9 +37,9 @@ async function doRefreshMusic(): Promise<void> {
           description: video.description,
         });
       }
-      await markMusicSynced(missing);
+      await markVideosSynced(missing);
     } catch (error) {
-      await notifyError("musicLibrarySyncService.refreshStaleMusic", error);
+      await notifyError("youtubeLibrarySyncService.refreshStaleYoutube", error);
     }
   }
 }
