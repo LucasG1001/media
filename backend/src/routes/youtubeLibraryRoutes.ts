@@ -16,6 +16,7 @@ import {
   renameCollection,
   listCollections,
   registerAccess,
+  moveToMusic,
 } from "../controllers/youtubeLibraryController.js";
 
 const router = Router();
@@ -32,6 +33,7 @@ router.post("/bulk-delete", removeMany);
 router.post("/bulk-update-status", updateManyStatus);
 router.post("/bulk-add-tag", addTag);
 router.post("/bulk-remove-tag", removeTag);
+router.post("/move-to-music", moveToMusic);
 router.post("/:id/access", registerAccess);
 router.put("/:id/cover", setCover);
 router.put("/:id", update);

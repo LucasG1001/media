@@ -26,7 +26,7 @@ sistema operacional).
 | Boot (one-shot) | `backfillReleaseDates` | Anime, Séries | Sim, só se houver linha pendente |
 | Ao abrir o drawer | `handle*Load` na página | Todas | Sim (detalhe do item) |
 
-Só o **YouTube** fica fora da sincronização de fundo — ele tem fluxo próprio de importação. Livros
+Só o **YouTube** e a **Música** ficam fora da sincronização de fundo — têm fluxo próprio de importação. Livros
 entraram junto com a migração para a Hardcover: livro **tem** data de lançamento futura de verdade
 (a série traz volume anunciado para anos à frente) e título/capa que envelhecem como qualquer outro.
 

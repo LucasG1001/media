@@ -41,9 +41,10 @@ interface FranchiseGridProps<
   // cards e quais membros passa de volta para `renderMembers` (é assim que o
   // filtro de tag do YouTube reduz só a expansão, sem tocar na capa/badge).
   renderExpansion?: (group: MediaGroup<E>, renderMembers: (members: E[]) => ReactNode) => ReactNode;
-  // Ações extra da SelectionBar, recebendo os ids selecionados. Só habilitam com
-  // os selecionados numa única coleção — tag fora de coleção não existe.
-  extraActions?: { label: string; onClick: (ids: string[]) => void }[];
+  // Ações extra da SelectionBar, recebendo os ids selecionados. Por padrão só
+  // habilitam com os selecionados numa única coleção — tag fora de coleção não
+  // existe. `anySelection` libera a ação para qualquer seleção (mover de mídia).
+  extraActions?: { label: string; onClick: (ids: string[]) => void; anySelection?: boolean }[];
   gridClassName?: string;
   expansionClassName?: string;
 }
@@ -285,17 +286,15 @@ export function FranchiseGrid<
                 }
               : undefined
           }
-          extraActions={
-            canUseExtraActions
-              ? extraActions?.map((action) => ({
-                  label: action.label,
-                  onClick: () => {
-                    action.onClick([...selectedIds]);
-                    setSelectedIds(new Set());
-                  },
-                }))
-              : undefined
-          }
+          extraActions={extraActions
+            ?.filter((action) => action.anySelection || canUseExtraActions)
+            .map((action) => ({
+              label: action.label,
+              onClick: () => {
+                action.onClick([...selectedIds]);
+                setSelectedIds(new Set());
+              },
+            }))}
         />
       )}
       {naming && (

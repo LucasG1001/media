@@ -3,7 +3,9 @@ import type { MovieCard } from "../types/movie";
 import type { SeriesCard } from "../types/series";
 import type { BookCard } from "../types/book";
 import type { GameCard } from "../types/game";
+import type { ReactNode } from "react";
 import type { YoutubeCard } from "../types/youtubeLibrary";
+import type { MusicCard } from "../types/musicLibrary";
 import type { SeasonMember } from "../utils/seasonGroups";
 import type { MediaCardConfig } from "../components/MediaCard/MediaCard";
 import { StoreGlyph } from "../components/MediaCard/StoreIcons";
@@ -169,14 +171,8 @@ function youtubeStatusColor(status: string | undefined): string {
   }
 }
 
-export const youtubeCardConfig: MediaCardConfig<YoutubeCard> = {
-  getTitle: (v) => v.title,
-  getImage: (v) => v.thumbnail,
-  placeholderEmoji: "▶️",
-  coverAspect: "16 / 9",
-  libraryStatusColor: youtubeStatusColor,
-  renderMeta: () => null,
-  renderBelow: (v) => (
+function renderVideoBelow(v: MusicCard, extra?: ReactNode) {
+  return (
     <div className={ytStyles.below}>
       <CoverImage className={ytStyles.avatar} src={v.channelThumbnail} alt="" />
       <div className={ytStyles.text}>
@@ -185,13 +181,35 @@ export const youtubeCardConfig: MediaCardConfig<YoutubeCard> = {
         <div className={ytStyles.stats}>
           {formatDuration(v.durationSeconds)} · {formatViews(v.viewCount)}
         </div>
-        {/* Vídeo avulso não tem tag: sem coleção, nem a linha de chips aparece. */}
-        {v.collectionId != null && (
-          <CardTags entryId={v.entryId} collectionId={v.collectionId} tags={v.tags} />
-        )}
+        {extra}
       </div>
     </div>
-  ),
+  );
+}
+
+export const youtubeCardConfig: MediaCardConfig<YoutubeCard> = {
+  getTitle: (v) => v.title,
+  getImage: (v) => v.thumbnail,
+  placeholderEmoji: "▶️",
+  coverAspect: "16 / 9",
+  libraryStatusColor: youtubeStatusColor,
+  renderMeta: () => null,
+  // Vídeo avulso não tem tag: sem coleção, nem a linha de chips aparece.
+  renderBelow: (v) =>
+    renderVideoBelow(
+      v,
+      v.collectionId != null && <CardTags entryId={v.entryId} collectionId={v.collectionId} tags={v.tags} />
+    ),
+};
+
+export const musicCardConfig: MediaCardConfig<MusicCard> = {
+  getTitle: (m) => m.title,
+  getImage: (m) => m.thumbnail,
+  placeholderEmoji: "🎵",
+  coverAspect: "16 / 9",
+  libraryStatusColor: youtubeStatusColor,
+  renderMeta: () => null,
+  renderBelow: (m) => renderVideoBelow(m),
 };
 
 export const gameCardConfig: MediaCardConfig<GameCard> = {

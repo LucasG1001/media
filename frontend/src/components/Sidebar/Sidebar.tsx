@@ -11,6 +11,7 @@ import {
   LogoIcon,
   MediaIcon,
   MovieIcon,
+  MusicIcon,
   SeriesIcon,
   SettingsIcon,
   TierIcon,
@@ -31,6 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: "/livros", label: "Livros", icon: BookIcon },
   { path: "/jogos", label: "Jogos", icon: GameIcon },
   { path: "/youtube", label: "YouTube", icon: YoutubeIcon },
+  { path: "/musica", label: "Música", icon: MusicIcon },
 ];
 
 interface SidebarProps {

@@ -128,8 +128,9 @@ espaço embaixo. Ancorar o rodapé é o que deixa a faixa crescer para cima **se
 Pelas `extraActions` do `FranchiseGrid` → `SelectionBar` → `TagBulkModal`, com dois modos:
 **Adicionar tag** (`POST /bulk-add-tag`) e **Remover tag** (`POST /bulk-remove-tag`) — com N tags
 "definir" não faria sentido. No modo remover só são oferecidas as tags que os selecionados têm. As
-ações extra só habilitam com os selecionados **numa única coleção e nenhum avulso** — coerente com a
-invariante da tag.
+ações de tag só habilitam com os selecionados **numa única coleção e nenhum avulso** — coerente com a
+invariante da tag. A terceira ação extra, **Mover para Música**, vale para qualquer seleção
+(`anySelection`) e tira o vídeo desta biblioteca — ver `docs/frontend-musica.md`.
 
 ## 11. Playlist importada
 

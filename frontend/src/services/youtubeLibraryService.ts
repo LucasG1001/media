@@ -63,6 +63,11 @@ export async function removeTagMany(ids: string[], tag: string): Promise<void> {
   await api.post("/api/youtube-library/bulk-remove-tag", { ids, tag });
 }
 
+export async function moveToMusic(ids: string[]): Promise<number> {
+  const response = await api.post<{ moved: number }>("/api/youtube-library/move-to-music", { ids });
+  return response.data.moved;
+}
+
 export async function listCollections(): Promise<YoutubeCollection[]> {
   const response = await api.get<YoutubeCollection[]>("/api/youtube-library/collections");
   return response.data;

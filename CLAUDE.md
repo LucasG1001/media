@@ -5,7 +5,7 @@ Este arquivo orienta o Claude Code (claude.ai/code) ao trabalhar neste repositó
 ## Visão geral
 
 **Media Tracker** é um app pessoal full-stack (usuário único, sem auth, online-only) para
-acompanhar coleções de mídia. Seis domínios de mídia, cada um com catálogo (busca em API externa)
+acompanhar coleções de mídia. Sete domínios de mídia, cada um com catálogo (busca em API externa)
 e biblioteca pessoal (CRUD em PostgreSQL):
 
 - **Anime** — AniList (GraphQL); descoberta de franquia (sequências/OVAs/filmes).
@@ -16,6 +16,8 @@ e biblioteca pessoal (CRUD em PostgreSQL):
   obrigatório e trava de autor.
 - **YouTube** — vídeos curtidos/salvos (YouTube Data API); modelo à parte (status `liked`/`removed`).
   Coleções (tabela própria) e, **dentro de cada uma**, organização por **tags** (N por vídeo).
+- **Música** — a mesma fonte e o mesmo modelo do YouTube, em tabela própria e **sem coleção nem
+  tag**; entra por link ou movida do YouTube.
 
 Recursos transversais: **Dashboard** agregado, **Tier List** (coleções em faixas pela nota), **sync de coleções** (descobre e adiciona novos
 lançamentos de franquias já concluídas), **notificações no Telegram** (novos episódios, itens de
@@ -71,13 +73,14 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 
 - **`server.ts`** — Express, registra as rotas de cada mídia (`/api/anime`, `/api/library`,
   `/api/movie`, `/api/movie-library`, `/api/series`, `/api/game`, `/api/book`,
-  `/api/youtube-library`, `/api/backup`, `/api/img`, `/api/health`, …), roda `migrate()` e agenda os
+  `/api/youtube-library`, `/api/music-library`, `/api/backup`, `/api/img`, `/api/health`, …), roda
+  `migrate()` e agenda os
   jobs (abaixo).
 - **`lib/` (reutilizáveis — prefira-os a reinventar):**
   - **`createLibraryModel.ts` / `createLibraryController.ts`** — factories que geram o CRUD padrão
     das bibliotecas (findAll/create/update/updateManyStatus/setCover/remove + timestamp de
     conclusão + `lastAccess` — último acesso, ver esquema; os `CASE`s vêm de `lib/completionSql.ts`).
-    Movie/series/game/book/youtube adotam por completo;
+    Movie/series/game/book/youtube/music adotam por completo;
     anime usa a factory pro CRUD e mantém funções próprias (JSONB, franquia, sync) standalone.
   - **`httpClient.ts`** — wrapper axios com retry (429/5xx, respeita `Retry-After`), cache opcional
     e **rate limiter opt-in** por chamada. **`rateLimiter.ts`** — throttle proativo + pacing por
@@ -136,7 +139,7 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 ### Frontend (`frontend/src/`)
 
 - **`App.tsx`** — BrowserRouter + Sidebar; páginas `Dashboard`, `TierList`, `Anime`, `Movies`,
-  `Series`, `Games`, `Books`, `YouTube`, `Settings`.
+  `Series`, `Games`, `Books`, `YouTube`, `Music`, `Settings`.
 - **Padrão de página de mídia**: catálogo (`useMediaList`) + biblioteca (`use*Library`); a
   biblioteca é um `FranchiseGrid` sobre grupos de coleção montados num `useMemo`
   (`build*CollectionGroups` com `memberFilter` → `filterGroupsBySearch` → `sortGroups`), com
@@ -159,6 +162,9 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 - **YouTube = coleção + tag escopada à coleção** (tag só existe dentro de coleção; o filtro de tag
   vive dentro da expansão). **Ver `docs/frontend-youtube-tags.md`** antes de mexer na página do
   YouTube ou em tags.
+- **Música = YouTube sem coleção nem tag**: lista plana, reusa drawer/modal/CSS do YouTube e recebe
+  vídeos pela ação "Mover para Música". **Ver `docs/frontend-musica.md`** antes de mexer em Música
+  ou nessa ação.
 - **Drawers, trailer e anotações**: navegação de coleção (`DrawerNav` + `utils/collectionNav.ts`),
   teclado (`hooks/useDrawerKeys.ts`), tela cheia própria do `TrailerEmbed` e a regra de que
   **nenhum drawer leva `key` por item**. **Ver `docs/frontend-drawers.md`** antes de mexer em drawer,
@@ -181,16 +187,17 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
 ### Esquema do banco (uma tabela por mídia)
 
 `anime_library`, `movie_library`, `series_library`, `game_library`, `books_library` (plural),
-`youtube_library`. Colunas em `TEXT`/`JSONB`, sem CHECK de enum (migração de status = `UPDATE`).
-Convenções comuns a todas: `is_cover` (capa da
+`youtube_library`, `music_library`. Colunas em `TEXT`/`JSONB`, sem CHECK de enum (migração de status
+= `UPDATE`). Convenções comuns a todas: `is_cover` (capa da
 coleção), timestamp de conclusão (`watched_at`/`finished_at`/`read_at`), coluna de
 coleção (`franchise_id`/`collection_id`) e `notes`
 (`TEXT`, anotação livre do usuário; `NULL` = nunca anotado) — este **menos em `series_library`**, onde
-a anotação é por temporada, dentro de `season_states`.
+a anotação é por temporada, dentro de `season_states`. **`music_library` é a exceção às duas de
+coleção**: tem as colunas de `youtube_library` sem `collection_id`, `is_cover` e `tags`.
 
 **`last_access_at`** (`TIMESTAMPTZ`; `NULL` = nunca) — última vez assistido/jogado, **distinto do
 timestamp de conclusão**, que marca a _primeira_ conclusão e é zerado ao sair do status concluído —
-**exceto** para a revisita, que o preserva (ver status abaixo). Existe em todas as seis mídias. Regras:
+**exceto** para a revisita, que o preserva (ver status abaixo). Existe em todas as sete mídias. Regras:
 
 - **Só a transição para o status concluído grava.** Salvar de novo mexendo apenas na nota **não**
   mexe na data, e **sair** do status concluído **não limpa** (item abandonado mantém a última vez que
@@ -200,9 +207,9 @@ timestamp de conclusão**, que marca a _primeira_ conclusão e é zerado ao sair
 - **Séries**: o que vale é o da **temporada**, dentro de `season_states` (`setSeasonState` aplica a
   mesma regra em JS via `mergeSeasonState`). A coluna da série só é gravada pelo fallback de série
   sem `season_list`.
-- **YouTube é a exceção**: não é dirigido por status (o `whenStatus` dele é `liked`, o default) —
-  quem grava é o `touchAccess` próprio dele via `POST /api/youtube-library/:id/access`, chamado ao
-  **abrir o drawer** do vídeo (e sem tocar `updated_at`: abrir é passivo e não pode reordenar a
+- **YouTube e Música são a exceção**: não são dirigidos por status (o `whenStatus` deles é `liked`,
+  o default) — quem grava é o `touchAccess` próprio de cada um via
+  `POST /api/{youtube,music}-library/:id/access`, chamado ao **abrir o drawer** do vídeo (e sem tocar `updated_at`: abrir é passivo e não pode reordenar a
   biblioteca). Por isso a coluna é `readonly` na config do model. O drawer só **grava**, não exibe:
   quem mostra a data é o chip do card, sempre visível na biblioteca.
 - Coluna nova em biblioteca precisa entrar também nas listas de `backupController`, senão se perde
@@ -233,7 +240,7 @@ vez. **A linha nunca é removida.** Ver `docs/sincronizacao.md` §2.9.
 
 **`detail_cache`** (`JSONB`) + **`detail_cached_at`** — última resposta de detalhe da API externa,
 para o drawer abrir inteiro com ela fora. Existe nas cinco mídias com catálogo (não em
-`youtube_library`, cujo drawer já vem do banco) e é **`readonly` no model**. `NULL` = nunca
+`youtube_library` nem `music_library`, cujo drawer já vem do banco) e é **`readonly` no model**. `NULL` = nunca
 cacheado; `'{}'` = última tentativa falhou. **Única coluna de biblioteca deliberadamente fora do
 `backupController`** — é cache re-derivável. Fora das tabelas de mídia existe **`image_cache`**
 (metadado do cache de capas; os bytes ficam em disco, no volume `image_cache`). As duas coisas estão
@@ -269,7 +276,7 @@ senão clássico sem data viraria "Em breve" e ficaria preso no TTL de 12 h para
 model) e `dropped`. Não existe status "em progresso" de primeira vez. A revisita conta como concluído
 para o sync de coleções e **preserva a data de conclusão** (entrar e sair dela não a zera); é ela
 o "em andamento" do Dashboard. Não reaproveite `watching`/`playing`/`reading`: o `migrate()` os
-converte em `plan_to_*` a cada boot. YouTube usa `liked`/`removed`.
+converte em `plan_to_*` a cada boot. YouTube e Música usam `liked`/`removed`.
 
 ## Convenções
 

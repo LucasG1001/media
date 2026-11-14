@@ -126,3 +126,11 @@ export const youtubeRemoveFromGroupSchema = z.object({
   ids: z.array(z.string().min(1)).min(1),
 });
 export const youtubeRenameSchema = z.object({ name: z.string().min(1) });
+export const youtubeMoveToMusicSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1),
+});
+
+// Música é o YouTube sem coleção — e, sem coleção, sem tag.
+export const musicCreateSchema = youtubeCreateSchema.omit({ tags: true });
+export const musicUpdateSchema = musicCreateSchema.partial().extend({ notes });
+export const musicFromUrlSchema = z.object({ url: z.string().min(1) });

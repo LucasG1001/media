@@ -357,6 +357,30 @@ export async function migrate(): Promise<void> {
     ALTER TABLE youtube_library ALTER COLUMN status SET DEFAULT 'liked';
   `);
 
+  // Música: as colunas do youtube_library sem coleção, capa de coleção e tags.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS music_library (
+      id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      video_id          TEXT NOT NULL UNIQUE,
+      title             TEXT NOT NULL,
+      channel_id        TEXT,
+      channel_title     TEXT,
+      channel_thumbnail TEXT,
+      thumbnail         TEXT,
+      duration_seconds  INTEGER,
+      view_count        BIGINT,
+      published_at      TEXT,
+      description       TEXT,
+      status            TEXT NOT NULL DEFAULT 'liked',
+      score             NUMERIC(3,1) DEFAULT 0,
+      liked_at          TIMESTAMPTZ,
+      last_access_at    TIMESTAMPTZ,
+      notes             TEXT,
+      created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
   // Anotação livre do usuário. NULL = nunca anotado. Séries não têm coluna: a
   // anotação é por temporada e mora dentro de season_states.
   await pool.query(`ALTER TABLE anime_library   ADD COLUMN IF NOT EXISTS notes TEXT;`);

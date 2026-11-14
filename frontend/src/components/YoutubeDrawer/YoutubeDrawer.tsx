@@ -10,8 +10,27 @@ import { formatViews } from "../../utils/formatViews";
 import styles from "./YoutubeDrawer.module.css";
 import { CoverImage } from "../CoverImage/CoverImage";
 
+// Só o que o drawer lê: é o que deixa a página de Música reusá-lo com a entrada
+// dela, que não tem coleção nem tags.
+export type YoutubeDrawerEntry = Pick<
+  YoutubeLibraryEntry,
+  | "id"
+  | "videoId"
+  | "title"
+  | "channelTitle"
+  | "channelThumbnail"
+  | "thumbnail"
+  | "status"
+  | "durationSeconds"
+  | "viewCount"
+  | "publishedAt"
+  | "score"
+  | "description"
+  | "notes"
+>;
+
 interface YoutubeDrawerProps {
-  entry: YoutubeLibraryEntry;
+  entry: YoutubeDrawerEntry;
   onClose: () => void;
   // Abrir o drawer é o que conta como acesso no YouTube.
   onOpen?: () => void;

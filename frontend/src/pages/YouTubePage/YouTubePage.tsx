@@ -99,6 +99,7 @@ export function YouTubePage() {
     formGroup,
     addToGroup,
     removeFromGroup,
+    moveToMusic,
   } = useYoutubeLibrary();
 
   const collections = useYoutubeCollections();
@@ -125,6 +126,21 @@ export function YouTubePage() {
       setAdding(false);
     }
   }, [urlInput, adding, addFromUrl, collections]);
+
+  const handleMoveToMusic = useCallback(
+    async (ids: string[]) => {
+      setAddError(null);
+      setAddNotice(null);
+      try {
+        const moved = await moveToMusic(ids);
+        setAddNotice(`${moved} ${moved === 1 ? "vídeo movido" : "vídeos movidos"} para Música.`);
+        collections.reload();
+      } catch {
+        setAddError("Erro ao mover para Música.");
+      }
+    },
+    [moveToMusic, collections]
+  );
 
   const handleCardClick = useCallback((card: YoutubeCard) => {
     setDrawerVideoId(card.id);
@@ -398,6 +414,7 @@ export function YouTubePage() {
           extraActions={[
             { label: "Adicionar tag", onClick: (ids) => setBulk({ mode: "add", ids }) },
             { label: "Remover tag", onClick: (ids) => setBulk({ mode: "remove", ids }) },
+            { label: "Mover para Música", anySelection: true, onClick: (ids) => { void handleMoveToMusic(ids); } },
           ]}
           renderExpansion={renderExpansion}
           getCollectionName={(group) =>

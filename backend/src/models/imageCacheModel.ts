@@ -120,6 +120,8 @@ export async function findReferencedImageUrls(): Promise<string[]> {
        UNION ALL SELECT cover_image       FROM books_library
        UNION ALL SELECT thumbnail         FROM youtube_library
        UNION ALL SELECT channel_thumbnail FROM youtube_library
+       UNION ALL SELECT thumbnail         FROM music_library
+       UNION ALL SELECT channel_thumbnail FROM music_library
      ) refs
      WHERE url IS NOT NULL AND url <> ''`
   );

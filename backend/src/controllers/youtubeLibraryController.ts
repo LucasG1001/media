@@ -22,7 +22,9 @@ import {
   youtubeAddToGroupSchema,
   youtubeRemoveFromGroupSchema,
   youtubeRenameSchema,
+  youtubeMoveToMusicSchema,
 } from "../schemas/library.js";
+import { moveFromYoutube } from "../models/musicLibraryModel.js";
 import { extractVideoId, extractPlaylistId, fetchVideo, fetchPlaylist, YoutubeServiceError } from "../services/youtubeService.js";
 import { notifyError } from "../services/notifyService.js";
 
@@ -211,6 +213,22 @@ export async function removeFromGroup(req: Request, res: Response): Promise<void
   } catch (error) {
     void notifyError("API POST /api/youtube-library/collections/remove", error);
     res.status(500).json({ error: "Erro ao remover da coleção." });
+  }
+}
+
+export async function moveToMusic(req: Request, res: Response): Promise<void> {
+  try {
+    const parsed = youtubeMoveToMusicSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Dados inválidos." });
+      return;
+    }
+    const moved = await moveFromYoutube(parsed.data.ids);
+    await pruneEmptyCollections().catch(() => undefined);
+    res.json({ moved });
+  } catch (error) {
+    void notifyError("API POST /api/youtube-library/move-to-music", error);
+    res.status(500).json({ error: "Erro ao mover para Música." });
   }
 }
 
