@@ -131,6 +131,11 @@
   gap: var(--spacing-base);
 }
 
+/* Coluna larga da visão de detalhe: a ficha ganha colunas conforme o espaço. */
+.infoGridWide {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
 .infoItem {
   display: flex;
   flex-direction: column;

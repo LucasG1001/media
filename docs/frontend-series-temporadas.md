@@ -58,7 +58,13 @@ Card simples, sem `getCollectionKey`:
 - Série **sem `season_list`** — fallback de 1 membro `kind:"series"`: botão de status →
   `SeriesLibraryModal`, imagem → `SeriesDrawer`.
 
-## 6. Update otimista
+## 6. Visão de detalhe
+
+Na visão de detalhe da biblioteca (`SeriesWatch`) vale a mesma regra: a lista mostra as séries e,
+dentro de uma, as temporadas; o palco traz os dados da série e, da temporada, pôster, sinopse e
+episódios. Ver `docs/frontend-visao-detalhe.md` §5.
+
+## 7. Update otimista
 
 `store.mutate` = primitivo de update otimista com endpoint custom (usado por
 `saveSeason`/`setCoverSeason`).

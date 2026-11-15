@@ -12,6 +12,9 @@ import { useLibrary } from "../../hooks/useLibrary";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useSingleSort } from "../../hooks/useSingleSort";
 import { LibraryControls } from "../../components/LibraryControls/LibraryControls";
+import { LibraryViewToggle } from "../../components/ViewToggle/ViewToggle";
+import { AnimeWatch } from "../../components/AnimeWatch/AnimeWatch";
+import { useLibraryWatch } from "../../hooks/useLibraryWatch";
 import type { AnimeCard } from "../../types/anime";
 import type { AnimeDetail } from "../../types/anime";
 import type { LibraryStatus, LibraryEntry } from "../../types/library";
@@ -88,6 +91,7 @@ export function AnimePage() {
     setActiveTab(tabId);
     setSearchQuery("");
     setLibrarySearch("");
+    watch.disarm();
   };
 
   const handleCardClick = (anime: AnimeCard) => {
@@ -183,6 +187,12 @@ export function AnimePage() {
         : sortGroupsByMemberDate(groups, seasonYearOf, sort.dir);
     return { franchiseGroups: filterGroupsBySearch(groups, librarySearch), genreOptions };
   }, [libraryEntries, libraryFilter, airingFilter, genreFilter, sort.field, sort.dir, librarySearch]);
+
+  // Visão de detalhe (palco + lista de coleções). Sem item para mostrar
+  // (biblioteca vazia, carregando, filtro sem resultado) `entry` vem vazio e a
+  // página cai na grade, que já tem esses estados.
+  const watch = useLibraryWatch("anime-library-view", franchiseGroups, activeTab === "library");
+  const watchEntry = watch.entry;
 
   const gridKey =
     activeTab === "library"
@@ -301,10 +311,22 @@ export function AnimePage() {
             ],
             onSelect: sort.select,
           }}
+          trailing={<LibraryViewToggle value={watch.view} onChange={watch.changeView} />}
         />
       )}
 
-      {activeTab === "library" ? (
+      {watchEntry ? (
+        <AnimeWatch
+          // Sem `key`: remontar a cada item recriaria o player.
+          {...watch.props}
+          entry={watchEntry}
+          groups={franchiseGroups}
+          navKeys={selectedAnimeForModal === null}
+          onEdit={() => handleOpenLibraryModal(libraryEntryToCard(watchEntry))}
+          onAnimeLoad={handleAnimeLoad}
+          onNotesChange={(notes) => { void updateEntry(watchEntry.id, { notes }); }}
+        />
+      ) : activeTab === "library" ? (
         <FranchiseGrid
           groups={franchiseGroups}
           loading={libraryLoading}

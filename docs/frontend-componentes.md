@@ -69,8 +69,9 @@ O painel tem `panelWidth`: `"wide"` fixa no teto de 560 px, `"fit"` cresce com o
 teto — `max-content`, porque o painel é absoluto dentro do botão e o shrink-to-fit resolveria pela
 largura dele.
 
-O slot **`trailing`** põe um controle da página ao lado de Filtros/Ordenação. Hoje só Jogos usa, com
-o `ViewToggle` (Grade | Detalhe) — ver `docs/frontend-jogos-detalhe.md`.
+O slot **`trailing`** põe um controle da página ao lado de Filtros/Ordenação. Quem usa são as
+bibliotecas com visão de detalhe (anime, filmes, séries, jogos), com o `LibraryViewToggle`
+(Grade | Detalhe) — ver `docs/frontend-visao-detalhe.md`.
 
 ## 6. `NotesBlock`
 

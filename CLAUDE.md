@@ -163,9 +163,9 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   pausado; player pela IFrame API e a biblioteca como lista fixa ao lado, com abas Músicas | Vídeos
   e agrupamento por canal. **Ver `docs/frontend-youtube.md`** antes de mexer na página do YouTube
   ou no `YoutubePlayer`.
-- **Jogos têm uma segunda visualização da biblioteca** (experimento): Grade | Detalhe, este no
-  desenho da tela do YouTube (palco + lista de coleções). **Ver `docs/frontend-jogos-detalhe.md`**
-  antes de mexer em `GameWatch` ou na visualização da `GamesPage`.
+- **Anime, filmes, séries e jogos têm duas visualizações da biblioteca**: Grade | Detalhe, este no
+  desenho da tela do YouTube (palco + lista de coleções; `CollectionWatch` genérico + um invólucro
+  por mídia). **Ver `docs/frontend-visao-detalhe.md`** antes de mexer neles.
 - **Drawers, trailer e anotações**: navegação de coleção (`DrawerNav` + `utils/collectionNav.ts`),
   teclado (`hooks/useDrawerKeys.ts`), tela cheia própria do `TrailerEmbed` e a regra de que
   **nenhum drawer leva `key` por item**. **Ver `docs/frontend-drawers.md`** antes de mexer em drawer,

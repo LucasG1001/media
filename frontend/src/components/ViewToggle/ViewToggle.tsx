@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { LibraryView } from "../../hooks/useLibraryWatch";
 import styles from "./ViewToggle.module.css";
 
 export interface ViewOption<T extends string> {
@@ -49,6 +50,19 @@ export function DetailViewIcon() {
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <path d="M15 4v16M18 9h0M18 12h0M18 15h0" />
     </Icon>
+  );
+}
+
+const LIBRARY_VIEW_OPTIONS: ViewOption<LibraryView>[] = [
+  { id: "grid", label: "Grade", icon: <GridViewIcon /> },
+  { id: "watch", label: "Detalhe", icon: <DetailViewIcon /> },
+];
+
+// O alternador Grade | Detalhe das bibliotecas, para o slot `trailing` da
+// `LibraryControls`.
+export function LibraryViewToggle({ value, onChange }: { value: LibraryView; onChange: (view: LibraryView) => void }) {
+  return (
+    <ViewToggle label="Visualização da biblioteca" options={LIBRARY_VIEW_OPTIONS} value={value} onChange={onChange} />
   );
 }
 

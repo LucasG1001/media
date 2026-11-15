@@ -1,5 +1,5 @@
 import type { GameDetail } from "../../types/game";
-import { useGameDetail } from "../../hooks/useGameDetail";
+import { useGameDetail } from "../../hooks/useMediaDetail";
 import { GameDetailSections } from "../GameDetailSections/GameDetailSections";
 import { TrailerEmbed } from "../TrailerEmbed/TrailerEmbed";
 import { NotesBlock } from "../NotesBlock/NotesBlock";

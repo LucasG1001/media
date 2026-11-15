@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
 import type { MovieDetail } from "../../types/movie";
-import { fetchMovieById } from "../../services/movieService";
+import { useMovieDetail } from "../../hooks/useMediaDetail";
+import { MovieDetailSections } from "./MovieDetailSections";
 import { TrailerEmbed } from "../TrailerEmbed/TrailerEmbed";
 import { NotesBlock } from "../NotesBlock/NotesBlock";
 import { DrawerNav, type DrawerNavProps } from "../DrawerNav/DrawerNav";
@@ -24,62 +24,10 @@ interface MovieDrawerProps {
   onNotesChange?: (notes: string) => void;
 }
 
-function getStatusLabel(status: string): string {
-  switch (status) {
-    case "RELEASED": return "Lançado";
-    case "UPCOMING": return "Em breve";
-    default: return status;
-  }
-}
-
-function formatRuntime(minutes: number | null): string {
-  if (!minutes) return "?";
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h === 0) return `${m}min`;
-  return m === 0 ? `${h}h` : `${h}h ${m}min`;
-}
-
-function formatReleaseDate(date: string | null): string {
-  if (!date) return "N/A";
-  return new Date(`${date}T00:00:00`).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 export function MovieDrawer({ movieId, onClose, onMovieLoad, notes, onNotesChange, nav, fallback }: MovieDrawerProps) {
-  // Guardados junto com o id a que pertencem, e loading/error derivados daí:
-  // navegar troca o id sem remontar o drawer, e estado solto seguiria falando do
-  // item anterior (mostrando-o enquanto busca, ou grudando um erro antigo).
-  const [loaded, setLoaded] = useState<{ id: number; data: MovieDetail } | null>(null);
-  const [failedId, setFailedId] = useState<number | null>(null);
-  const movie = loaded?.id === movieId ? loaded.data : null;
-  const error = failedId === movieId;
-  const loading = !movie && !error;
-
-  const onMovieLoadRef = useRef(onMovieLoad);
-  useEffect(() => {
-    onMovieLoadRef.current = onMovieLoad;
-  });
-
-  useEffect(() => {
-    let active = true;
-    fetchMovieById(movieId)
-      .then((data) => {
-        if (!active) return;
-        setLoaded({ id: movieId, data });
-        onMovieLoadRef.current?.(data);
-      })
-      .catch(() => {
-        if (active) setFailedId(movieId);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [movieId]);
+  // Navegar troca o id sem remontar o drawer; o hook guarda o payload junto com
+  // o id a que pertence.
+  const { movie, loading, error } = useMovieDetail(movieId, onMovieLoad);
 
   useDrawerKeys(onClose, nav);
 
@@ -125,55 +73,7 @@ export function MovieDrawer({ movieId, onClose, onMovieLoad, notes, onNotesChang
                 />
               )}
 
-              {movie.overview && <div className={styles.description}>{movie.overview}</div>}
-
-              <div className={styles.infoGrid}>
-                <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>Status</span>
-                  <span className={styles.infoValue}>{getStatusLabel(movie.movieStatus)}</span>
-                </div>
-                <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>Duração</span>
-                  <span className={styles.infoValue}>{formatRuntime(movie.runtime)}</span>
-                </div>
-                <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>Lançamento</span>
-                  <span className={styles.infoValue}>{formatReleaseDate(movie.releaseDate)}</span>
-                </div>
-                <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>Nota Média</span>
-                  <span className={styles.infoValue}>
-                    {movie.voteAverage
-                      ? `★ ${movie.voteAverage.toFixed(1)}${movie.voteCount ? ` (${movie.voteCount.toLocaleString("pt-BR")})` : ""}`
-                      : "N/A"}
-                  </span>
-                </div>
-              </div>
-
-              {movie.genres.length > 0 && (
-                <div>
-                  <div className={styles.sectionTitle}>Gêneros</div>
-                  <div className={styles.genres}>
-                    {movie.genres.map((g) => (
-                      <span key={g} className={styles.genreTag}>{g}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {movie.watchProviders.length > 0 && (
-                <div>
-                  <div className={styles.sectionTitle}>Onde assistir</div>
-                  <div className={styles.providers}>
-                    {movie.watchProviders.map((p) => (
-                      <div key={p.name} className={styles.provider}>
-                        <CoverImage className={styles.providerLogo} src={p.logo} alt="" />
-                        {p.name}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <MovieDetailSections movie={movie} />
 
               {onNotesChange && <NotesBlock key={movieId} value={notes ?? null} onSave={onNotesChange} />}
             </div>

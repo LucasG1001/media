@@ -14,6 +14,9 @@ import { useSeriesLibrary } from "../../hooks/useSeriesLibrary";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useSingleSort } from "../../hooks/useSingleSort";
 import { LibraryControls } from "../../components/LibraryControls/LibraryControls";
+import { LibraryViewToggle } from "../../components/ViewToggle/ViewToggle";
+import { SeriesWatch } from "../../components/SeriesWatch/SeriesWatch";
+import { useLibraryWatch } from "../../hooks/useLibraryWatch";
 import type { SeriesCard, SeriesDetail } from "../../types/series";
 import type { SeriesLibraryStatus, SeriesLibraryEntry } from "../../types/seriesLibrary";
 import { SERIES_LIBRARY_STATUS_LABELS } from "../../types/seriesLibrary";
@@ -85,6 +88,7 @@ export function SeriesPage() {
     setActiveTab(tabId);
     setSearchQuery("");
     setLibrarySearch("");
+    watch.disarm();
   };
 
   const handleCardClick = (item: SeriesCard) => {
@@ -213,6 +217,15 @@ export function SeriesPage() {
   const displayError = activeTab === "library" ? libraryError : error;
   const libraryCount = collectionGroups.groups.length;
 
+  // Visão de detalhe (palco + lista de coleções). Sem item para mostrar
+  // (biblioteca vazia, carregando, filtro sem resultado) `entry` vem vazio e a
+  // página cai na grade, que já tem esses estados.
+  const watch = useLibraryWatch("series-library-view", collectionGroups.groups, activeTab === "library");
+  const watchEntry = watch.entry;
+  // A anotação é da temporada e vive na linha da série.
+  const watchSeries = watchEntry ? findByTmdbId(watchEntry.tmdbId) : undefined;
+  const watchSeason = watchEntry?.kind === "season" ? watchEntry.seasonNumber : null;
+
   const gridKey =
     activeTab === "library"
       ? `library-${libraryFilter.join(",")}-${airFilter.join(",")}-${genreFilter.join(",")}-${sort.field}-${sort.dir}-${librarySearch}`
@@ -325,10 +338,26 @@ export function SeriesPage() {
             ],
             onSelect: sort.select,
           }}
+          trailing={<LibraryViewToggle value={watch.view} onChange={watch.changeView} />}
         />
       )}
 
-      {activeTab === "library" ? (
+      {watchEntry ? (
+        <SeriesWatch
+          // Sem `key`: remontar a cada temporada recriaria o player.
+          {...watch.props}
+          entry={watchEntry}
+          groups={collectionGroups.groups}
+          navKeys={seasonModal === null && selectedSeriesForModal === null}
+          onEdit={() => handleSeasonStatusClick(watchEntry)}
+          onSeriesLoad={handleSeriesLoad}
+          onNotesChange={
+            watchSeries && watchSeason != null
+              ? (notes) => { void saveSeasonNotes(watchSeries.id, watchSeason, notes); }
+              : undefined
+          }
+        />
+      ) : activeTab === "library" ? (
         <FranchiseGrid
           groups={collectionGroups.groups}
           loading={displayLoading}

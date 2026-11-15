@@ -126,7 +126,7 @@ describe("GameWatch — palco", () => {
   it("sem trailer o palco é uma imagem, não um player", async () => {
     setup();
     await screen.findByText("Descrição do jogo 9");
-    expect(screen.getByTestId("game-stage")).toBeTruthy();
+    expect(screen.getByTestId("watch-stage")).toBeTruthy();
     expect(screen.queryByTitle("Trailer")).toBeNull();
   });
 
@@ -136,7 +136,7 @@ describe("GameWatch — palco", () => {
     const player = await screen.findByTitle("Trailer");
     expect(player.getAttribute("src")).toContain("/embed/abc");
     expect(player.getAttribute("src")).not.toContain("autoplay=1");
-    expect(screen.queryByTestId("game-stage")).toBeNull();
+    expect(screen.queryByTestId("watch-stage")).toBeNull();
 
     view.rerender(element({ autoPlay: true }));
     expect(screen.getByTitle("Trailer").getAttribute("src")).toContain("autoplay=1");
@@ -198,7 +198,7 @@ describe("GameWatch — lista de coleções", () => {
   it("clicar num jogo avulso o abre direto no palco", () => {
     const { onSelect, onOpenGroup } = setup({ entry: SAGA[0] });
     fireEvent.click(panel().getByTitle("Jogo 9"));
-    expect(onSelect).toHaveBeenCalledWith(9);
+    expect(onSelect).toHaveBeenCalledWith(SINGLE);
     expect(onOpenGroup).not.toHaveBeenCalled();
   });
 
@@ -225,7 +225,7 @@ describe("GameWatch — lista de coleções", () => {
     expect(panel().getByText("3 jogos")).toBeTruthy();
 
     fireEvent.click(panel().getByTitle("Jogo 3"));
-    expect(onSelect).toHaveBeenCalledWith(3);
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ igdbId: 3 }));
     fireEvent.click(screen.getByRole("button", { name: "← Todas as coleções" }));
     expect(onCloseGroup).toHaveBeenCalledTimes(1);
   });
@@ -245,7 +245,7 @@ describe("GameWatch — anterior e próximo", () => {
     expect(screen.getByText("2 / 3")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("Próximo jogo"));
     fireEvent.click(screen.getByLabelText("Jogo anterior"));
-    expect(onSelect.mock.calls).toEqual([[last.igdbId], [first.igdbId]]);
+    expect(onSelect.mock.calls).toEqual([[last], [first]]);
   });
 
   it("desabilita o botão na ponta da coleção", () => {
@@ -264,7 +264,7 @@ describe("GameWatch — anterior e próximo", () => {
     const { onSelect, view } = setup({ entry: middle });
     fireEvent.keyDown(document, { key: "ArrowRight" });
     fireEvent.keyDown(document, { key: "ArrowLeft" });
-    expect(onSelect.mock.calls).toEqual([[last.igdbId], [first.igdbId]]);
+    expect(onSelect.mock.calls).toEqual([[last], [first]]);
 
     fireEvent.keyDown(screen.getByRole("textbox"), { key: "ArrowRight" });
     expect(onSelect).toHaveBeenCalledTimes(2);

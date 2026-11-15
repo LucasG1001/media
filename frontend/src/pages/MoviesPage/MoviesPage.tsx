@@ -12,6 +12,9 @@ import { useMovieLibrary } from "../../hooks/useMovieLibrary";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useSingleSort } from "../../hooks/useSingleSort";
 import { LibraryControls } from "../../components/LibraryControls/LibraryControls";
+import { LibraryViewToggle } from "../../components/ViewToggle/ViewToggle";
+import { MovieWatch } from "../../components/MovieWatch/MovieWatch";
+import { useLibraryWatch } from "../../hooks/useLibraryWatch";
 import type { MovieCard, MovieDetail } from "../../types/movie";
 import type { MovieLibraryStatus, MovieLibraryEntry } from "../../types/movieLibrary";
 import { MOVIE_LIBRARY_STATUS_LABELS } from "../../types/movieLibrary";
@@ -86,6 +89,7 @@ export function MoviesPage() {
     setActiveTab(tabId);
     setSearchQuery("");
     setLibrarySearch("");
+    watch.disarm();
   };
 
   const handleCardClick = (movie: MovieCard) => {
@@ -181,6 +185,12 @@ export function MoviesPage() {
         : sortGroupsByMemberDate(groups, releaseTimeOf, sort.dir);
     return { collectionGroups: filterGroupsBySearch(groups, librarySearch), genreOptions };
   }, [libraryEntries, libraryFilter, genreFilter, releaseFilter, sort.field, sort.dir, librarySearch]);
+
+  // Visão de detalhe (palco + lista de coleções). Sem item para mostrar
+  // (biblioteca vazia, carregando, filtro sem resultado) `entry` vem vazio e a
+  // página cai na grade, que já tem esses estados.
+  const watch = useLibraryWatch("movies-library-view", collectionGroups, activeTab === "library");
+  const watchEntry = watch.entry;
 
   const gridKey =
     activeTab === "library"
@@ -294,10 +304,22 @@ export function MoviesPage() {
             ],
             onSelect: sort.select,
           }}
+          trailing={<LibraryViewToggle value={watch.view} onChange={watch.changeView} />}
         />
       )}
 
-      {activeTab === "library" ? (
+      {watchEntry ? (
+        <MovieWatch
+          // Sem `key`: remontar a cada item recriaria o player.
+          {...watch.props}
+          entry={watchEntry}
+          groups={collectionGroups}
+          navKeys={selectedMovieForModal === null}
+          onEdit={() => handleOpenLibraryModal(movieLibraryEntryToCard(watchEntry))}
+          onMovieLoad={handleMovieLoad}
+          onNotesChange={(notes) => { void updateEntry(watchEntry.id, { notes }); }}
+        />
+      ) : activeTab === "library" ? (
         <FranchiseGrid
           groups={collectionGroups}
           loading={libraryLoading}
