@@ -20,6 +20,10 @@ interface ControlPopoverProps {
   iconTitle?: string;
   // Destaca o ícone (Filtros com filtro ativo).
   iconActive?: boolean;
+  // Gatilho só com o ícone e painel ancorado à direita (barra compacta, que
+  // fica encostada na borda direita da tela). O rótulo vira nome acessível.
+  compact?: boolean;
+  compactLabel?: string;
   children: ReactNode;
 }
 
@@ -35,6 +39,8 @@ export function ControlPopover({
   onIconClick,
   iconTitle,
   iconActive,
+  compact,
+  compactLabel,
   children,
 }: ControlPopoverProps) {
   useDismiss(open, onClose);
@@ -42,7 +48,17 @@ export function ControlPopover({
 
   return (
     <div className={styles.control}>
-      {onIconClick ? (
+      {compact ? (
+        <button
+          type="button"
+          className={`${styles.toggle} ${styles.toggleCompact}`}
+          onClick={onOpen}
+          aria-label={compactLabel}
+          title={compactLabel}
+        >
+          <span className={iconClass}>{icon}</span>
+        </button>
+      ) : onIconClick ? (
         <div className={`${styles.toggle} ${styles.toggleSplit}`}>
           <button
             type="button"
@@ -66,7 +82,7 @@ export function ControlPopover({
       <div
         className={`${styles.panel} ${
           panelWidth === "wide" ? styles.widePanel : panelWidth === "fit" ? styles.fitPanel : ""
-        } ${open ? styles.panelOpen : ""}`}
+        } ${compact ? styles.panelEnd : ""} ${open ? styles.panelOpen : ""}`}
       >
         <div className={styles.panelHeader}>
           {headerLeft ?? (title ? <span className={styles.panelTitle}>{title}</span> : <span />)}

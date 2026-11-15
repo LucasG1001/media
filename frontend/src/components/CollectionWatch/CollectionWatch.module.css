@@ -14,11 +14,14 @@
   scroll-margin-top: calc(var(--topbar-height) + var(--spacing-base));
 }
 
+/* `isolation`: o painel de filtros abre da lista por cima do palco, e sem isso
+   as setas flutuantes do trailer (z-index próprio) apareceriam por cima dele. */
 .main {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-base);
   min-width: 0;
+  isolation: isolate;
 }
 
 /* Mesma caixa 16:9 do trailer, para o palco não mudar de altura entre um jogo
@@ -185,6 +188,15 @@
   flex-shrink: 0;
   font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
+}
+
+.queueEmpty {
+  padding: var(--spacing-xl) var(--spacing-base);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-base);
+  text-align: center;
 }
 
 .queueList {

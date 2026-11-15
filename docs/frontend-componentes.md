@@ -73,6 +73,13 @@ O slot **`trailing`** põe um controle da página ao lado de Filtros/Ordenação
 bibliotecas com visão de detalhe (anime, filmes, séries, jogos), com o `LibraryViewToggle`
 (Grade | Detalhe) — ver `docs/frontend-visao-detalhe.md`.
 
+**`compact`** é a barra dentro do painel da visão de detalhe: uma linha só, a busca com o resto da
+largura, Filtros e Ordenação como botões de ícone (`compact`/`compactLabel` do `ControlPopover` — o
+rótulo vira nome acessível e `title`) e **sem a contagem**. Os painéis são os mesmos, mas ancorados à
+**direita** (`.panelEnd`, só no desktop — no celular continuam bottom-sheet), porque a barra fica
+encostada na borda direita da tela. Não há o gatilho dividido: a Ordenação é um botão só e a direção
+se inverte reescolhendo o critério ativo no painel.
+
 ## 6. `NotesBlock`
 
 Bloco de anotação livre no fim do `content` dos drawers: textarea auto-grow com autosave por

@@ -217,10 +217,16 @@ export function SeriesPage() {
   const displayError = activeTab === "library" ? libraryError : error;
   const libraryCount = collectionGroups.groups.length;
 
+  // Todas as temporadas da biblioteca, fora do recorte do filtro (o `lookup`
+  // acima só tem as séries que passaram nele).
+  const allSeasons = useMemo(() => buildSeasonGroups(libraryEntries).lookup, [libraryEntries]);
+
   // Visão de detalhe (palco + lista de coleções). Sem item para mostrar
-  // (biblioteca vazia, carregando, filtro sem resultado) `entry` vem vazio e a
-  // página cai na grade, que já tem esses estados.
-  const watch = useLibraryWatch("series-library-view", collectionGroups.groups, activeTab === "library");
+  // (biblioteca vazia, carregando) `entry` vem vazio e a página cai na grade,
+  // que já tem esses estados; filtro sem resultado mantém o último item no palco.
+  const watch = useLibraryWatch("series-library-view", collectionGroups.groups, activeTab === "library", (id) =>
+    allSeasons.get(id)
+  );
   const watchEntry = watch.entry;
   // A anotação é da temporada e vive na linha da série.
   const watchSeries = watchEntry ? findByTmdbId(watchEntry.tmdbId) : undefined;
@@ -246,6 +252,56 @@ export function SeriesPage() {
         ? collectionNav(collectionGroups.groups, (m) => m.id === selectedSeason.id)
         : null,
     [selectedSeason, collectionGroups.groups, activeTab]
+  );
+
+  // Na grade a barra fica no topo da página; no detalhe, compacta, dentro do
+  // painel da lista.
+  const libraryControls = (
+    <LibraryControls
+      compact={watchEntry !== undefined}
+      searchValue={librarySearch}
+      onSearchChange={setLibrarySearch}
+      count={libraryCount}
+      filterGroups={[
+        {
+          key: "status",
+          title: "Status",
+          options: STATUS_OPTIONS.map(([value, label]) => ({ value, label })),
+          selected: libraryFilter,
+          onToggle: (v) => toggleLibraryFilter(v as SeriesLibraryStatus),
+        },
+        {
+          key: "air",
+          title: "Exibição",
+          options: AIR_OPTIONS.map(([value, label]) => ({ value, label })),
+          selected: airFilter,
+          onToggle: (v) => toggleAirFilter(v as SeriesAirGroup),
+        },
+        {
+          key: "genres",
+          title: "Gêneros",
+          options: genreOptions,
+          selected: genreFilter,
+          onToggle: (v) => setGenreFilter((prev) => toggleGenre(prev, v)),
+        },
+      ]}
+      onClearFilters={() => {
+        setLibraryFilter([]);
+        setAirFilter([]);
+        setGenreFilter([]);
+      }}
+      sort={{
+        active: sort.field,
+        dir: sort.dir,
+        options: [
+          { field: "release", label: "Lançamento" },
+          { field: "score", label: "Nota" },
+          { field: "access", label: "Último acesso" },
+        ],
+        onSelect: sort.select,
+      }}
+      trailing={<LibraryViewToggle value={watch.view} onChange={watch.changeView} />}
+    />
   );
 
   return (
@@ -295,57 +351,13 @@ export function SeriesPage() {
         </div>
       )}
 
-      {activeTab === "library" && (
-        <LibraryControls
-          searchValue={librarySearch}
-          onSearchChange={setLibrarySearch}
-          count={libraryCount}
-          filterGroups={[
-            {
-              key: "status",
-              title: "Status",
-              options: STATUS_OPTIONS.map(([value, label]) => ({ value, label })),
-              selected: libraryFilter,
-              onToggle: (v) => toggleLibraryFilter(v as SeriesLibraryStatus),
-            },
-            {
-              key: "air",
-              title: "Exibição",
-              options: AIR_OPTIONS.map(([value, label]) => ({ value, label })),
-              selected: airFilter,
-              onToggle: (v) => toggleAirFilter(v as SeriesAirGroup),
-            },
-            {
-              key: "genres",
-              title: "Gêneros",
-              options: genreOptions,
-              selected: genreFilter,
-              onToggle: (v) => setGenreFilter((prev) => toggleGenre(prev, v)),
-            },
-          ]}
-          onClearFilters={() => {
-            setLibraryFilter([]);
-            setAirFilter([]);
-            setGenreFilter([]);
-          }}
-          sort={{
-            active: sort.field,
-            dir: sort.dir,
-            options: [
-              { field: "release", label: "Lançamento" },
-              { field: "score", label: "Nota" },
-              { field: "access", label: "Último acesso" },
-            ],
-            onSelect: sort.select,
-          }}
-          trailing={<LibraryViewToggle value={watch.view} onChange={watch.changeView} />}
-        />
-      )}
+      {activeTab === "library" && !watchEntry && libraryControls}
 
       {watchEntry ? (
         <SeriesWatch
           // Sem `key`: remontar a cada temporada recriaria o player.
           {...watch.props}
+          controls={libraryControls}
           entry={watchEntry}
           groups={collectionGroups.groups}
           navKeys={seasonModal === null && selectedSeriesForModal === null}

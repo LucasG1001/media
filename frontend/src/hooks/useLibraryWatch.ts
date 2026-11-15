@@ -10,8 +10,9 @@ interface LibraryWatch<M> {
   view: LibraryView;
   changeView: (view: LibraryView) => void;
   // O item no palco. undefined = a visão de detalhe não está ativa, ou não há
-  // item para mostrar (vazio, carregando, filtro sem resultado) — a página cai
-  // na grade, que já tem esses estados.
+  // item para mostrar (biblioteca vazia ou carregando) — a página cai na grade,
+  // que já tem esses estados. Filtro sem resultado não esvazia o palco: fica o
+  // último item que esteve nele.
   entry: M | undefined;
   // Chamado ao trocar de aba: voltar para a biblioteca não é pedir o trailer.
   disarm: () => void;
@@ -26,11 +27,13 @@ interface LibraryWatch<M> {
 }
 
 // Estado da visão de detalhe de uma biblioteca. `groups` são as coleções que a
-// página já filtrou e ordenou; `active` diz se a aba da biblioteca está aberta.
+// página já filtrou e ordenou; `active` diz se a aba da biblioteca está aberta;
+// `findInLibrary` acha um item na biblioteca inteira, fora do recorte do filtro.
 export function useLibraryWatch<M extends { id: string }>(
   storageKey: string,
   groups: readonly CollectionGroup<M>[],
-  active: boolean
+  active: boolean,
+  findInLibrary: (id: string) => M | undefined
 ): LibraryWatch<M> {
   const [view, setView] = useState<LibraryView>(() =>
     localStorage.getItem(storageKey) === "watch" ? "watch" : "grid"
@@ -42,7 +45,14 @@ export function useLibraryWatch<M extends { id: string }>(
   // num item que ninguém pediu, e voltar para ela não é pedir de novo.
   const [armed, setArmed] = useState(false);
 
-  const entry = active && view === "watch" ? pickWatchEntry(groups, choice) : undefined;
+  const watching = active && view === "watch";
+  const picked = watching ? pickWatchEntry(groups, choice) : undefined;
+  // Os filtros ficam no painel da lista: se o filtro sem resultado derrubasse a
+  // tela para a grade, o campo de busca sairia do lugar no meio da digitação.
+  // Guarda-se só o id — o item é lido de novo da biblioteca, para não envelhecer.
+  const [lastId, setLastId] = useState<string | null>(null);
+  if (picked && picked.id !== lastId) setLastId(picked.id);
+  const entry = picked ?? (watching && lastId !== null ? findInLibrary(lastId) : undefined);
   // Coleção que o filtro tirou de vista deixa de estar aberta por derivação.
   const openGroup = groups.find((group) => group.key === openGroupKey && group.count > 1);
 

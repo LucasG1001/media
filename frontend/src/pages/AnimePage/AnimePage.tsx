@@ -189,9 +189,11 @@ export function AnimePage() {
   }, [libraryEntries, libraryFilter, airingFilter, genreFilter, sort.field, sort.dir, librarySearch]);
 
   // Visão de detalhe (palco + lista de coleções). Sem item para mostrar
-  // (biblioteca vazia, carregando, filtro sem resultado) `entry` vem vazio e a
-  // página cai na grade, que já tem esses estados.
-  const watch = useLibraryWatch("anime-library-view", franchiseGroups, activeTab === "library");
+  // (biblioteca vazia, carregando) `entry` vem vazio e a página cai na grade,
+  // que já tem esses estados; filtro sem resultado mantém o último item no palco.
+  const watch = useLibraryWatch("anime-library-view", franchiseGroups, activeTab === "library", (id) =>
+    libraryEntries.find((entry) => entry.id === id)
+  );
   const watchEntry = watch.entry;
 
   const gridKey =
@@ -216,6 +218,56 @@ export function AnimePage() {
         ? collectionNav(franchiseGroups, (m) => m.id === drawerEntry.id)
         : null,
     [drawerEntry, franchiseGroups, activeTab]
+  );
+
+  // Na grade a barra fica no topo da página; no detalhe, compacta, dentro do
+  // painel da lista.
+  const libraryControls = (
+    <LibraryControls
+      compact={watchEntry !== undefined}
+      searchValue={librarySearch}
+      onSearchChange={setLibrarySearch}
+      count={franchiseGroups.length}
+      filterGroups={[
+        {
+          key: "status",
+          title: "Status",
+          options: STATUS_OPTIONS.map(([value, label]) => ({ value, label })),
+          selected: libraryFilter,
+          onToggle: (v) => toggleLibraryFilter(v as LibraryStatus),
+        },
+        {
+          key: "airing",
+          title: "Exibição",
+          options: AIRING_OPTIONS.map(([value, label]) => ({ value, label })),
+          selected: airingFilter,
+          onToggle: toggleAiringFilter,
+        },
+        {
+          key: "genres",
+          title: "Gêneros",
+          options: genreOptions,
+          selected: genreFilter,
+          onToggle: (v) => setGenreFilter((prev) => toggleGenre(prev, v)),
+        },
+      ]}
+      onClearFilters={() => {
+        setLibraryFilter([]);
+        setAiringFilter([]);
+        setGenreFilter([]);
+      }}
+      sort={{
+        active: sort.field,
+        dir: sort.dir,
+        options: [
+          { field: "release", label: "Lançamento" },
+          { field: "score", label: "Nota" },
+          { field: "access", label: "Último acesso" },
+        ],
+        onSelect: sort.select,
+      }}
+      trailing={<LibraryViewToggle value={watch.view} onChange={watch.changeView} />}
+    />
   );
 
   return (
@@ -268,57 +320,13 @@ export function AnimePage() {
         </div>
       )}
 
-      {activeTab === "library" && (
-        <LibraryControls
-          searchValue={librarySearch}
-          onSearchChange={setLibrarySearch}
-          count={franchiseGroups.length}
-          filterGroups={[
-            {
-              key: "status",
-              title: "Status",
-              options: STATUS_OPTIONS.map(([value, label]) => ({ value, label })),
-              selected: libraryFilter,
-              onToggle: (v) => toggleLibraryFilter(v as LibraryStatus),
-            },
-            {
-              key: "airing",
-              title: "Exibição",
-              options: AIRING_OPTIONS.map(([value, label]) => ({ value, label })),
-              selected: airingFilter,
-              onToggle: toggleAiringFilter,
-            },
-            {
-              key: "genres",
-              title: "Gêneros",
-              options: genreOptions,
-              selected: genreFilter,
-              onToggle: (v) => setGenreFilter((prev) => toggleGenre(prev, v)),
-            },
-          ]}
-          onClearFilters={() => {
-            setLibraryFilter([]);
-            setAiringFilter([]);
-            setGenreFilter([]);
-          }}
-          sort={{
-            active: sort.field,
-            dir: sort.dir,
-            options: [
-              { field: "release", label: "Lançamento" },
-              { field: "score", label: "Nota" },
-              { field: "access", label: "Último acesso" },
-            ],
-            onSelect: sort.select,
-          }}
-          trailing={<LibraryViewToggle value={watch.view} onChange={watch.changeView} />}
-        />
-      )}
+      {activeTab === "library" && !watchEntry && libraryControls}
 
       {watchEntry ? (
         <AnimeWatch
           // Sem `key`: remontar a cada item recriaria o player.
           {...watch.props}
+          controls={libraryControls}
           entry={watchEntry}
           groups={franchiseGroups}
           navKeys={selectedAnimeForModal === null}

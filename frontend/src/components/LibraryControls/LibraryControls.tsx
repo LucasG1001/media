@@ -24,6 +24,9 @@ interface LibraryControlsProps {
   // Controle extra da página ao lado de Filtros/Ordenação (hoje: o alternador
   // Grade | Detalhe de Jogos).
   trailing?: ReactNode;
+  // Uma linha só, com Filtros e Ordenação como botões de ícone e sem a
+  // contagem: é a barra dentro do painel da visão de detalhe.
+  compact?: boolean;
 }
 
 function SortDirectionIcon({ asc }: { asc: boolean }) {
@@ -45,6 +48,7 @@ export function LibraryControls({
   onClearFilters,
   sort,
   trailing,
+  compact,
 }: LibraryControlsProps) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -61,7 +65,7 @@ export function LibraryControls({
     q !== "" && !filterGroups.some((g) => g.options.some((o) => o.label.toLowerCase().includes(q)));
 
   return (
-    <div className={styles.bar}>
+    <div className={`${styles.bar} ${compact ? styles.barCompact : ""}`}>
       <div className={styles.searchWrapper}>
         <SearchBar value={searchValue} onChange={onSearchChange} placeholder={searchPlaceholder} />
       </div>
@@ -83,6 +87,8 @@ export function LibraryControls({
           </svg>
         }
         label="Filtros"
+        compact={compact}
+        compactLabel="Filtros"
         iconActive={!nothingSelected}
         panelWidth="wide"
         headerLeft={
@@ -123,6 +129,8 @@ export function LibraryControls({
           icon={<SortDirectionIcon asc={sort.dir === "asc"} />}
           label={activeSortLabel}
           title="Ordenação"
+          compact={compact}
+          compactLabel={`Ordenação: ${activeSortLabel}`}
           // O ícone já mostra a direção, então é ele que a inverte — reselecionar o
           // critério ativo é o que o useSingleSort trata como "vira a direção".
           onIconClick={() => sort.onSelect(sort.active)}
@@ -160,7 +168,7 @@ export function LibraryControls({
 
       {trailing && <div className={styles.control}>{trailing}</div>}
 
-      {count > 0 && (
+      {!compact && count > 0 && (
         <span className={styles.count}>
           <span className={styles.countNum}>{count}</span>
           <span className={styles.countWord}>{count === 1 ? " resultado" : " resultados"}</span>

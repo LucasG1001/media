@@ -42,8 +42,11 @@ export interface WatchListProps<M> {
   // O item aberto no palco.
   entry: M;
   // As coleções da biblioteca, já filtradas e ordenadas pela página — a lista da
-  // direita é a mesma sequência da grade.
+  // direita é a mesma sequência da grade. Vazia quando o filtro não acha nada: o
+  // palco fica com o item que já estava nele.
   groups: CollectionGroup<M>[];
+  // Busca, filtros e ordenação da biblioteca, acima da lista.
+  controls?: ReactNode;
   // Coleção aberta na lista: mostra só os itens dela, com a barra de saída.
   openGroup?: CollectionGroup<M>;
   onOpenGroup: (key: string) => void;
@@ -102,6 +105,7 @@ export function CollectionWatch<M extends WatchMember>({
   onOpenGroup,
   onCloseGroup,
   onSelect,
+  controls,
   autoPlay,
   navKeys = true,
   onEdit,
@@ -276,6 +280,8 @@ export function CollectionWatch<M extends WatchMember>({
       </div>
 
       <aside className={styles.queue} aria-label={labels.list}>
+        {controls}
+
         {openGroup && (
           <div className={styles.groupBar}>
             <button type="button" className={styles.exit} onClick={onCloseGroup}>
@@ -289,6 +295,8 @@ export function CollectionWatch<M extends WatchMember>({
             </span>
           </div>
         )}
+
+        {groups.length === 0 && <div className={styles.queueEmpty}>Nenhum resultado.</div>}
 
         <ul className={styles.queueList} ref={list}>
           {openGroup

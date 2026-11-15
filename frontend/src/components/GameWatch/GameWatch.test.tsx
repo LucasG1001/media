@@ -230,6 +230,28 @@ describe("GameWatch — lista de coleções", () => {
     expect(onCloseGroup).toHaveBeenCalledTimes(1);
   });
 
+  it("mostra os controles da página dentro do painel, acima da lista", () => {
+    setup({ controls: <input aria-label="Buscar na biblioteca" /> });
+    const search = panel().getByLabelText("Buscar na biblioteca");
+    const list = panel().getByRole("list");
+    expect(search.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // Filtro sem resultado: a página manda a lista vazia e o item que já estava
+  // no palco.
+  it("sem coleção para listar avisa que não há resultado e mantém o palco", () => {
+    setup({ groups: [], controls: <input aria-label="Buscar na biblioteca" /> });
+    expect(panel().getByText("Nenhum resultado.")).toBeTruthy();
+    expect(panel().getByLabelText("Buscar na biblioteca")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Jogo 9" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Próximo jogo" })).toBeNull();
+  });
+
+  it("com coleções na lista não há aviso de vazio", () => {
+    setup();
+    expect(panel().queryByText("Nenhum resultado.")).toBeNull();
+  });
+
   it("sem coleção aberta não mostra o botão de saída", () => {
     setup();
     expect(screen.queryByRole("button", { name: "← Todas as coleções" })).toBeNull();

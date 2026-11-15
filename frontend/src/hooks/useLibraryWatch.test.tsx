@@ -17,14 +17,19 @@ const SAGA = group("saga", ["a", "b", "c"]);
 const SINGLE = group("avulso", ["z"]);
 const GROUPS = [SAGA, SINGLE];
 const KEY = "test-library-view";
+// A biblioteca inteira, fora do recorte do filtro.
+const LIBRARY = GROUPS.flatMap((g) => g.members);
+const findInLibrary = (id: string) => LIBRARY.find((item) => item.id === id);
 
 afterEach(() => {
   cleanup();
   localStorage.clear();
 });
 
-function setup(groups = GROUPS, active = true) {
-  return renderHook(({ g, a }) => useLibraryWatch(KEY, g, a), { initialProps: { g: groups, a: active } });
+function setup(groups = GROUPS, active = true, find: (id: string) => Item | undefined = findInLibrary) {
+  return renderHook(({ g, a, f }) => useLibraryWatch(KEY, g, a, f), {
+    initialProps: { g: groups, a: active, f: find },
+  });
 }
 
 describe("useLibraryWatch", () => {
@@ -87,9 +92,45 @@ describe("useLibraryWatch", () => {
     localStorage.setItem(KEY, "watch");
     const { result, rerender } = setup();
     act(() => result.current.props.onSelect(SINGLE.members[0]));
-    rerender({ g: [SAGA], a: true });
+    rerender({ g: [SAGA], a: true, f: findInLibrary });
     expect(result.current.entry).toBe(SAGA.members[0]);
     expect(result.current.props.autoPlay).toBe(false);
+  });
+
+  // Os filtros ficam no painel da lista: cair na grade tiraria o campo de busca
+  // do lugar no meio da digitação.
+  it("filtro sem resultado mantém no palco o último item, lido da biblioteca inteira", () => {
+    localStorage.setItem(KEY, "watch");
+    const { result, rerender } = setup();
+    act(() => result.current.props.onSelect(SAGA.members[1]));
+
+    const edited = { id: "b" };
+    rerender({ g: [], a: true, f: (id) => (id === "b" ? edited : undefined) });
+    expect(result.current.entry).toBe(edited);
+    expect(result.current.props.autoPlay).toBe(true);
+
+    rerender({ g: [SINGLE], a: true, f: findInLibrary });
+    expect(result.current.entry).toBe(SINGLE.members[0]);
+  });
+
+  it("filtro sem resultado e o último item removido da biblioteca: não há item no palco", () => {
+    localStorage.setItem(KEY, "watch");
+    const { result, rerender } = setup();
+    expect(result.current.entry).toBe(SAGA.members[0]);
+    rerender({ g: [], a: true, f: () => undefined });
+    expect(result.current.entry).toBeUndefined();
+  });
+
+  it("o último item não volta ao palco fora da aba da biblioteca nem na grade", () => {
+    localStorage.setItem(KEY, "watch");
+    const { result, rerender } = setup();
+    expect(result.current.entry).toBe(SAGA.members[0]);
+    rerender({ g: [], a: false, f: findInLibrary });
+    expect(result.current.entry).toBeUndefined();
+
+    rerender({ g: [], a: true, f: findInLibrary });
+    act(() => result.current.changeView("grid"));
+    expect(result.current.entry).toBeUndefined();
   });
 
   it("abre e fecha uma coleção na lista", () => {
@@ -107,7 +148,7 @@ describe("useLibraryWatch", () => {
     expect(result.current.props.openGroup).toBeUndefined();
 
     act(() => result.current.props.onOpenGroup("saga"));
-    rerender({ g: [SINGLE], a: true });
+    rerender({ g: [SINGLE], a: true, f: findInLibrary });
     expect(result.current.props.openGroup).toBeUndefined();
   });
 });

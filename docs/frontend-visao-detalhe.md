@@ -17,7 +17,7 @@ Consulte antes de mexer em `CollectionWatch`, nos invólucros (`AnimeWatch`, `Mo
 - **Cada mídia tem um invólucro fino** que busca o detalhe (`hooks/useMediaDetail.ts`) e entrega ao
   `CollectionWatch` o que é dela: um `WatchConfig` (capa, segunda linha da linha de um item,
   rótulos), título/subtítulo, trailer, imagem do palco e as seções do detalhe como `children`.
-- **`useLibraryWatch(storageKey, groups, active)`** guarda o estado na página: a visualização
+- **`useLibraryWatch(storageKey, groups, active, findInLibrary)`** guarda o estado na página: a visualização
   (`localStorage`, uma chave por mídia — `anime-library-view`, `movies-library-view`,
   `series-library-view`, `games-library-view`; ausente = grade), o item escolhido, a coleção aberta
   e se o trailer está armado. Devolve `entry` (o item do palco) e `props`, que a página espalha no
@@ -28,13 +28,22 @@ Consulte antes de mexer em `CollectionWatch`, nos invólucros (`AnimeWatch`, `Mo
 - A visão só vale na aba **Minha Biblioteca** — catálogo é sempre grade com drawer.
 - **A lista são os mesmos grupos da grade**: filtros, busca e ordenação da `LibraryControls` valem
   igual, e os invariantes de `docs/frontend-colecoes.md` continuam (o filtro decide quais coleções
-  aparecem; a coleção aberta mostra **todos** os membros). Por isso os filtros ficam na barra do
-  topo, não dentro do painel.
+  aparecem; a coleção aberta mostra **todos** os membros).
+- **A barra de filtros é uma só, em dois lugares**: a página monta a `LibraryControls` numa constante
+  e a põe no topo (Grade) ou a entrega ao painel pelo slot `controls`, na variante `compact`
+  (`docs/frontend-componentes.md` §5) — acima da lista e fora da área que rola, como os controles do
+  YouTube. Em tela estreita ela desce com a lista para baixo do palco.
 - **Não há rota por item**: o item aberto é estado (a `id` do membro). O que está no palco é
   derivado por `pickWatchEntry`: o escolhido enquanto a coleção dele estiver na tela, senão o
   **primeiro item da primeira coleção** — sem efeito para consertar a escolha quando o filtro muda.
-  Sem item para mostrar (vazio, carregando, filtro sem resultado) `entry` vem vazio e a página cai
-  na grade, que já tem esses estados.
+  Sem item para mostrar (biblioteca vazia ou carregando) `entry` vem vazio e a página cai na grade,
+  que já tem esses estados.
+- **Filtro sem resultado não derruba para a grade**: o palco fica com o último item que esteve nele
+  e a lista mostra "Nenhum resultado." — cair na grade levaria a barra de volta ao topo, e o campo de
+  busca perderia o foco no meio da digitação. O hook guarda só o id e relê o item por
+  `findInLibrary` (a biblioteca **inteira**, fora do recorte do filtro), para status e nota não
+  envelhecerem; em Séries isso é um `buildSeasonGroups` sem filtro, porque o `lookup` da lista só
+  tem as séries que passaram nele.
 - **Seleção em lote e remover coleção existem só na grade.** No Detalhe, status, nota, capa da
   coleção e remover saem do botão abaixo do palco, que abre o modal de sempre da mídia.
 

@@ -199,9 +199,11 @@ export function GamesPage() {
   }, [libraryEntries, libraryFilter, genreFilter, modeFilter, releaseFilter, sort.field, sort.dir, librarySearch]);
 
   // Visão de detalhe (palco + lista de coleções). Sem item para mostrar
-  // (biblioteca vazia, carregando, filtro sem resultado) `entry` vem vazio e a
-  // página cai na grade, que já tem esses estados.
-  const watch = useLibraryWatch("games-library-view", collectionGroups, activeTab === "library");
+  // (biblioteca vazia, carregando) `entry` vem vazio e a página cai na grade,
+  // que já tem esses estados; filtro sem resultado mantém o último item no palco.
+  const watch = useLibraryWatch("games-library-view", collectionGroups, activeTab === "library", (id) =>
+    libraryEntries.find((entry) => entry.id === id)
+  );
   const watchEntry = watch.entry;
 
   const gridKey =
@@ -224,6 +226,64 @@ export function GamesPage() {
         ? collectionNav(collectionGroups, (m) => m.id === drawerEntry.id)
         : null,
     [drawerEntry, collectionGroups, activeTab]
+  );
+
+  // Na grade a barra fica no topo da página; no detalhe, compacta, dentro do
+  // painel da lista.
+  const libraryControls = (
+    <LibraryControls
+      compact={watchEntry !== undefined}
+      searchValue={librarySearch}
+      onSearchChange={setLibrarySearch}
+      count={collectionGroups.length}
+      filterGroups={[
+        {
+          key: "status",
+          title: "Status",
+          options: STATUS_OPTIONS.map(([value, label]) => ({ value, label })),
+          selected: libraryFilter,
+          onToggle: (v) => toggleLibraryFilter(v as GameLibraryStatus),
+        },
+        {
+          key: "release",
+          title: "Lançamento",
+          options: RELEASE_OPTIONS.map(([value, label]) => ({ value, label })),
+          selected: releaseFilter,
+          onToggle: toggleReleaseFilter,
+        },
+        {
+          key: "gameModes",
+          title: "Modos de jogo",
+          options: MODE_OPTIONS.map(([value, label]) => ({ value, label })),
+          selected: modeFilter,
+          onToggle: (v) => toggleModeFilter(v as GameMode),
+        },
+        {
+          key: "genres",
+          title: "Gêneros",
+          options: genreOptions,
+          selected: genreFilter,
+          onToggle: (v) => setGenreFilter((prev) => toggleGenre(prev, v)),
+        },
+      ]}
+      onClearFilters={() => {
+        setLibraryFilter([]);
+        setModeFilter([]);
+        setReleaseFilter([]);
+        setGenreFilter([]);
+      }}
+      sort={{
+        active: sort.field,
+        dir: sort.dir,
+        options: [
+          { field: "release", label: "Lançamento" },
+          { field: "score", label: "Nota" },
+          { field: "access", label: "Último acesso" },
+        ],
+        onSelect: sort.select,
+      }}
+      trailing={<LibraryViewToggle value={watch.view} onChange={watch.changeView} />}
+    />
   );
 
   return (
@@ -273,65 +333,13 @@ export function GamesPage() {
         </div>
       )}
 
-      {activeTab === "library" && (
-        <LibraryControls
-          searchValue={librarySearch}
-          onSearchChange={setLibrarySearch}
-          count={collectionGroups.length}
-          filterGroups={[
-            {
-              key: "status",
-              title: "Status",
-              options: STATUS_OPTIONS.map(([value, label]) => ({ value, label })),
-              selected: libraryFilter,
-              onToggle: (v) => toggleLibraryFilter(v as GameLibraryStatus),
-            },
-            {
-              key: "release",
-              title: "Lançamento",
-              options: RELEASE_OPTIONS.map(([value, label]) => ({ value, label })),
-              selected: releaseFilter,
-              onToggle: toggleReleaseFilter,
-            },
-            {
-              key: "gameModes",
-              title: "Modos de jogo",
-              options: MODE_OPTIONS.map(([value, label]) => ({ value, label })),
-              selected: modeFilter,
-              onToggle: (v) => toggleModeFilter(v as GameMode),
-            },
-            {
-              key: "genres",
-              title: "Gêneros",
-              options: genreOptions,
-              selected: genreFilter,
-              onToggle: (v) => setGenreFilter((prev) => toggleGenre(prev, v)),
-            },
-          ]}
-          onClearFilters={() => {
-            setLibraryFilter([]);
-            setModeFilter([]);
-            setReleaseFilter([]);
-            setGenreFilter([]);
-          }}
-          sort={{
-            active: sort.field,
-            dir: sort.dir,
-            options: [
-              { field: "release", label: "Lançamento" },
-              { field: "score", label: "Nota" },
-              { field: "access", label: "Último acesso" },
-            ],
-            onSelect: sort.select,
-          }}
-          trailing={<LibraryViewToggle value={watch.view} onChange={watch.changeView} />}
-        />
-      )}
+      {activeTab === "library" && !watchEntry && libraryControls}
 
       {watchEntry ? (
         <GameWatch
           // Sem `key`: remontar a cada jogo recriaria o player.
           {...watch.props}
+          controls={libraryControls}
           entry={watchEntry}
           groups={collectionGroups}
           navKeys={selectedGameForModal === null}

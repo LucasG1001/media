@@ -69,7 +69,7 @@ direção** — ele só impede a ordem de trocar entre renders.
   - **Ordenar** abre um menu (`role="menu"`) com os critérios; o ativo mostra a seta, e escolhê-lo
     de novo inverte a direção (contrato do `useSingleSort`) — por isso o menu **não fecha ao
     escolher**, só com `Escape`, clique fora ou no próprio botão. Não usa o `ControlPopover` das
-    outras páginas: ele é uma pílula com rótulo ancorada à esquerda e estouraria o painel.
+    outras páginas: o painel dele é largo (feito para os filtros) e aqui basta um menu.
   - **Agrupar por canal** e **Mostrar removidos** são botões liga/desliga (`aria-pressed`). O
     status não tem abas: "removido" é raro e o botão alterna `liked` ↔ `removed`.
 - **Música e vídeo usam a mesma linha** (miniatura grande, de 200 px, com a duração por cima, título

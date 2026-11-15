@@ -10,6 +10,36 @@
   flex: 0 0 260px;
 }
 
+/* Barra compacta: uma linha só, dentro do painel da visão de detalhe. A busca
+   leva o resto da largura (o seletor de dois níveis vence o do celular, que a
+   poria numa linha própria) e fica na altura dos botões de ícone. */
+.barCompact {
+  margin-bottom: 0;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: var(--spacing-sm);
+}
+
+.barCompact .searchWrapper {
+  flex: 1 1 auto;
+  min-width: 0;
+  order: 0;
+}
+
+.barCompact .searchWrapper > * {
+  max-width: none;
+}
+
+.barCompact .searchWrapper input {
+  padding-top: var(--spacing-sm);
+  padding-bottom: var(--spacing-sm);
+  border-radius: var(--radius-md);
+}
+
+.barCompact .control {
+  order: 0;
+}
+
 /* ---- toggle buttons ---- */
 
 .control {
@@ -44,6 +74,14 @@
 .toggleSplit {
   padding: 0;
   gap: 0;
+}
+
+.toggleCompact {
+  justify-content: center;
+  width: 2.375rem;
+  min-height: 2.375rem;
+  padding: 0;
+  border-radius: var(--radius-md);
 }
 
 .triggerIcon,
@@ -139,6 +177,15 @@
   .fitPanel {
     width: max-content;
     max-width: min(560px, calc(100vw - 2 * var(--spacing-lg)));
+  }
+
+  /* Teto de altura: a barra compacta vive num painel `sticky`, então o que
+     passasse do fim da tela não seria alcançado rolando a página. */
+  .panelEnd {
+    left: auto;
+    right: 0;
+    max-height: calc(100vh - var(--topbar-height) - 2 * var(--spacing-3xl));
+    overflow-y: auto;
   }
 }
 
