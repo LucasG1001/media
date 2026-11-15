@@ -18,6 +18,19 @@
   z-index: 100;
 }
 
+/* O resto da barra é da página: as abas da mídia entram aqui. */
+.topbarSlot {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  margin-left: var(--spacing-lg);
+}
+
+.topbarSlot > * {
+  min-width: 0;
+}
+
 .menuButton {
   flex-shrink: 0;
   width: 40px;
@@ -45,7 +58,7 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
-  min-width: 0;
+  flex-shrink: 0;
 }
 
 .logoIcon {

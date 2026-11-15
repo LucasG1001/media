@@ -32,7 +32,9 @@ capa.
 
 ## 2. Entrada
 
-Colar link na barra do topo: vídeo único entra como `liked`, **no tipo da aba ativa**; **playlist
+O campo de link fica na **barra superior** no desktop (`TopbarSlot`, ver
+`docs/frontend-componentes.md` §7) e no topo da página no celular; os avisos de erro e de
+"adicionado" ficam sempre na página. Colar o link: vídeo único entra como `liked`, **no tipo da aba ativa**; **playlist
 entra solta**, também no tipo da aba ativa (`bulkInsertVideos`, `ON CONFLICT (video_id) DO NOTHING`
 — item que já existe fica como está, inclusive o tipo). A resposta traz `imported` (novos) e `total`
 (da playlist). Adicionar não troca de item: o aviso verde é a confirmação. Com a biblioteca vazia

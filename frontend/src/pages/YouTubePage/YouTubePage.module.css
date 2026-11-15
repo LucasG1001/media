@@ -17,10 +17,13 @@
   border: 0;
 }
 
+/* `width: 100%` porque na barra superior ele é item de uma linha flex e, sem
+   isso, encolheria para o tamanho do conteúdo. */
 .addBar {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
+  width: 100%;
   max-width: 640px;
 }
 

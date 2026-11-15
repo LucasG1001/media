@@ -4,6 +4,7 @@ import { YoutubeWatch } from "../../components/YoutubeWatch/YoutubeWatch";
 import { YoutubeListControls } from "../../components/YoutubeWatch/YoutubeListControls";
 import { YoutubeLibraryModal } from "../../components/YoutubeLibraryModal/YoutubeLibraryModal";
 import { TabNav } from "../../components/TabNav/TabNav";
+import { TopbarSlot } from "../../components/TopbarSlot/TopbarSlot";
 import { useYoutubeLibrary } from "../../hooks/useYoutubeLibrary";
 import { useSingleSort } from "../../hooks/useSingleSort";
 import type { YoutubeKind, YoutubeLibraryEntry, YoutubeLibraryStatus } from "../../types/youtubeLibrary";
@@ -159,26 +160,30 @@ export function YouTubePage() {
   const addBar = (
     <>
       <h1 className={styles.srOnly}>YouTube</h1>
-      <div className={styles.addBar}>
-        <input
-          className={styles.addInput}
-          type="text"
-          value={urlInput}
-          placeholder={`Cole o link de um vídeo ou playlist para adicionar em ${YOUTUBE_KIND_LABELS[activeKind]}...`}
-          onChange={(e) => setUrlInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") void handleAdd();
-          }}
-        />
-        <button
-          className={styles.addButton}
-          onClick={() => { void handleAdd(); }}
-          disabled={adding || !urlInput.trim() || !online}
-          title={online ? undefined : "Sem conexão — adicionar precisa de internet."}
-        >
-          {adding ? "Adicionando..." : "Adicionar"}
-        </button>
-      </div>
+      {/* O campo de link mora na barra superior no desktop; os avisos do
+          resultado ficam na página, perto do que mudou. */}
+      <TopbarSlot>
+        <div className={styles.addBar}>
+          <input
+            className={styles.addInput}
+            type="text"
+            value={urlInput}
+            placeholder={`Cole o link de um vídeo ou playlist para adicionar em ${YOUTUBE_KIND_LABELS[activeKind]}...`}
+            onChange={(e) => setUrlInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void handleAdd();
+            }}
+          />
+          <button
+            className={styles.addButton}
+            onClick={() => { void handleAdd(); }}
+            disabled={adding || !urlInput.trim() || !online}
+            title={online ? undefined : "Sem conexão — adicionar precisa de internet."}
+          >
+            {adding ? "Adicionando..." : "Adicionar"}
+          </button>
+        </div>
+      </TopbarSlot>
       {addError && <div className={styles.addError}>{addError}</div>}
       {addNotice && <div className={styles.addNotice}>{addNotice}</div>}
     </>

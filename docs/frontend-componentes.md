@@ -94,3 +94,19 @@ componente e **não é persistido**: toda carga começa fechada.
   todo `position: sticky` de topo descontam — `OfflineBanner` e o painel do `YoutubeWatch` hoje.
   Sticky novo no topo usa o token em vez de `top: 0`, senão fica embaixo da barra.
 - No **celular** (≤768 px) nada disso aparece: a navegação é a barra inferior + seletor de mídia.
+
+### Cabeçalho da página na barra — `TopbarSlot`
+
+O espaço à direita do logo é das páginas: quem envolve o próprio cabeçalho em
+`<TopbarSlot inlineClassName={...}>` tem o conteúdo renderizado **dentro da barra** (portal), e a
+página ganha a altura dessa linha. Hoje vão para lá as **abas** das cinco mídias com catálogo (o
+`TabNav`, com `plain` — a barra já é a caixa) e o **campo de link** do YouTube.
+
+- O elemento do slot é registrado pelo `Sidebar` num contexto (`TopbarSlotProvider`, em estado e não
+  em ref: a página precisa renderizar de novo quando ele aparece).
+- **No celular o conteúdo fica na página**, no lugar em que foi escrito, dentro de um `div` com
+  `inlineClassName` (o espaçamento da linha). A decisão é em JS (`hooks/useIsMobile`, o mesmo corte
+  de 768 px do CSS), porque é sobre **onde** renderizar — esconder por CSS deixaria o cabeçalho
+  dentro de uma barra `display: none`. Sem provider (teste isolado) vale o mesmo.
+- Só o cabeçalho sobe. O que é de uma aba (seletor de temporada, busca do catálogo,
+  `LibraryControls`) continua na página, e Tier List/Início/Configurações não usam o slot.

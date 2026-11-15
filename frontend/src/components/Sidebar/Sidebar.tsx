@@ -2,6 +2,7 @@ import type { ComponentType, Ref } from "react";
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useDismiss } from "../../hooks/useDismiss";
+import { useTopbarSlot } from "../../context/topbarSlotContext";
 import styles from "./Sidebar.module.css";
 import {
   AnimeIcon,
@@ -71,6 +72,7 @@ function Brand({ open, onToggle, onNavigate, buttonRef }: BrandProps) {
 
 export function Sidebar() {
   const location = useLocation();
+  const { setSlot } = useTopbarSlot();
   const [menuOpen, setMenuOpen] = useState(false);
   const [chooserOpen, setChooserOpen] = useState(false);
   const topbarButton = useRef<HTMLButtonElement>(null);
@@ -110,6 +112,9 @@ export function Sidebar() {
           onNavigate={closeMenu}
           buttonRef={topbarButton}
         />
+        {/* Onde as páginas põem o próprio cabeçalho (abas da mídia), via
+            TopbarSlot. */}
+        <div className={styles.topbarSlot} ref={setSlot} />
       </header>
 
       {menuOpen && <div className={styles.backdrop} data-testid="menu-backdrop" onClick={closeMenu} />}

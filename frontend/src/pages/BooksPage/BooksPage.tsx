@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { TabNav } from "../../components/TabNav/TabNav";
+import { TopbarSlot } from "../../components/TopbarSlot/TopbarSlot";
 import { MediaGrid } from "../../components/MediaGrid/MediaGrid";
 import { FranchiseGrid } from "../../components/FranchiseGrid/FranchiseGrid";
 import { bookCardConfig } from "../../config/cards";
@@ -210,9 +211,9 @@ export function BooksPage() {
     <div className={styles.page}>
       <h1 className={styles.srOnly}>Livros</h1>
 
-      <div className={styles.tabWrapper}>
-        <TabNav tabs={TABS} activeTab={activeTab} onTabChange={handleTabChange} disabledIds={disabledTabs} />
-      </div>
+      <TopbarSlot inlineClassName={styles.tabWrapper}>
+        <TabNav plain tabs={TABS} activeTab={activeTab} onTabChange={handleTabChange} disabledIds={disabledTabs} />
+      </TopbarSlot>
 
       {activeTab === "discover" && (
         <div className={styles.selectorWrapper}>
