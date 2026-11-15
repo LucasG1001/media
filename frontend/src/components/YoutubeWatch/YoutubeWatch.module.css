@@ -99,6 +99,13 @@
   cursor: not-allowed;
 }
 
+.actionOn,
+.actionOn:hover:not(:disabled) {
+  background: var(--color-accent-subtle);
+  border-color: var(--color-accent);
+  color: var(--color-text-accent);
+}
+
 .infoBox {
   display: flex;
   flex-direction: column;
@@ -204,21 +211,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.autoplay {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  user-select: none;
-}
-
-.autoplay input {
-  accent-color: var(--color-accent);
-  cursor: pointer;
 }
 
 .queueEmpty {
@@ -338,7 +330,6 @@
     opacity: 1;
   }
 }
-
 /* O item atual fica no lugar em que já estava na lista, só destacado. Na lista
    de canais o destaque marca o canal do item que está tocando. */
 .rowCurrent,

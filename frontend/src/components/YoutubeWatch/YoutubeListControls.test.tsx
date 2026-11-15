@@ -1,6 +1,16 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, fireEvent, cleanup, screen } from "@testing-library/react";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
+import { render, fireEvent, cleanup, screen, within } from "@testing-library/react";
 import { YoutubeListControls } from "./YoutubeListControls";
+
+beforeEach(() => {
+  // jsdom não implementa matchMedia, que o useDismiss consulta ao abrir o menu.
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  })) as unknown as typeof window.matchMedia;
+});
 
 afterEach(cleanup);
 
@@ -25,45 +35,89 @@ function setup(props: Partial<Parameters<typeof YoutubeListControls>[0]> = {}) {
   return handlers;
 }
 
-describe("YoutubeListControls", () => {
-  it("troca a aba de status", () => {
-    const { onStatusChange } = setup();
-    // O TabNav repete as abas num <select> para o celular; o botão é a aba em si.
-    fireEvent.click(screen.getByRole("button", { name: "Removido" }));
-    expect(onStatusChange).toHaveBeenCalledWith("removed");
-  });
+function openSortMenu() {
+  fireEvent.click(screen.getByRole("button", { name: "Ordenar" }));
+  return within(screen.getByRole("menu"));
+}
 
+describe("YoutubeListControls", () => {
   it("repassa o texto da busca", () => {
     const { onSearchChange } = setup();
     fireEvent.change(screen.getByLabelText("Buscar na biblioteca"), { target: { value: "queen" } });
     expect(onSearchChange).toHaveBeenCalledWith("queen");
   });
 
-  it("mostra o critério ativo e troca para o escolhido", () => {
-    const { onSortSelect } = setup({ sortField: "views" });
-    const select = screen.getByLabelText("Ordenar por");
-    expect(select).toHaveProperty("value", "views");
-    fireEvent.change(select, { target: { value: "access" } });
+  // Removidos é raro: em vez de uma linha de abas, um botão que alterna.
+  it("alterna entre curtidos e removidos pelo botão", () => {
+    const { onStatusChange } = setup();
+    const toggle = screen.getByRole("button", { name: "Mostrar removidos" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(toggle);
+    expect(onStatusChange).toHaveBeenCalledWith("removed");
+    cleanup();
+    const shown = setup({ status: "removed" });
+    const pressed = screen.getByRole("button", { name: "Mostrar removidos" });
+    expect(pressed.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(pressed);
+    expect(shown.onStatusChange).toHaveBeenCalledWith("liked");
+  });
+
+  it("o menu de ordenação começa fechado e resume o critério ativo no botão", () => {
+    setup({ sortField: "views", sortDir: "desc" });
+    const button = screen.getByRole("button", { name: "Ordenar" });
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(button.getAttribute("title")).toBe("Ordenar: Visualizações, decrescente");
+  });
+
+  it("mostra os critérios, marca o ativo com a direção e troca para o escolhido", () => {
+    const { onSortSelect } = setup({ sortField: "views", sortDir: "desc" });
+    const menu = openSortMenu();
+    const options = menu.getAllByRole("menuitemradio");
+    expect(options.map((option) => option.getAttribute("aria-checked"))).toEqual(["false", "false", "true", "false"]);
+    expect(menu.getByRole("menuitemradio", { name: /Visualizações/ }).textContent).toContain("↓");
+    fireEvent.click(menu.getByRole("menuitemradio", { name: "Último acesso" }));
     expect(onSortSelect).toHaveBeenCalledWith("access");
   });
 
-  // Escolher de novo o critério ativo é o que inverte a direção no useSingleSort.
-  it("inverte a direção reenviando o critério ativo", () => {
-    const { onSortSelect } = setup({ sortField: "date", sortDir: "desc" });
-    const button = screen.getByLabelText("Inverter ordem");
-    expect(button.getAttribute("title")).toBe("Decrescente");
-    fireEvent.click(button);
+  // Escolher de novo o critério ativo é o que inverte a direção no useSingleSort;
+  // por isso o menu continua aberto depois de uma escolha.
+  it("inverte a direção reenviando o critério ativo, sem fechar o menu", () => {
+    const { onSortSelect } = setup({ sortField: "date", sortDir: "asc" });
+    const menu = openSortMenu();
+    const active = menu.getByRole("menuitemradio", { name: /Data/ });
+    expect(active.textContent).toContain("↑");
+    fireEvent.click(active);
     expect(onSortSelect).toHaveBeenCalledWith("date");
+    expect(screen.getByRole("menu")).toBeTruthy();
+  });
+
+  it("fecha o menu de ordenação com Escape, clique fora ou pelo próprio botão", () => {
+    setup();
+    openSortMenu();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("menu")).toBeNull();
+
+    openSortMenu();
+    fireEvent.click(screen.getByTestId("sort-overlay"));
+    expect(screen.queryByRole("menu")).toBeNull();
+
+    openSortMenu();
+    fireEvent.click(screen.getByRole("button", { name: "Ordenar" }));
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 
   it("liga e desliga o agrupamento por canal", () => {
     const { onGroupByChannelChange } = setup();
-    const toggle = screen.getByLabelText("Agrupar por canal");
-    expect(toggle).toHaveProperty("checked", false);
+    const toggle = screen.getByRole("button", { name: "Agrupar por canal" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
     fireEvent.click(toggle);
     expect(onGroupByChannelChange).toHaveBeenCalledWith(true);
     cleanup();
-    setup({ groupByChannel: true });
-    expect(screen.getByLabelText("Agrupar por canal")).toHaveProperty("checked", true);
+    const grouped = setup({ groupByChannel: true });
+    const pressed = screen.getByRole("button", { name: "Agrupar por canal" });
+    expect(pressed.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(pressed);
+    expect(grouped.onGroupByChannelChange).toHaveBeenCalledWith(false);
   });
 });

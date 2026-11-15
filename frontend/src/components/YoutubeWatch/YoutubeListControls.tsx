@@ -1,6 +1,6 @@
-import { TabNav } from "../TabNav/TabNav";
+import { useState, type ReactNode } from "react";
+import { useDismiss } from "../../hooks/useDismiss";
 import type { YoutubeLibraryStatus } from "../../types/youtubeLibrary";
-import { YOUTUBE_LIBRARY_STATUS_LABELS } from "../../types/youtubeLibrary";
 import type { SortDir } from "../../hooks/useSingleSort";
 import styles from "./YoutubeListControls.module.css";
 
@@ -18,10 +18,6 @@ interface YoutubeListControlsProps {
   onGroupByChannelChange: (value: boolean) => void;
 }
 
-const STATUS_TABS = (Object.entries(YOUTUBE_LIBRARY_STATUS_LABELS) as [YoutubeLibraryStatus, string][]).map(
-  ([id, label]) => ({ id, label })
-);
-
 const SORT_OPTIONS = [
   { field: "alpha", label: "Alfabética" },
   { field: "date", label: "Data" },
@@ -29,8 +25,26 @@ const SORT_OPTIONS = [
   { field: "access", label: "Último acesso" },
 ];
 
+function Icon({ children }: { children: ReactNode }) {
+  return (
+    <svg
+      className={styles.icon}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  );
+}
+
 // O que recorta, ordena e agrupa a lista da tela de reprodução. Vive acima dela
 // porque o YouTube não tem tela de biblioteca: é por aqui que se acha um item.
+// Tudo numa linha só — cada linha de controle a mais é um item a menos à vista.
 export function YoutubeListControls({
   status,
   onStatusChange,
@@ -42,16 +56,17 @@ export function YoutubeListControls({
   groupByChannel,
   onGroupByChannelChange,
 }: YoutubeListControlsProps) {
+  const [sortOpen, setSortOpen] = useState(false);
+  useDismiss(sortOpen, () => setSortOpen(false));
+
   const ascending = sortDir === "asc";
+  const direction = ascending ? "crescente" : "decrescente";
+  const activeSort = SORT_OPTIONS.find((option) => option.field === sortField);
+  const sortSummary = `Ordenar: ${activeSort?.label ?? sortField}, ${direction}`;
+  const removed = status === "removed";
 
   return (
     <div className={styles.controls}>
-      <TabNav
-        plain
-        tabs={STATUS_TABS}
-        activeTab={status}
-        onTabChange={(id) => onStatusChange(id as YoutubeLibraryStatus)}
-      />
       <input
         className={styles.search}
         type="search"
@@ -60,37 +75,79 @@ export function YoutubeListControls({
         aria-label="Buscar na biblioteca"
         onChange={(event) => onSearchChange(event.target.value)}
       />
-      <div className={styles.sortRow}>
-        <select
-          className={styles.sort}
-          value={sortField}
-          aria-label="Ordenar por"
-          onChange={(event) => onSortSelect(event.target.value)}
-        >
-          {SORT_OPTIONS.map((option) => (
-            <option key={option.field} value={option.field}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+
+      <div className={styles.sortWrap}>
         <button
           type="button"
-          className={styles.direction}
-          onClick={() => onSortSelect(sortField)}
-          aria-label="Inverter ordem"
-          title={ascending ? "Crescente" : "Decrescente"}
+          className={`${styles.iconButton} ${sortOpen ? styles.iconButtonOn : ""}`}
+          onClick={() => setSortOpen((open) => !open)}
+          aria-haspopup="menu"
+          aria-expanded={sortOpen}
+          aria-label="Ordenar"
+          title={sortSummary}
         >
-          {ascending ? "↑" : "↓"}
+          <Icon>
+            <path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4" />
+          </Icon>
         </button>
+        {sortOpen && (
+          <>
+            <div className={styles.menuOverlay} data-testid="sort-overlay" onClick={() => setSortOpen(false)} />
+            {/* Fica aberto depois de escolher: reescolher o critério ativo é o
+                que inverte a direção. */}
+            <div className={styles.menu} role="menu" aria-label="Ordenar por">
+              {SORT_OPTIONS.map((option) => {
+                const active = option.field === sortField;
+                return (
+                  <button
+                    key={option.field}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={active}
+                    className={`${styles.menuItem} ${active ? styles.menuItemActive : ""}`}
+                    title={active ? `Inverter para ${ascending ? "decrescente" : "crescente"}` : undefined}
+                    onClick={() => onSortSelect(option.field)}
+                  >
+                    <span>{option.label}</span>
+                    {active && (
+                      <span className={styles.menuDirection} aria-label={direction}>
+                        {ascending ? "↑" : "↓"}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
-      <label className={styles.group}>
-        <input
-          type="checkbox"
-          checked={groupByChannel}
-          onChange={(event) => onGroupByChannelChange(event.target.checked)}
-        />
-        Agrupar por canal
-      </label>
+
+      <button
+        type="button"
+        className={`${styles.iconButton} ${groupByChannel ? styles.iconButtonOn : ""}`}
+        onClick={() => onGroupByChannelChange(!groupByChannel)}
+        aria-pressed={groupByChannel}
+        aria-label="Agrupar por canal"
+        title="Agrupar por canal"
+      >
+        <Icon>
+          <circle cx="9" cy="8" r="3.5" />
+          <path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8" />
+        </Icon>
+      </button>
+
+      <button
+        type="button"
+        className={`${styles.iconButton} ${removed ? styles.iconButtonOn : ""}`}
+        onClick={() => onStatusChange(removed ? "liked" : "removed")}
+        aria-pressed={removed}
+        aria-label="Mostrar removidos"
+        title={removed ? "Mostrando os removidos — voltar para os curtidos" : "Mostrar removidos"}
+      >
+        <Icon>
+          <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />
+        </Icon>
+      </button>
     </div>
   );
 }

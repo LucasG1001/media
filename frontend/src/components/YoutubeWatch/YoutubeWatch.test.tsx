@@ -113,6 +113,14 @@ describe("YoutubeWatch — player e lista", () => {
     expect(first.textContent).toContain("1,5 mil views");
   });
 
+  it("mostra no cabeçalho quantos itens a lista tem", () => {
+    setup();
+    expect(panel().getByText("4 músicas")).toBeTruthy();
+    cleanup();
+    setup({ kind: "video", tracks: [LIST[0]], playOrder: [LIST[0]] });
+    expect(panel().getByText("1 vídeo")).toBeTruthy();
+  });
+
   // A lista é fixa: escolher um item não o tira do lugar nem reordena o resto —
   // só muda qual está destacado.
   it("mantém a lista igual ao trocar de item e destaca só o atual", () => {
@@ -198,10 +206,18 @@ describe("YoutubeWatch — reprodução", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  // O interruptor fica com anterior/próximo, abaixo do player — não no painel.
   it("liga e desliga a reprodução automática", () => {
     const { onAutoplayChange } = setup();
-    fireEvent.click(screen.getByLabelText("Reprodução automática"));
+    const toggle = screen.getByRole("button", { name: "Reprodução automática" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(panel().queryByRole("button", { name: "Reprodução automática" })).toBeNull();
+    fireEvent.click(toggle);
     expect(onAutoplayChange).toHaveBeenCalledWith(false);
+    cleanup();
+    const off = setup({ autoplay: false });
+    fireEvent.click(screen.getByRole("button", { name: "Reprodução automática" }));
+    expect(off.onAutoplayChange).toHaveBeenCalledWith(true);
   });
 
   it("navega para o próximo e o anterior pelos botões", () => {
@@ -247,9 +263,11 @@ describe("YoutubeWatch — agrupado por canal", () => {
   ];
 
   it("mostra os canais no lugar dos itens, com a contagem de cada um", () => {
-    setup({ channels });
+    setup({ channels, playOrder: LIST.slice(0, 3) });
     const rows = panel().getAllByRole("listitem");
     expect(rows).toHaveLength(2);
+    // O cabeçalho soma os itens de todos os canais.
+    expect(panel().getByText("3 músicas")).toBeTruthy();
     expect(within(rows[0]).getByTitle("Canal Um")).toBeTruthy();
     expect(rows[0].textContent).toContain("2 músicas");
     expect(within(rows[1]).getByTitle("Canal Dois")).toBeTruthy();
@@ -275,10 +293,16 @@ describe("YoutubeWatch — agrupado por canal", () => {
   });
 
   it("com um canal aberto mostra só os itens dele e o botão de saída", () => {
-    const { onCloseChannel } = setup({ channels, openChannel: channels[0], tracks: channels[0].tracks });
+    const { onCloseChannel } = setup({
+      channels,
+      openChannel: channels[0],
+      tracks: channels[0].tracks,
+      playOrder: channels[0].tracks,
+    });
     expect(rowTitles()).toEqual(["Item a", "Item b"]);
     expect(panel().getByTitle("Canal Um")).toBeTruthy();
-    expect(panel().getByText("2 músicas")).toBeTruthy();
+    // A contagem do canal é a do cabeçalho, uma vez só.
+    expect(panel().getAllByText("2 músicas")).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "← Todos os canais" }));
     expect(onCloseChannel).toHaveBeenCalledTimes(1);
   });

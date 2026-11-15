@@ -55,12 +55,24 @@ Música) redireciona para `/youtube`.
 ## 4. A lista da direita
 
 É a biblioteca recortada por `visibleTracks` (`utils/youtubeList.ts`): **aba de tipo**
-(Músicas | Vídeos) → aba de status → busca (título/canal) → ordenação (Alfabética, Data,
-Visualizações, Último acesso; padrão Alfabética asc). As abas de tipo ficam no cabeçalho do painel;
-o resto é o `YoutubeListControls`, entregue ao `YoutubeWatch` pelo slot `controls`. Item sem data
+(Músicas | Vídeos) → status → busca (título/canal) → ordenação (Alfabética, Data,
+Visualizações, Último acesso; padrão Alfabética asc). Item sem data
 vale `+Infinity` (não vira "o mais antigo") e o desempate por `videoId` **não inverte com a
 direção** — ele só impede a ordem de trocar entre renders.
 
+- **Os controles ocupam duas linhas, de propósito**: cada linha a mais é um item a menos à vista.
+  O cabeçalho do painel tem as abas de tipo e a **contagem** (`playOrder.length` — vale para lista
+  plana, canais e canal aberto); abaixo vem o `YoutubeListControls` (slot `controls`), uma linha só:
+  busca + três botões de ícone.
+  - **Ordenar** abre um menu (`role="menu"`) com os critérios; o ativo mostra a seta, e escolhê-lo
+    de novo inverte a direção (contrato do `useSingleSort`) — por isso o menu **não fecha ao
+    escolher**, só com `Escape`, clique fora ou no próprio botão. Não usa o `ControlPopover` das
+    outras páginas: ele é uma pílula com rótulo ancorada à esquerda e estouraria o painel.
+  - **Agrupar por canal** e **Mostrar removidos** são botões liga/desliga (`aria-pressed`). O
+    status não tem abas: "removido" é raro e o botão alterna `liked` ↔ `removed`.
+- **Música e vídeo usam a mesma linha** (miniatura grande com a duração por cima, título em duas
+  linhas, canal e visualizações). Uma linha compacta só para música foi testada e descartada: a
+  miniatura pequena ficou pior.
 - **A aba acompanha o item aberto até alguém escolher.** `kindChoice` começa `null` e a aba ativa é
   `kindChoice ?? watchEntry.kind`: abrir a página cai na aba do item tocado. Clicar numa aba fixa a
   escolha — e **mover um item também fixa**, senão mover o próprio item que toca levaria a lista
@@ -72,8 +84,9 @@ direção** — ele só impede a ordem de trocar entre renders.
   abri-lo. É **irmão** do botão da linha, não filho (botão dentro de botão é HTML inválido);
   aparece no hover e fica sempre visível em `@media (hover: none)`. O destino sai do `kind` do item,
   não da aba. O mesmo botão existe abaixo do player para o item atual.
-- **Reprodução automática**: ao terminar, toca o próximo. O interruptor fica em `localStorage`
-  (`youtube-autoplay`; ausente = ligado).
+- **Reprodução automática**: ao terminar, toca o próximo. O interruptor é o botão "Auto" ao lado de
+  anterior/próximo, abaixo do player (é ajuste de reprodução, não filtro da lista), e fica em
+  `localStorage` (`youtube-autoplay`; ausente = ligado).
 - **Rolagem**: no desktop o painel é `sticky` (logo abaixo da barra superior — `top` e `max-height`
   descontam `--topbar-height`) e a lista rola por dentro; quando o item atual sai da
   parte visível (avanço automático), o `scrollTop` **da lista** é ajustado — não `scrollIntoView`,
@@ -88,10 +101,11 @@ direção** — ele só impede a ordem de trocar entre renders.
 
 ## 5. Agrupar por canal
 
-Interruptor nos controles (`localStorage`: `youtube-group-by-channel`). Ligado, a lista mostra os
-**canais** (avatar, nome, contagem) em vez dos itens; clicar num canal o abre e a lista volta ao
-formato de sempre, só com os itens dele. A barra **"← Todos os canais"** fica **fora** da área que
-rola, para estar à mão em canal comprido.
+Botão liga/desliga nos controles (`localStorage`: `youtube-group-by-channel`). Ligado, a lista
+mostra os **canais** (avatar, nome, contagem) em vez dos itens; clicar num canal o abre e a lista
+volta ao formato de sempre, só com os itens dele. A barra **"← Todos os canais"** fica **fora** da
+área que rola, para estar à mão em canal comprido; a contagem do canal aberto é a do cabeçalho do
+painel.
 
 - `channelGroups` agrupa a lista **já recortada e ordenada** por `visibleTracks`, então dentro do
   canal vale a ordenação normal e a busca tira de vista o canal sem item casando.

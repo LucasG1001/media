@@ -173,6 +173,16 @@ export function YoutubeWatch({
             >
               ⏭
             </button>
+            <button
+              type="button"
+              className={`${styles.action} ${autoplay ? styles.actionOn : ""}`}
+              onClick={() => onAutoplayChange(!autoplay)}
+              aria-pressed={autoplay}
+              aria-label="Reprodução automática"
+              title={autoplay ? "Reprodução automática ligada" : "Reprodução automática desligada"}
+            >
+              Auto
+            </button>
             <button type="button" className={styles.action} onClick={onEdit} title="Status e nota">
               {YOUTUBE_LIBRARY_STATUS_LABELS[entry.status]}
               {entry.score > 0 && ` · ⭐ ${entry.score.toFixed(1)}`}
@@ -219,14 +229,8 @@ export function YoutubeWatch({
       <aside className={styles.queue} aria-label="Biblioteca">
         <div className={styles.queueHeader}>
           <TabNav plain tabs={KIND_TABS} activeTab={kind} onTabChange={(id) => onKindChange(id as YoutubeKind)} />
-          <label className={styles.autoplay}>
-            <input
-              type="checkbox"
-              checked={autoplay}
-              onChange={(event) => onAutoplayChange(event.target.checked)}
-            />
-            Reprodução automática
-          </label>
+          {/* O que a lista tem agora, em qualquer modo: é a ordem de reprodução. */}
+          <span className={styles.queueCount}>{countLabel(playOrder.length, kind)}</span>
         </div>
 
         {controls}
@@ -239,7 +243,6 @@ export function YoutubeWatch({
             <span className={styles.channelBarName} title={openChannel.name}>
               {openChannel.name}
             </span>
-            <span className={styles.queueCount}>{countLabel(openChannel.tracks.length, kind)}</span>
           </div>
         )}
 
