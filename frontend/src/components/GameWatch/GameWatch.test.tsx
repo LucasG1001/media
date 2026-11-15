@@ -71,13 +71,13 @@ const SAGA = [
 const SINGLE = game(9, { score: 9.5 });
 const GROUPS = buildGameCollectionGroups([...SAGA, SINGLE]);
 const SAGA_GROUP = GROUPS.find((group) => group.key === "collection-7")!;
+const SAGA_OPEN: ReadonlySet<string> = new Set([SAGA_GROUP.key]);
 
 type Props = Parameters<typeof GameWatch>[0];
 
 function handlers() {
   return {
-    onOpenGroup: vi.fn(),
-    onCloseGroup: vi.fn(),
+    onToggleGroup: vi.fn(),
     onSelect: vi.fn(),
     onEdit: vi.fn(),
     onGameLoad: vi.fn(),
@@ -97,6 +97,11 @@ function setup(props: Partial<Props> = {}) {
 
 function panel() {
   return within(screen.getByRole("complementary"));
+}
+
+// A lista de dentro da saga aberta (a linha da coleção fica acima dela).
+function members() {
+  return panel().getByRole("list", { name: SAGA_GROUP.representative.title });
 }
 
 function currentRows(): (string | null)[] {
@@ -242,9 +247,9 @@ describe("GameWatch — lista de coleções", () => {
   });
 
   it("o status de cada linha leva o tom do papel dele", () => {
-    setup({ entry: SAGA[0], openGroup: SAGA_GROUP });
+    setup({ entry: SAGA[0], openGroups: SAGA_OPEN });
     const tones = SAGA_GROUP.members.map((member) => {
-      const row = panel().getByTitle(member.title).closest("li")!;
+      const row = within(members()).getByTitle(member.title).closest("li")!;
       return row.querySelector("[data-tone]")?.getAttribute("data-tone");
     });
     expect(tones).toEqual(SAGA_GROUP.members.map((member) => (member.status === "beaten" ? "done" : "plan")));
@@ -272,17 +277,24 @@ describe("GameWatch — lista de coleções", () => {
   });
 
   it("clicar numa coleção a abre, sem trocar o jogo do palco", () => {
-    const { onOpenGroup, onSelect } = setup();
-    fireEvent.click(panel().getByTitle(SAGA_GROUP.representative.title));
-    expect(onOpenGroup).toHaveBeenCalledWith("collection-7");
+    const { onToggleGroup, onSelect } = setup();
+    const row = panel().getByRole("button", { expanded: false });
+    fireEvent.click(row);
+    expect(onToggleGroup).toHaveBeenCalledWith("collection-7");
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it("clicar na coleção aberta a fecha", () => {
+    const { onToggleGroup } = setup({ openGroups: SAGA_OPEN });
+    fireEvent.click(panel().getByRole("button", { expanded: true }));
+    expect(onToggleGroup).toHaveBeenCalledWith("collection-7");
+  });
+
   it("clicar num jogo avulso o abre direto no palco", () => {
-    const { onSelect, onOpenGroup } = setup({ entry: SAGA[0] });
+    const { onSelect, onToggleGroup } = setup({ entry: SAGA[0] });
     fireEvent.click(panel().getByTitle("Jogo 9"));
     expect(onSelect).toHaveBeenCalledWith(SINGLE);
-    expect(onOpenGroup).not.toHaveBeenCalled();
+    expect(onToggleGroup).not.toHaveBeenCalled();
   });
 
   it("clicar no jogo que já está no palco não faz nada", () => {
@@ -298,19 +310,31 @@ describe("GameWatch — lista de coleções", () => {
     expect(currentRows()).toEqual([SAGA_GROUP.representative.title]);
   });
 
-  it("com uma coleção aberta mostra todos os jogos dela e o botão de saída", () => {
-    const { onCloseGroup, onSelect } = setup({ entry: SAGA[1], openGroup: SAGA_GROUP });
-    const titles = panel()
+  // Sanfona: os jogos entram abaixo da coleção, e o resto da lista fica onde está.
+  it("com uma coleção aberta mostra todos os jogos dela logo abaixo, sem tirar o resto da lista", () => {
+    const { onSelect } = setup({ entry: SAGA[1], openGroups: SAGA_OPEN });
+    const titles = within(members())
       .getAllByRole("listitem")
       .map((row) => within(row).getByTitle(/^Jogo \d$/).textContent);
     expect(titles).toEqual(SAGA_GROUP.members.map((member) => member.title));
+    expect(panel().getAllByRole("listitem")).toHaveLength(GROUPS.length + SAGA_GROUP.members.length);
+    // Aberta, o destaque é do jogo dentro dela, não da linha da coleção.
     expect(currentRows()).toEqual(["Jogo 2"]);
-    expect(panel().getByText("3 jogos")).toBeTruthy();
 
-    fireEvent.click(panel().getByTitle("Jogo 3"));
+    fireEvent.click(within(members()).getByTitle("Jogo 3"));
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ igdbId: 3 }));
-    fireEvent.click(screen.getByRole("button", { name: "← Todas as coleções" }));
-    expect(onCloseGroup).toHaveBeenCalledTimes(1);
+  });
+
+  it("com filtro a coleção aberta continua mostrando todos os jogos", () => {
+    const filtered = buildGameCollectionGroups(SAGA, (entry) => entry.status === "plan_to_play");
+    setup({ entry: SAGA[0], groups: filtered, openGroups: SAGA_OPEN });
+    expect(within(members()).getAllByRole("listitem")).toHaveLength(SAGA.length);
+  });
+
+  it("fechada, a coleção não mostra os jogos dela", () => {
+    setup();
+    expect(panel().queryByRole("list", { name: SAGA_GROUP.representative.title })).toBeNull();
+    expect(panel().getAllByRole("listitem")).toHaveLength(GROUPS.length);
   });
 
   it("mostra os controles da página dentro do painel, acima da lista", () => {
@@ -334,10 +358,79 @@ describe("GameWatch — lista de coleções", () => {
     setup();
     expect(panel().queryByText("Nenhum resultado.")).toBeNull();
   });
+});
 
-  it("sem coleção aberta não mostra o botão de saída", () => {
+describe("GameWatch — celular", () => {
+  // O CSS é quem esconde a ficha no celular; o botão guarda o estado.
+  it("o botão de detalhes começa fechado e alterna, sem voltar ao trocar de jogo", () => {
+    const { view } = setup({ entry: SAGA[0] });
+    const toggle = screen.getByRole("button", { name: "Mostrar detalhes" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(screen.getByRole("button", { name: "Ocultar detalhes" }).getAttribute("aria-expanded")).toBe("true");
+
+    view.rerender(element({ entry: SAGA[1] }));
+    expect(screen.getByRole("button", { name: "Ocultar detalhes" })).toBeTruthy();
+  });
+
+  // Recolhida, a anotação continua montada: texto digitado não se perde.
+  it("a anotação fica montada com os detalhes fechados", () => {
+    setup({ entry: game(9, { notes: "minha nota" }) });
+    expect(screen.getByRole("button", { name: "Mostrar detalhes" })).toBeTruthy();
+    expect(screen.getByRole("textbox")).toHaveProperty("value", "minha nota");
+  });
+
+  // O link sai de baixo do player (grudaria junto com o palco fixo) e vai para
+  // a linha de ações.
+  it("o link para o YouTube fica na linha de ações, uma vez só", async () => {
+    fetchMock.mockImplementation((id: number) => Promise.resolve(detail(id, { trailer: { youtubeId: "abc" } })));
     setup();
-    expect(screen.queryByRole("button", { name: "← Todas as coleções" })).toBeNull();
+    await screen.findByTitle("Trailer");
+    const links = screen.getAllByRole("link", { name: "Assistir no YouTube ↗" });
+    expect(links).toHaveLength(1);
+    expect(links[0].getAttribute("href")).toContain("watch?v=abc");
+    expect(links[0].parentElement).toBe(screen.getByTitle("Status e nota").parentElement);
+  });
+
+  it("sem trailer não há link para o YouTube", async () => {
+    setup();
+    await screen.findByText("Descrição do jogo 9");
+    expect(screen.queryByRole("link", { name: "Assistir no YouTube ↗" })).toBeNull();
+  });
+
+  describe("rolagem ao escolher", () => {
+    const scrollIntoView = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    let stageTop = 0;
+
+    beforeEach(() => {
+      scrollIntoView.mockReset();
+      Element.prototype.scrollIntoView = scrollIntoView;
+      vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+        () => ({ top: stageTop, bottom: stageTop, left: 0, right: 0, width: 0, height: 0, x: 0, y: stageTop }) as DOMRect
+      );
+    });
+
+    afterEach(() => {
+      Element.prototype.scrollIntoView = original;
+      vi.restoreAllMocks();
+    });
+
+    // Palco fixo: está sempre no topo, então escolher não mexe na rolagem.
+    it("com o palco à vista não rola a página", () => {
+      stageTop = 0;
+      const { view } = setup({ entry: SAGA[0] });
+      view.rerender(element({ entry: SAGA[1] }));
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it("com o palco fora da vista traz a tela de volta até ele", () => {
+      stageTop = -300;
+      const { view } = setup({ entry: SAGA[0] });
+      scrollIntoView.mockClear();
+      view.rerender(element({ entry: SAGA[1] }));
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    });
   });
 });
 

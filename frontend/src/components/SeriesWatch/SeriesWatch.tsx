@@ -43,9 +43,7 @@ const CONFIG: WatchConfig<SeasonMember> = {
   placeholder: "📺",
   labels: {
     list: "Séries",
-    exit: "← Todas as séries",
     collection: "Série",
-    one: "temporada",
     many: "temporadas",
     completed: "assistidas",
     accessed: "vista",

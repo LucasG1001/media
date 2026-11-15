@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, fireEvent, cleanup, screen, within } from "@testing-library/react";
 import { YoutubeWatch } from "./YoutubeWatch";
 import type { YoutubeLibraryEntry } from "../../types/youtubeLibrary";
@@ -52,8 +52,7 @@ const LIST = [track("a"), track("b"), track("c"), track("d")];
 function handlers() {
   return {
     onKindChange: vi.fn(),
-    onOpenChannel: vi.fn(),
-    onCloseChannel: vi.fn(),
+    onToggleChannel: vi.fn(),
     onSelect: vi.fn(),
     onEdit: vi.fn(),
     onMove: vi.fn(),
@@ -227,7 +226,8 @@ describe("YoutubeWatch — reprodução", () => {
     expect(onSelect.mock.calls).toEqual([["c"], ["a"]]);
   });
 
-  // Com um canal aberto a lista mostra só ele, e é por ele que a reprodução anda.
+  // Agrupada por canal a lista mostra os canais, e a reprodução anda por todos
+  // os itens na ordem deles.
   it("segue a ordem de reprodução recebida, não as linhas mostradas", () => {
     const { onSelect } = setup({ tracks: [LIST[1]], playOrder: [LIST[1], LIST[3]] });
     fireEvent.click(screen.getByLabelText("Próximo item"));
@@ -280,10 +280,20 @@ describe("YoutubeWatch — agrupado por canal", () => {
     expect(panel().getAllByRole("listitem")[0].textContent).toContain("2 vídeos");
   });
 
-  it("abre o canal clicado", () => {
-    const { onOpenChannel } = setup({ channels });
-    fireEvent.click(screen.getByTitle("Canal Dois"));
-    expect(onOpenChannel).toHaveBeenCalledWith("ch-2");
+  it("abre o canal clicado, e fecha clicando de novo", () => {
+    const { onToggleChannel, onSelect } = setup({ channels });
+    const row = screen.getByTitle("Canal Dois").closest("button")!;
+    expect(row.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(row);
+    expect(onToggleChannel).toHaveBeenCalledWith("ch-2");
+    expect(onSelect).not.toHaveBeenCalled();
+    cleanup();
+
+    const open = setup({ channels, openChannels: new Set(["ch-2"]) });
+    const openRow = screen.getByTitle("Canal Dois").closest("button")!;
+    expect(openRow.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(openRow);
+    expect(open.onToggleChannel).toHaveBeenCalledWith("ch-2");
   });
 
   // O item atual é o "b", do Canal Um.
@@ -292,24 +302,27 @@ describe("YoutubeWatch — agrupado por canal", () => {
     expect(markedTitles()).toEqual(["Canal Um"]);
   });
 
-  it("com um canal aberto mostra só os itens dele e o botão de saída", () => {
-    const { onCloseChannel } = setup({
-      channels,
-      openChannel: channels[0],
-      tracks: channels[0].tracks,
-      playOrder: channels[0].tracks,
-    });
-    expect(rowTitles()).toEqual(["Item a", "Item b"]);
-    expect(panel().getByTitle("Canal Um")).toBeTruthy();
-    // A contagem do canal é a do cabeçalho, uma vez só.
-    expect(panel().getAllByText("2 músicas")).toHaveLength(1);
-    fireEvent.click(screen.getByRole("button", { name: "← Todos os canais" }));
-    expect(onCloseChannel).toHaveBeenCalledTimes(1);
+  // Sanfona: os itens entram abaixo do canal, e os outros canais ficam onde estão.
+  it("com um canal aberto mostra os itens dele logo abaixo, sem tirar os outros canais", () => {
+    const { onSelect } = setup({ channels, openChannels: new Set(["ch-1"]), playOrder: LIST.slice(0, 3) });
+    const inner = within(panel().getByRole("list", { name: "Canal Um" }));
+    expect(inner.getAllByRole("listitem").map((row) => within(row).getByTitle(/^Item \w$/).textContent)).toEqual([
+      "Item a",
+      "Item b",
+    ]);
+    expect(panel().getByTitle("Canal Dois")).toBeTruthy();
+    expect(screen.queryByTitle("Item c")).toBeNull();
+    // Aberto, o destaque é do item dentro dele, não da linha do canal.
+    expect(markedTitles()).toEqual(["Item b"]);
+
+    fireEvent.click(inner.getByTitle("Item a"));
+    expect(onSelect).toHaveBeenCalledWith("a");
   });
 
-  it("sem agrupamento não mostra o botão de saída", () => {
-    setup();
-    expect(screen.queryByRole("button", { name: "← Todos os canais" })).toBeNull();
+  it("vários canais podem estar abertos ao mesmo tempo", () => {
+    setup({ channels, openChannels: new Set(["ch-1", "ch-2"]) });
+    expect(panel().getByRole("list", { name: "Canal Um" })).toBeTruthy();
+    expect(within(panel().getByRole("list", { name: "Canal Dois" })).getByTitle("Item c")).toBeTruthy();
   });
 
   it("avisa quando nenhum canal passa pelo filtro", () => {
@@ -334,5 +347,61 @@ describe("YoutubeWatch — troca de item sem remontar", () => {
     expect(screen.getByText("Mostrar menos")).toBeTruthy();
     view.rerender(element({ entry: track("b", { description: "outra letra" }) }));
     expect(screen.getByText("Mostrar mais")).toBeTruthy();
+  });
+});
+
+describe("YoutubeWatch — celular", () => {
+  // O CSS é quem esconde descrição e anotação no celular; o botão guarda o estado.
+  it("o botão de detalhes começa fechado e alterna, sem voltar ao trocar de item", () => {
+    const { view } = setup();
+    const toggle = screen.getByRole("button", { name: "Mostrar detalhes" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(screen.getByRole("button", { name: "Ocultar detalhes" }).getAttribute("aria-expanded")).toBe("true");
+
+    view.rerender(element({ entry: LIST[2] }));
+    expect(screen.getByRole("button", { name: "Ocultar detalhes" })).toBeTruthy();
+  });
+
+  // Recolhida, a anotação continua montada: texto digitado não se perde.
+  it("a anotação fica montada com os detalhes fechados", () => {
+    setup({ entry: track("a", { notes: "nota do a" }) });
+    expect(screen.getByRole("button", { name: "Mostrar detalhes" })).toBeTruthy();
+    expect(screen.getByRole("textbox")).toHaveProperty("value", "nota do a");
+  });
+
+  describe("rolagem ao escolher", () => {
+    const scrollIntoView = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    let playerTop = 0;
+
+    beforeEach(() => {
+      scrollIntoView.mockReset();
+      Element.prototype.scrollIntoView = scrollIntoView;
+      vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+        () => ({ top: playerTop, bottom: playerTop, left: 0, right: 0, width: 0, height: 0, x: 0, y: playerTop }) as DOMRect
+      );
+    });
+
+    afterEach(() => {
+      Element.prototype.scrollIntoView = original;
+      vi.restoreAllMocks();
+    });
+
+    // Player fixo: está sempre no topo, então escolher não mexe na rolagem.
+    it("com o player à vista não rola a página", () => {
+      playerTop = 0;
+      const { view } = setup();
+      view.rerender(element({ entry: LIST[2] }));
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it("com o player fora da vista traz a tela de volta até ele", () => {
+      playerTop = -300;
+      const { view } = setup();
+      scrollIntoView.mockClear();
+      view.rerender(element({ entry: LIST[2] }));
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    });
   });
 });

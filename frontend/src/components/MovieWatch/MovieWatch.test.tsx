@@ -68,8 +68,7 @@ function setup(entry: MovieLibraryEntry = SINGLE, groups = GROUPS) {
       entry={entry}
       groups={groups}
       autoPlay={false}
-      onOpenGroup={vi.fn()}
-      onCloseGroup={vi.fn()}
+      onToggleGroup={vi.fn()}
       onSelect={vi.fn()}
       onEdit={vi.fn()}
       onNotesChange={vi.fn()}

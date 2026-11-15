@@ -29,9 +29,7 @@ const CONFIG: WatchConfig<GameLibraryEntry> = {
   placeholder: "🎮",
   labels: {
     list: "Coleções",
-    exit: "← Todas as coleções",
     collection: "Coleção",
-    one: "jogo",
     many: "jogos",
     completed: "zerados",
     accessed: "jogado",

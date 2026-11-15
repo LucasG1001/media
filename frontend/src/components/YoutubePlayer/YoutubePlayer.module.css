@@ -1,8 +1,11 @@
+/* `--stage-radius` e `--stage-max-height` são de quem monta: a tela de
+   reprodução zera o canto e limita a altura quando o player fica fixo no celular. */
 .frame {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  border-radius: var(--radius-lg);
+  max-height: var(--stage-max-height, none);
+  border-radius: var(--stage-radius, var(--radius-lg));
   overflow: hidden;
   background: var(--color-bg-secondary);
   box-shadow: var(--shadow-md);

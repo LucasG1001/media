@@ -19,8 +19,8 @@ Consulte antes de mexer em `CollectionWatch`, nos invólucros (`AnimeWatch`, `Mo
   rótulos), título/subtítulo, trailer, imagem do palco e as seções do detalhe como `children`.
 - **`useLibraryWatch(storageKey, groups, active, findInLibrary)`** guarda o estado na página: a visualização
   (`localStorage`, uma chave por mídia — `anime-library-view`, `movies-library-view`,
-  `series-library-view`, `games-library-view`; ausente = grade), o item escolhido, a coleção aberta
-  e se o trailer está armado. Devolve `entry` (o item do palco) e `props`, que a página espalha no
+  `series-library-view`, `games-library-view`; ausente = grade), o item escolhido, as coleções
+  abertas (um conjunto de chaves) e se o trailer está armado. Devolve `entry` (o item do palco) e `props`, que a página espalha no
   invólucro.
 
 ## 2. O que é da página
@@ -65,6 +65,9 @@ da biblioteca na hora.
   ao item do palco). A tela abre num item que ninguém pediu, e trocar de aba ou de visualização
   desarma — voltar para a tela não é pedir de novo. Cair no primeiro da lista por causa do filtro
   também não toca.
+- **O link "Assistir no YouTube ↗" fica na linha de ações**, não embaixo do player
+  (`TrailerEmbed` com `externalLink={false}`): colado ao player ele grudaria junto com o palco fixo
+  do celular (§8). Nos drawers o link continua embaixo do trailer.
 - O `NotesBlock` fica **fora** do ramo de sucesso, com `key` por item: quando o detalhe falha entra
   o aviso de dados salvos e a anotação continua lá.
 - **Nenhum invólucro leva `key` por item**, pelo mesmo motivo dos drawers
@@ -72,15 +75,22 @@ da biblioteca na hora.
 
 ## 4. A lista da direita
 
-Dois níveis, como o "agrupar por canal" do YouTube:
+Dois níveis em **sanfona**, como o "agrupar por canal" do YouTube — no desktop e no celular:
 
 - **Coleção de 2+ itens** aparece como coleção (capa e título do representante, contagem, nota
-  média); clicar **abre a coleção na lista**, sem trocar o item do palco. Aberta, mostra os itens
-  dela com a barra de saída fora da área que rola. Coleção que o filtro tirou de vista deixa de
-  estar aberta por derivação (o hook guarda só a chave).
+  média); clicar **abre a coleção no lugar**, sem trocar o item do palco: os itens entram logo
+  abaixo dela, numa lista de dentro (`aria-label` = título da coleção), a seta gira e o bloco vira
+  um cartão. Clicar de novo fecha (`aria-expanded` na linha). **Várias podem ficar abertas** e o
+  resto da lista não sai do lugar. Uma versão anterior trocava a lista inteira pelos itens da
+  coleção, com uma barra "← Todas as coleções"; não volte a isso.
+- O hook guarda só o conjunto de chaves (`openGroups` + `onToggleGroup`): coleção que o filtro
+  tirou de vista simplesmente não é desenhada, e volta aberta quando reaparece.
 - **Coleção de 1 item é o próprio item**: a linha abre direto no palco.
 - A contagem da coleção é `count`; com filtro vira `que batem/total`, igual ao selo da grade.
-- O destaque (`aria-current`) marca o item aberto ou, na lista de coleções, a coleção dele.
+- O destaque (`aria-current`) marca o item aberto; a coleção dele só leva o destaque enquanto está
+  **fechada** — aberta, quem aparece marcado é o item dentro dela.
+- **Abrir ou fechar uma coleção não rola a lista**: o ajuste de `scrollTop` que traz o destaque
+  para a vista só roda ao trocar de item ou de filtro.
 - **A miniatura é retrato** (capa/pôster), não a 16:9 do YouTube.
 - **Anterior/próximo andam pela coleção do item aberto** (`collectionNav`, a mesma sequência do
   drawer): botões abaixo do palco com a posição, setas sobre o trailer e ← → do teclado (ignoradas
@@ -123,3 +133,28 @@ mas a do YouTube tem player e lista próprios.
 `--queue-width` (400 px, crescendo até 480 px em tela larga) e o palco com o resto. Não há teto fixo
 em pixels — o `max-width` é calculado pela **altura** da janela, só para o palco 16:9 não ficar mais
 alto que a tela em monitor ultrawide. Mudou num, mude no outro.
+
+## 8. Celular (≤ 768 px)
+
+Vale igual para o `CollectionWatch` e o `YoutubeWatch` — mudou num, mude no outro. Entre 769 e
+1100 px a lista só desce para baixo do palco, sem nada disto.
+
+- **O palco vai de borda a borda e fica fixo no topo** (`.stageSlot`, `position: sticky`) enquanto
+  título, ações e lista rolam por baixo. Para isso a tela vira **flex em coluna** e a coluna do
+  palco (`.main`) vira `display: contents`: sticky só anda dentro do bloco que o contém, então o
+  palco precisa ser filho direto da tela inteira — e item de **grid** fica preso à própria célula,
+  daí o flex.
+- **Canto e altura do palco são variáveis CSS** lidas por quem desenha a caixa 16:9 (`.stage`,
+  `TrailerEmbed`, `YoutubePlayer`): `--stage-radius` (zerado no celular) e `--stage-max-height`
+  (50vh com o celular deitado, senão o palco cobriria a tela). Componente novo que entre no palco
+  precisa ler as duas.
+- **Escolher um item não mexe na rolagem.** O efeito que traz o palco de volta para a vista mede o
+  topo do **palco**, não o da tela: fixo, ele nunca sai por cima, então nada rola. Em tela estreita
+  sem palco fixo (769–1100 px) continua rolando até ele.
+- **Ficha e anotação começam recolhidas**, atrás do botão "Mostrar detalhes" / "Ocultar detalhes"
+  (`aria-expanded`). O botão existe sempre no DOM e o estado vale em qualquer largura; é o CSS que
+  só mostra o botão e só esconde o bloco no celular. Escondido por `display: none`, o `NotesBlock`
+  **continua montado** — texto não salvo não se perde. O estado vale para a visita, não por item, e
+  não é salvo.
+- O `OfflineBanner` também é sticky no topo e fica por cima da faixa de cima do palco quando
+  aparece.

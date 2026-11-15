@@ -135,20 +135,29 @@ describe("useLibraryWatch", () => {
 
   it("abre e fecha uma coleção na lista", () => {
     const { result } = setup();
-    expect(result.current.props.openGroup).toBeUndefined();
-    act(() => result.current.props.onOpenGroup("saga"));
-    expect(result.current.props.openGroup).toBe(SAGA);
-    act(() => result.current.props.onCloseGroup());
-    expect(result.current.props.openGroup).toBeUndefined();
+    expect(result.current.props.openGroups.size).toBe(0);
+    act(() => result.current.props.onToggleGroup("saga"));
+    expect([...result.current.props.openGroups]).toEqual(["saga"]);
+    act(() => result.current.props.onToggleGroup("saga"));
+    expect(result.current.props.openGroups.size).toBe(0);
   });
 
-  it("coleção de um item só não abre, e a que saiu de vista deixa de estar aberta", () => {
-    const { result, rerender } = setup();
-    act(() => result.current.props.onOpenGroup("avulso"));
-    expect(result.current.props.openGroup).toBeUndefined();
+  // Sanfona: abrir uma não fecha a outra.
+  it("mantém várias coleções abertas e fecha só a que foi tocada", () => {
+    const { result } = setup();
+    act(() => result.current.props.onToggleGroup("saga"));
+    act(() => result.current.props.onToggleGroup("outra"));
+    expect([...result.current.props.openGroups].sort()).toEqual(["outra", "saga"]);
+    act(() => result.current.props.onToggleGroup("saga"));
+    expect([...result.current.props.openGroups]).toEqual(["outra"]);
+  });
 
-    act(() => result.current.props.onOpenGroup("saga"));
+  // Guarda só as chaves: a coleção que o filtro tirou de vista volta aberta.
+  it("a coleção aberta continua aberta depois de sair de vista e voltar", () => {
+    const { result, rerender } = setup();
+    act(() => result.current.props.onToggleGroup("saga"));
     rerender({ g: [SINGLE], a: true, f: findInLibrary });
-    expect(result.current.props.openGroup).toBeUndefined();
+    rerender({ g: GROUPS, a: true, f: findInLibrary });
+    expect(result.current.props.openGroups.has("saga")).toBe(true);
   });
 });

@@ -21,6 +21,10 @@
   min-width: 0;
 }
 
+.stageSlot {
+  min-width: 0;
+}
+
 .title {
   margin: 0;
   font-size: var(--font-size-xl);
@@ -111,6 +115,18 @@
   color: var(--color-text-accent);
 }
 
+/* Só existe no celular, onde a descrição e a anotação começam recolhidas. */
+.detailsToggle {
+  display: none;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-base);
+  min-width: 0;
+}
+
 .infoBox {
   display: flex;
   flex-direction: column;
@@ -178,44 +194,6 @@
   flex-shrink: 0;
   font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
-}
-
-/* Canal aberto: o botão de saída fica fora da área que rola, para estar sempre
-   à mão por mais comprida que seja a lista do canal. */
-.channelBar {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  min-width: 0;
-}
-
-.exit {
-  flex-shrink: 0;
-  padding: var(--spacing-xs) var(--spacing-md);
-  border-radius: var(--radius-full);
-  background: var(--color-accent-subtle);
-  border: 1px solid var(--color-accent);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background var(--transition-fast);
-}
-
-.exit:hover {
-  background: var(--color-accent-glow);
-}
-
-.channelBarName {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .queueEmpty {
@@ -299,6 +277,33 @@
   flex-shrink: 0;
   font-size: var(--font-size-lg);
   color: var(--color-text-tertiary);
+  transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+  color: var(--color-accent);
+}
+
+/* Canal aberto: os itens entram logo abaixo dele, na própria lista. O bloco
+   vira um cartão para dar para ver onde o canal começa e termina. */
+.groupOpen {
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.groupOpen > .channelRow .rowTitle {
+  color: var(--color-text-accent);
+}
+
+.members {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--spacing-xs) var(--spacing-xs) var(--spacing-base);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
 }
 
 /* Manda o item para a outra aba sem abri-lo. Aparece no hover da linha; em
@@ -447,6 +452,76 @@
 
   .queueList {
     overflow-y: visible;
+  }
+}
+
+/* Celular: o player vai de borda a borda e fica fixo no topo enquanto o resto
+   rola. `display: contents` tira a coluna do vídeo do caminho — sticky só anda
+   dentro do bloco que o contém, e esse bloco precisa ser a tela inteira, com a
+   lista junto. Flex em vez de grid pelo mesmo motivo: item de grid fica preso à
+   própria célula. */
+@media (max-width: 768px) {
+  .watch {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-base);
+  }
+
+  .main {
+    display: contents;
+  }
+
+  .stageSlot {
+    --stage-radius: 0;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    margin-inline: calc(-1 * var(--page-padding));
+  }
+
+  .metaRow {
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+  }
+
+  /* Uma linha só, rolando de lado até a borda da tela: seis botões quebrando em
+     três linhas empurrariam a lista para fora da primeira dobra. */
+  .actions {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-inline: calc(-1 * var(--page-padding));
+    padding-inline: var(--page-padding);
+  }
+
+  .action {
+    flex-shrink: 0;
+  }
+
+  .detailsToggle {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    padding: var(--spacing-sm) var(--spacing-base);
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+  }
+
+  .detailsCollapsed {
+    display: none;
+  }
+}
+
+/* Celular deitado: o player 16:9 inteiro cobriria a tela e não sobraria lista. */
+@media (max-width: 768px) and (orientation: landscape) {
+  .stageSlot {
+    --stage-max-height: 50vh;
   }
 }
 

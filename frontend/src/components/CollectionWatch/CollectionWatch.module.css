@@ -24,12 +24,18 @@
   isolation: isolate;
 }
 
+.stageSlot {
+  min-width: 0;
+}
+
 /* Mesma caixa 16:9 do trailer, para o palco não mudar de altura entre um jogo
-   com trailer e um sem. */
+   com trailer e um sem. `--stage-radius` e `--stage-max-height` são os mesmos
+   que o `TrailerEmbed` lê: o palco fixo do celular os define no invólucro. */
 .stage {
   position: relative;
   aspect-ratio: 16 / 9;
-  border-radius: var(--radius-md);
+  max-height: var(--stage-max-height, none);
+  border-radius: var(--stage-radius, var(--radius-md));
   overflow: hidden;
   background: var(--color-bg-tertiary);
   display: flex;
@@ -111,6 +117,7 @@
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
+  text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
   transition: background var(--transition-fast);
@@ -130,6 +137,11 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-text-tertiary);
   white-space: nowrap;
+}
+
+/* Só existe no celular, onde a ficha começa recolhida. */
+.detailsToggle {
+  display: none;
 }
 
 .detail {
@@ -156,49 +168,6 @@
   gap: var(--spacing-md);
   min-width: 0;
   max-height: calc(100vh - var(--topbar-height) - 2 * var(--spacing-base));
-}
-
-/* Fora da área que rola, para a saída estar à mão em coleção comprida. */
-.groupBar {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  min-width: 0;
-}
-
-.exit {
-  flex-shrink: 0;
-  padding: var(--spacing-xs) var(--spacing-md);
-  border-radius: var(--radius-full);
-  background: var(--color-accent-subtle);
-  border: 1px solid var(--color-accent);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background var(--transition-fast);
-}
-
-.exit:hover {
-  background: var(--color-accent-glow);
-}
-
-.groupBarName {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.groupBarCount {
-  flex-shrink: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-tertiary);
 }
 
 .queueEmpty {
@@ -374,6 +343,33 @@
   align-self: center;
   font-size: var(--font-size-lg);
   color: var(--color-text-tertiary);
+  transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+  color: var(--color-accent);
+}
+
+/* Coleção aberta: os itens entram logo abaixo dela, na própria lista. O bloco
+   vira um cartão para dar para ver onde a coleção começa e termina. */
+.groupOpen {
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.groupOpen > .row .rowTitle {
+  color: var(--color-text-accent);
+}
+
+.members {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--spacing-xs) var(--spacing-xs) var(--spacing-base);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
 }
 
 /* Sem largura para as duas colunas, a lista desce para baixo do palco e volta a
@@ -390,6 +386,57 @@
 
   .queueList {
     overflow-y: visible;
+  }
+}
+
+/* Celular: o palco vai de borda a borda e fica fixo no topo enquanto o resto
+   rola. `display: contents` tira a coluna do palco do caminho — sticky só anda
+   dentro do bloco que o contém, e esse bloco precisa ser a tela inteira, com a
+   lista junto. Flex em vez de grid pelo mesmo motivo: item de grid fica preso à
+   própria célula. */
+@media (max-width: 768px) {
+  .watch {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-base);
+  }
+
+  .main {
+    display: contents;
+  }
+
+  .stageSlot {
+    --stage-radius: 0;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    margin-inline: calc(-1 * var(--page-padding));
+    box-shadow: var(--shadow-md);
+  }
+
+  .detailsToggle {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    padding: var(--spacing-sm) var(--spacing-base);
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+  }
+
+  .detailCollapsed {
+    display: none;
+  }
+}
+
+/* Celular deitado: o palco 16:9 inteiro cobriria a tela e não sobraria lista. */
+@media (max-width: 768px) and (orientation: landscape) {
+  .stageSlot {
+    --stage-max-height: 50vh;
   }
 }
 

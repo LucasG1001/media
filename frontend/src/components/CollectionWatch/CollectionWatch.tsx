@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { CollectionGroup } from "../../utils/buildCollectionGroups";
 import { collectionNav } from "../../utils/collectionNav";
 import { findGroupOf, isCompleted, statusTone, topGenres, yearSpan } from "../../utils/collectionWatch";
@@ -43,12 +43,9 @@ export interface WatchConfig<M> {
   labels: {
     // Nome da lista para leitor de tela (ex.: "Coleções").
     list: string;
-    // Botão que fecha a coleção aberta (ex.: "← Todas as coleções").
-    exit: string;
     // Como uma coleção se chama na linha dela (ex.: "Coleção", "Série").
     collection: string;
-    // Singular e plural dos itens (ex.: "jogo", "jogos").
-    one: string;
+    // Plural dos itens (ex.: "jogos").
     many: string;
     // Itens concluídos, no progresso da coleção (ex.: "zerados").
     completed: string;
@@ -69,10 +66,10 @@ export interface WatchListProps<M> {
   groups: CollectionGroup<M>[];
   // Busca, filtros e ordenação da biblioteca, acima da lista.
   controls?: ReactNode;
-  // Coleção aberta na lista: mostra só os itens dela, com a barra de saída.
-  openGroup?: CollectionGroup<M>;
-  onOpenGroup: (key: string) => void;
-  onCloseGroup: () => void;
+  // Chaves das coleções abertas: os itens de cada uma entram logo abaixo dela,
+  // na própria lista (sanfona — várias podem estar abertas).
+  openGroups?: ReadonlySet<string>;
+  onToggleGroup: (key: string) => void;
   onSelect: (member: M) => void;
   // Só depois de alguém escolher um item: a tela abre num item que ninguém
   // pediu, e trailer tocando sozinho ali seria estorvo.
@@ -97,6 +94,8 @@ interface CollectionWatchProps<M> extends WatchListProps<M> {
   // Sem ele não há bloco de anotação (série sem temporadas).
   onNotesChange?: (notes: string) => void;
 }
+
+const NO_OPEN_GROUPS: ReadonlySet<string> = new Set();
 
 function scoreLabel(score: number): string {
   return `★ ${score.toFixed(1)}`;
@@ -140,15 +139,15 @@ function LastAccess({ iso, verb }: { iso: string | null | undefined; verb: strin
 
 // Visão de detalhe de uma biblioteca: palco grande à esquerda (trailer, ou
 // imagem quando não há) e as coleções como lista à direita. Mesmo desenho da tela
-// do YouTube, mas a lista tem dois níveis — coleções e, dentro de uma, os itens.
+// do YouTube, mas a lista tem dois níveis — coleções e, abaixo de cada uma
+// aberta, os itens dela.
 // É genérico: cada mídia tem um invólucro (`GameWatch`, `AnimeWatch`…) que busca
 // o detalhe e monta o que vai no palco e abaixo dele.
 export function CollectionWatch<M extends WatchMember>({
   entry,
   groups,
-  openGroup,
-  onOpenGroup,
-  onCloseGroup,
+  openGroups = NO_OPEN_GROUPS,
+  onToggleGroup,
   onSelect,
   controls,
   autoPlay,
@@ -166,7 +165,11 @@ export function CollectionWatch<M extends WatchMember>({
   onNotesChange,
 }: CollectionWatchProps<M>) {
   const root = useRef<HTMLDivElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLUListElement>(null);
+  // No celular a ficha e a anotação ficam recolhidas até alguém pedir (o CSS só
+  // as esconde lá). Vale para a visita, não por item.
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const { labels, placeholder } = config;
 
   // Anterior/próximo andam pela coleção do item aberto, na ordem da tela — a
@@ -193,15 +196,18 @@ export function CollectionWatch<M extends WatchMember>({
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  // No celular a lista fica abaixo do palco: escolher nela deve trazer o palco de
-  // volta para a vista. Só rola se o topo já saiu da tela.
+  // Em tela estreita a lista fica abaixo do palco: escolher nela deve trazer o
+  // palco de volta para a vista. Só rola se o palco já saiu por cima — no
+  // celular ele é fixo e nunca sai, então a rolagem fica onde está.
   useEffect(() => {
-    const element = root.current;
-    if (element && element.getBoundingClientRect().top < 0) element.scrollIntoView?.({ block: "start" });
+    const top = stage.current?.getBoundingClientRect().top ?? 0;
+    if (top < -1) root.current?.scrollIntoView?.({ block: "start" });
   }, [entry.id]);
 
   // A lista tem rolagem própria no desktop: o destaque tem que estar à vista ao
   // navegar por anterior/próximo. Ajusta o scrollTop da lista, não a página.
+  // Abrir ou fechar uma coleção não entra aqui: puxaria a lista de volta para o
+  // item atual a cada toque.
   useEffect(() => {
     const container = list.current;
     const row = container?.querySelector<HTMLElement>('[aria-current="true"]');
@@ -210,7 +216,7 @@ export function CollectionWatch<M extends WatchMember>({
     const rect = row.getBoundingClientRect();
     if (rect.top < box.top) container.scrollTop -= box.top - rect.top;
     else if (rect.bottom > box.bottom) container.scrollTop += rect.bottom - box.bottom;
-  }, [entry.id, groups, openGroup]);
+  }, [entry.id, groups]);
 
   const currentGroup = findGroupOf(groups, entry.id);
   const entryCover = config.getCover(entry);
@@ -250,7 +256,9 @@ export function CollectionWatch<M extends WatchMember>({
   };
 
   const groupRow = (group: CollectionGroup<M>) => {
-    const playing = group === currentGroup;
+    const open = openGroups.has(group.key);
+    // Aberta, quem leva o destaque é o item dentro dela.
+    const playing = group === currentGroup && !open;
     const average = averageScore(group.members);
     const completed = group.members.filter((member) => isCompleted(member.status)).length;
     const genres = (
@@ -261,12 +269,13 @@ export function CollectionWatch<M extends WatchMember>({
     // Com filtro o numerador é quantos batem, como no selo da grade.
     const count = group.completedCount === group.count ? group.count : `${group.completedCount}/${group.count}`;
     return (
-      <li key={group.key}>
+      <li key={group.key} className={open ? styles.groupOpen : undefined}>
         <button
           type="button"
           className={`${styles.row} ${playing ? styles.rowCurrent : ""}`}
           aria-current={playing ? "true" : undefined}
-          onClick={() => onOpenGroup(group.key)}
+          aria-expanded={open}
+          onClick={() => onToggleGroup(group.key)}
         >
           <Cover className={styles.rowCover} src={config.getCover(group.representative)} placeholder={placeholder} />
           <span className={styles.rowText}>
@@ -293,8 +302,13 @@ export function CollectionWatch<M extends WatchMember>({
               <LastAccess iso={latestAccess(group.members)} verb={labels.accessed} />
             </span>
           </span>
-          <span className={styles.chevron} aria-hidden="true">›</span>
+          <span className={`${styles.chevron} ${open ? styles.chevronOpen : ""}`} aria-hidden="true">›</span>
         </button>
+        {open && (
+          <ul className={styles.members} aria-label={group.representative.title}>
+            {group.members.map(itemRow)}
+          </ul>
+        )}
       </li>
     );
   };
@@ -302,33 +316,37 @@ export function CollectionWatch<M extends WatchMember>({
   return (
     <div className={styles.watch} ref={root}>
       <div className={styles.main}>
-        {trailerId ? (
-          <TrailerEmbed
-            youtubeId={trailerId}
-            overlay={nav && <DrawerNav index={nav.index} total={nav.total} onPrev={goPrev} onNext={goNext} variant="float" />}
-            autoPlay={autoPlay}
-          />
-        ) : loading ? (
-          // Enquanto o detalhe não chega não se sabe se há trailer: o palco fica
-          // vazio, porque a capa aqui piscaria antes de o vídeo entrar.
-          <div className={`${styles.stage} ${styles.stageLoading}`} data-testid="watch-stage-loading" />
-        ) : (
-          // Sem trailer o palco é uma imagem: banner ou imagem de fundo, e a capa
-          // quando nem isso existe (ou quando o detalhe falhou).
-          <div className={styles.stage} data-testid="watch-stage">
-            {stageImage ? (
-              <CoverImage
-                className={styles.stageImage}
-                src={stageImage}
-                alt=""
-                eager
-                fallback={<Cover className={styles.stageCover} src={entryCover} placeholder={placeholder} />}
-              />
-            ) : (
-              <Cover className={styles.stageCover} src={entryCover} placeholder={placeholder} />
-            )}
-          </div>
-        )}
+        {/* Invólucro do palco: é ele que fica fixo no topo no celular. */}
+        <div className={styles.stageSlot} ref={stage}>
+          {trailerId ? (
+            <TrailerEmbed
+              youtubeId={trailerId}
+              overlay={nav && <DrawerNav index={nav.index} total={nav.total} onPrev={goPrev} onNext={goNext} variant="float" />}
+              autoPlay={autoPlay}
+              externalLink={false}
+            />
+          ) : loading ? (
+            // Enquanto o detalhe não chega não se sabe se há trailer: o palco fica
+            // vazio, porque a capa aqui piscaria antes de o vídeo entrar.
+            <div className={`${styles.stage} ${styles.stageLoading}`} data-testid="watch-stage-loading" />
+          ) : (
+            // Sem trailer o palco é uma imagem: banner ou imagem de fundo, e a capa
+            // quando nem isso existe (ou quando o detalhe falhou).
+            <div className={styles.stage} data-testid="watch-stage">
+              {stageImage ? (
+                <CoverImage
+                  className={styles.stageImage}
+                  src={stageImage}
+                  alt=""
+                  eager
+                  fallback={<Cover className={styles.stageCover} src={entryCover} placeholder={placeholder} />}
+                />
+              ) : (
+                <Cover className={styles.stageCover} src={entryCover} placeholder={placeholder} />
+              )}
+            </div>
+          )}
+        </div>
 
         <div className={styles.heading}>
           <h2 className={styles.title}>{title}</h2>
@@ -367,9 +385,28 @@ export function CollectionWatch<M extends WatchMember>({
             {config.statusLabel(entry)}
             {entry.score > 0 && ` · ${scoreLabel(entry.score)}`}
           </button>
+          {trailerId && (
+            <a
+              className={styles.action}
+              href={`https://www.youtube.com/watch?v=${trailerId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Assistir no YouTube ↗
+            </a>
+          )}
         </div>
 
-        <div className={styles.detail}>
+        <button
+          type="button"
+          className={styles.detailsToggle}
+          aria-expanded={detailsOpen}
+          onClick={() => setDetailsOpen((open) => !open)}
+        >
+          {detailsOpen ? "Ocultar detalhes" : "Mostrar detalhes"}
+        </button>
+
+        <div className={`${styles.detail} ${detailsOpen ? "" : styles.detailCollapsed}`}>
           {children ??
             (loading ? (
               <div className={styles.notice}>Carregando detalhes...</div>
@@ -391,27 +428,11 @@ export function CollectionWatch<M extends WatchMember>({
       <aside className={styles.queue} aria-label={labels.list}>
         {controls}
 
-        {openGroup && (
-          <div className={styles.groupBar}>
-            <button type="button" className={styles.exit} onClick={onCloseGroup}>
-              {labels.exit}
-            </button>
-            <span className={styles.groupBarName} title={openGroup.representative.title}>
-              {openGroup.representative.title}
-            </span>
-            <span className={styles.groupBarCount}>
-              {openGroup.count} {openGroup.count === 1 ? labels.one : labels.many}
-            </span>
-          </div>
-        )}
-
         {groups.length === 0 && <div className={styles.queueEmpty}>Nenhum resultado.</div>}
 
         <ul className={styles.queueList} ref={list}>
-          {openGroup
-            ? openGroup.members.map(itemRow)
-            : // Coleção de um item só é o próprio item: abre direto no palco.
-              groups.map((group) => (group.count < 2 ? itemRow(group.members[0]) : groupRow(group)))}
+          {/* Coleção de um item só é o próprio item: abre direto no palco. */}
+          {groups.map((group) => (group.count < 2 ? itemRow(group.members[0]) : groupRow(group)))}
         </ul>
       </aside>
     </div>

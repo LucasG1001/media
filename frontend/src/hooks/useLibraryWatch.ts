@@ -18,9 +18,9 @@ interface LibraryWatch<M> {
   disarm: () => void;
   // O que a tela de detalhe recebe direto.
   props: {
-    openGroup: CollectionGroup<M> | undefined;
-    onOpenGroup: (key: string) => void;
-    onCloseGroup: () => void;
+    // Chaves das coleções abertas na lista (sanfona: várias ao mesmo tempo).
+    openGroups: ReadonlySet<string>;
+    onToggleGroup: (key: string) => void;
     onSelect: (member: M) => void;
     autoPlay: boolean;
   };
@@ -40,7 +40,9 @@ export function useLibraryWatch<M extends { id: string }>(
   );
   // null = ninguém escolheu ainda: vale o primeiro da lista.
   const [choice, setChoice] = useState<string | null>(null);
-  const [openGroupKey, setOpenGroupKey] = useState<string | null>(null);
+  // Só as chaves: coleção que o filtro tirou de vista não é desenhada, e volta
+  // aberta quando reaparece — sem efeito para limpar estado.
+  const [openGroups, setOpenGroups] = useState<ReadonlySet<string>>(() => new Set());
   // O trailer só toca sozinho para um item escolhido nesta visita: a tela abre
   // num item que ninguém pediu, e voltar para ela não é pedir de novo.
   const [armed, setArmed] = useState(false);
@@ -53,8 +55,6 @@ export function useLibraryWatch<M extends { id: string }>(
   const [lastId, setLastId] = useState<string | null>(null);
   if (picked && picked.id !== lastId) setLastId(picked.id);
   const entry = picked ?? (watching && lastId !== null ? findInLibrary(lastId) : undefined);
-  // Coleção que o filtro tirou de vista deixa de estar aberta por derivação.
-  const openGroup = groups.find((group) => group.key === openGroupKey && group.count > 1);
 
   return {
     view,
@@ -66,9 +66,13 @@ export function useLibraryWatch<M extends { id: string }>(
     entry,
     disarm: () => setArmed(false),
     props: {
-      openGroup,
-      onOpenGroup: setOpenGroupKey,
-      onCloseGroup: () => setOpenGroupKey(null),
+      openGroups,
+      onToggleGroup: (key) =>
+        setOpenGroups((current) => {
+          const next = new Set(current);
+          if (!next.delete(key)) next.add(key);
+          return next;
+        }),
       onSelect: (member) => {
         setChoice(member.id);
         setArmed(true);

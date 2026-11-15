@@ -64,7 +64,7 @@ direção** — ele só impede a ordem de trocar entre renders.
 
 - **Os controles ocupam duas linhas, de propósito**: cada linha a mais é um item a menos à vista.
   O cabeçalho do painel tem as abas de tipo e a **contagem** (`playOrder.length` — vale para lista
-  plana, canais e canal aberto); abaixo vem o `YoutubeListControls` (slot `controls`), uma linha só:
+  plana e para a agrupada por canal); abaixo vem o `YoutubeListControls` (slot `controls`), uma linha só:
   busca + três botões de ícone.
   - **Ordenar** abre um menu (`role="menu"`) com os critérios; o ativo mostra a seta, e escolhê-lo
     de novo inverte a direção (contrato do `useSingleSort`) — por isso o menu **não fecha ao
@@ -92,8 +92,10 @@ direção** — ele só impede a ordem de trocar entre renders.
 - **Rolagem**: no desktop o painel é `sticky` (logo abaixo da barra superior — `top` e `max-height`
   descontam `--topbar-height`) e a lista rola por dentro; quando o item atual sai da
   parte visível (avanço automático), o `scrollTop` **da lista** é ajustado — não `scrollIntoView`,
-  que rolaria a página junto. No celular a lista rola com a página, e a tela só sobe até o player se
-  o topo dele já saiu da vista.
+  que rolaria a página junto. No celular a lista rola com a página e o **player fica fixo no topo**,
+  de borda a borda: escolher um item troca o vídeo sem mexer na rolagem. Descrição e anotação ficam
+  atrás do botão "Mostrar detalhes", e os botões de ação viram uma linha só que rola de lado. O
+  mecanismo é o mesmo da visão de detalhe — ver `docs/frontend-visao-detalhe.md` §8.
 - **`YoutubeWatch` não leva `key` por item**, pelo mesmo motivo dos drawers
   (`docs/frontend-drawers.md` §2): remontar recriaria o player. O que dependia da remontagem é por
   id — o `NotesBlock` leva `key`, e a descrição expandida é guardada junto com o id a que pertence.
@@ -104,10 +106,11 @@ direção** — ele só impede a ordem de trocar entre renders.
 ## 5. Agrupar por canal
 
 Botão liga/desliga nos controles (`localStorage`: `youtube-group-by-channel`). Ligado, a lista
-mostra os **canais** (avatar, nome, contagem) em vez dos itens; clicar num canal o abre e a lista
-volta ao formato de sempre, só com os itens dele. A barra **"← Todos os canais"** fica **fora** da
-área que rola, para estar à mão em canal comprido; a contagem do canal aberto é a do cabeçalho do
-painel.
+mostra os **canais** (avatar, nome, contagem) em vez dos itens, em **sanfona**: clicar num canal
+abre os itens dele **logo abaixo, na própria lista** (a seta gira e o bloco vira um cartão), e
+clicar de novo fecha. Vários canais podem ficar abertos e os outros não saem do lugar — o mesmo
+desenho das coleções da visão de detalhe (`docs/frontend-visao-detalhe.md` §4). Uma versão anterior
+trocava a lista pelos itens do canal, com uma barra "← Todos os canais"; não volte a isso.
 
 - `channelGroups` agrupa a lista **já recortada e ordenada** por `visibleTracks`, então dentro do
   canal vale a ordenação normal e a busca tira de vista o canal sem item casando.
@@ -115,14 +118,15 @@ painel.
   soma; Data = publicação mais recente (só os datados contam); Último acesso = acesso mais recente.
 - **A chave do grupo é o `channelId`** (o nome pode mudar e pode repetir); item antigo sem id cai no
   nome, e sem os dois vai para "Canal desconhecido".
-- **Canal aberto é derivado**: a página guarda só a chave (`openChannelKey`) e procura o grupo a
-  cada render. Canal que a busca ou a aba tiraram de vista deixa de estar aberto sozinho; trocar de
-  aba ou desligar o agrupamento zera a chave.
+- **A página guarda só as chaves dos canais abertos** (`openChannels`, um conjunto): canal que a
+  busca tirou de vista não é desenhado e volta aberto quando reaparece; trocar de aba ou desligar o
+  agrupamento esvazia o conjunto.
 - **Anterior/próximo e a reprodução automática seguem `playOrder`**, que a página calcula: lista
-  plana → a lista; canal aberto → só o canal; agrupado sem canal aberto → todos os itens, na ordem
-  dos canais. As linhas mostradas (`tracks`) e a ordem de reprodução são props separadas no
-  `YoutubeWatch` por causa desse último caso.
-- Na lista de canais o destaque marca o **canal do item que está tocando**.
+  plana → a lista; agrupada → todos os itens, na ordem dos canais, **estejam abertos ou não** (a
+  reprodução atravessa de um canal para o seguinte). As linhas mostradas (`tracks`) e a ordem de
+  reprodução são props separadas no `YoutubeWatch` por causa do caso agrupado.
+- O destaque marca o **canal do item que está tocando** enquanto ele está fechado; aberto, quem
+  aparece marcado é o item dentro dele.
 
 ## 6. `YoutubePlayer` (IFrame Player API)
 

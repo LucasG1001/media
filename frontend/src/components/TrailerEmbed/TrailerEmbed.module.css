@@ -4,11 +4,14 @@
   gap: var(--spacing-sm);
 }
 
+/* `--stage-radius` e `--stage-max-height` são de quem monta: a visão de detalhe
+   zera o canto e limita a altura quando o palco fica fixo no celular. */
 .wrapper {
   position: relative;
-  border-radius: var(--radius-md);
+  border-radius: var(--stage-radius, var(--radius-md));
   overflow: hidden;
   aspect-ratio: 16 / 9;
+  max-height: var(--stage-max-height, none);
   background: var(--color-bg-tertiary);
 }
 
@@ -17,6 +20,7 @@
 .wrapper:fullscreen {
   width: 100vw;
   height: 100vh;
+  max-height: none;
   aspect-ratio: auto;
   border-radius: 0;
   background: #000;

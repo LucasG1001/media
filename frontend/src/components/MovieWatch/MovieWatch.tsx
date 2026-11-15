@@ -26,9 +26,7 @@ const CONFIG: WatchConfig<MovieLibraryEntry> = {
   placeholder: "🎬",
   labels: {
     list: "Coleções",
-    exit: "← Todas as coleções",
     collection: "Coleção",
-    one: "filme",
     many: "filmes",
     completed: "assistidos",
     accessed: "visto",

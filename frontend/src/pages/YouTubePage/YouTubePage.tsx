@@ -38,7 +38,9 @@ export function YouTubePage() {
   const [activeStatus, setActiveStatus] = useState<YoutubeLibraryStatus>("liked");
   const [search, setSearch] = useState("");
   const [groupByChannel, setGroupByChannel] = useState(() => localStorage.getItem(GROUP_STORAGE_KEY) === "true");
-  const [openChannelKey, setOpenChannelKey] = useState<string | null>(null);
+  // Só as chaves: canal que a busca tirou de vista não é desenhado, e volta
+  // aberto quando reaparece — sem efeito para limpar estado.
+  const [openChannels, setOpenChannels] = useState<ReadonlySet<string>>(() => new Set());
   const [urlInput, setUrlInput] = useState("");
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -108,14 +110,22 @@ export function YouTubePage() {
 
   const changeGrouping = useCallback((value: boolean) => {
     setGroupByChannel(value);
-    setOpenChannelKey(null);
+    setOpenChannels(new Set());
     localStorage.setItem(GROUP_STORAGE_KEY, String(value));
   }, []);
 
-  // Canal aberto é de uma aba: trocar de aba volta para a lista de canais.
+  // Canal aberto é de uma aba: trocar de aba fecha todos.
   const changeKind = useCallback((kind: YoutubeKind) => {
     setKindChoice(kind);
-    setOpenChannelKey(null);
+    setOpenChannels(new Set());
+  }, []);
+
+  const toggleChannel = useCallback((key: string) => {
+    setOpenChannels((current) => {
+      const next = new Set(current);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
   }, []);
 
   // Fixa a aba antes de mover: sem escolha explícita ela acompanha o item
@@ -144,15 +154,11 @@ export function YouTubePage() {
     () => (groupByChannel ? channelGroups(tracks, sort.field, sort.dir) : undefined),
     [groupByChannel, tracks, sort.field, sort.dir]
   );
-  // Canal que a busca ou a aba tiraram de vista deixa de estar aberto por
-  // derivação — a lista volta para os canais sem efeito para limpar estado.
-  const openChannel = channels?.find((channel) => channel.key === openChannelKey);
-  const listTracks = openChannel ? openChannel.tracks : tracks;
-  // Anterior/próximo seguem o que está na lista; agrupada e sem canal aberto,
-  // percorrem todos os itens na ordem dos canais.
+  // Anterior/próximo seguem o que está na lista; agrupada, percorrem todos os
+  // itens na ordem dos canais — abertos ou não.
   const playOrder = useMemo(
-    () => (channels && !openChannel ? channels.flatMap((channel) => channel.tracks) : listTracks),
-    [channels, openChannel, listTracks]
+    () => (channels ? channels.flatMap((channel) => channel.tracks) : tracks),
+    [channels, tracks]
   );
 
   const initialTrack = useMemo(() => pickInitialTrack(entries), [entries]);
@@ -224,12 +230,11 @@ export function YouTubePage() {
         entry={watchEntry}
         kind={activeKind}
         onKindChange={changeKind}
-        tracks={listTracks}
+        tracks={tracks}
         playOrder={playOrder}
         channels={channels}
-        openChannel={openChannel}
-        onOpenChannel={setOpenChannelKey}
-        onCloseChannel={() => setOpenChannelKey(null)}
+        openChannels={openChannels}
+        onToggleChannel={toggleChannel}
         autoplay={autoplay}
         onAutoplayChange={changeAutoplay}
         onSelect={openTrack}

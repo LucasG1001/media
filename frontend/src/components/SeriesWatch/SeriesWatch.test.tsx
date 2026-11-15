@@ -120,10 +120,9 @@ function setup(
     <SeriesWatch
       entry={entry}
       groups={list.groups ?? GROUPS}
-      openGroup={list.openGroup}
+      openGroups={new Set(list.openGroup ? [list.openGroup.key] : [])}
       autoPlay={false}
-      onOpenGroup={vi.fn()}
-      onCloseGroup={vi.fn()}
+      onToggleGroup={vi.fn()}
       onSelect={vi.fn()}
       onEdit={vi.fn()}
       onSeriesLoad={onSeriesLoad}
@@ -238,7 +237,8 @@ describe("SeriesWatch — lista", () => {
       series(1, { genres: ["Drama"], seasonList: [seasonMeta(1), seasonMeta(2)] }),
     ]);
     setup(groups[0].members[0], vi.fn(), { groups, openGroup: groups[0] });
-    const rows = within(screen.getByRole("complementary", { name: "Séries" }))
+    // As temporadas são a lista de dentro; a linha da série fica acima delas.
+    const rows = within(screen.getByRole("list", { name: "Série 1" }))
       .getAllByRole("listitem")
       .map((row) => row.textContent);
     expect(rows).toHaveLength(2);
@@ -254,23 +254,22 @@ describe("SeriesWatch — lista", () => {
     expect(row).toContain("Comédia");
   });
 
-  it("com a série aberta lista as temporadas dela e a saída", async () => {
+  it("com a série aberta lista as temporadas dela logo abaixo, sem tirar as outras séries", async () => {
     render(
       <SeriesWatch
         entry={SEASON_ONE}
         groups={GROUPS}
-        openGroup={groupOf(1)}
+        openGroups={new Set([groupOf(1).key])}
         autoPlay={false}
-        onOpenGroup={vi.fn()}
-        onCloseGroup={vi.fn()}
+        onToggleGroup={vi.fn()}
         onSelect={vi.fn()}
         onEdit={vi.fn()}
       />
     );
     const panel = within(screen.getByRole("complementary", { name: "Séries" }));
-    expect(panel.getByRole("button", { name: "← Todas as séries" })).toBeTruthy();
-    expect(panel.getByText("2 temporadas")).toBeTruthy();
-    expect(panel.getAllByRole("listitem")).toHaveLength(2);
+    expect(within(panel.getByRole("list", { name: "Série 1" })).getAllByRole("listitem")).toHaveLength(2);
+    // As três séries continuam na lista, mais as duas temporadas abertas.
+    expect(panel.getAllByRole("listitem")).toHaveLength(5);
     await waitFor(() => expect(seriesMock).toHaveBeenCalled());
   });
 });

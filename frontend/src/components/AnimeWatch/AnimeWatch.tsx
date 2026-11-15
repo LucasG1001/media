@@ -41,9 +41,7 @@ const CONFIG: WatchConfig<LibraryEntry> = {
   placeholder: "🎬",
   labels: {
     list: "Franquias",
-    exit: "← Todas as franquias",
     collection: "Franquia",
-    one: "título",
     many: "títulos",
     completed: "assistidos",
     accessed: "visto",

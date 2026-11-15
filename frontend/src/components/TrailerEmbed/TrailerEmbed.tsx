@@ -9,9 +9,13 @@ interface TrailerEmbedProps {
   // Opt-in: só onde o vídeo é o conteúdo. Trailer começando sozinho ao abrir o
   // drawer para ler a sinopse seria estorvo.
   autoPlay?: boolean;
+  // false = quem monta põe o link "Assistir no YouTube" em outro lugar (a visão
+  // de detalhe o leva para a linha de ações, senão ele grudaria junto com o
+  // palco fixo do celular).
+  externalLink?: boolean;
 }
 
-export function TrailerEmbed({ youtubeId, overlay, autoPlay = false }: TrailerEmbedProps) {
+export function TrailerEmbed({ youtubeId, overlay, autoPlay = false, externalLink = true }: TrailerEmbedProps) {
   const wrapper = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   // iOS não implementa tela cheia de elemento (só do <video> nativo), então lá
@@ -69,14 +73,16 @@ export function TrailerEmbed({ youtubeId, overlay, autoPlay = false }: TrailerEm
           )}
         </div>
       </div>
-      <a
-        className={styles.fallback}
-        href={`https://www.youtube.com/watch?v=${youtubeId}`}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Assistir no YouTube ↗
-      </a>
+      {externalLink && (
+        <a
+          className={styles.fallback}
+          href={`https://www.youtube.com/watch?v=${youtubeId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Assistir no YouTube ↗
+        </a>
+      )}
     </div>
   );
 }
