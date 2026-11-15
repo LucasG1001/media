@@ -1,4 +1,5 @@
 import type { MovieDetail } from "../../types/movie";
+import { formatRuntime } from "../../utils/formatRuntime";
 import { CoverImage } from "../CoverImage/CoverImage";
 import styles from "./MovieDrawer.module.css";
 
@@ -14,14 +15,6 @@ function getStatusLabel(status: string): string {
     case "UPCOMING": return "Em breve";
     default: return status;
   }
-}
-
-function formatRuntime(minutes: number | null): string {
-  if (!minutes) return "?";
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h === 0) return `${m}min`;
-  return m === 0 ? `${h}h` : `${h}h ${m}min`;
 }
 
 function formatReleaseDate(date: string | null): string {
@@ -47,7 +40,7 @@ export function MovieDetailSections({ movie, wide = false }: MovieDetailSections
         </div>
         <div className={styles.infoItem}>
           <span className={styles.infoLabel}>Duração</span>
-          <span className={styles.infoValue}>{formatRuntime(movie.runtime)}</span>
+          <span className={styles.infoValue}>{movie.runtime ? formatRuntime(movie.runtime) : "?"}</span>
         </div>
         <div className={styles.infoItem}>
           <span className={styles.infoLabel}>Lançamento</span>

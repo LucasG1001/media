@@ -1,8 +1,9 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import type { CollectionGroup } from "../../utils/buildCollectionGroups";
 import { collectionNav } from "../../utils/collectionNav";
-import { findGroupOf } from "../../utils/collectionWatch";
+import { findGroupOf, isCompleted, statusTone, topGenres, yearSpan } from "../../utils/collectionWatch";
 import { averageScore } from "../../utils/librarySort";
+import { formatLastAccess, formatLastAccessExact, latestAccess } from "../../utils/lastAccess";
 import { isTyping } from "../../hooks/useDrawerKeys";
 import { CoverImage } from "../CoverImage/CoverImage";
 import { TrailerEmbed } from "../TrailerEmbed/TrailerEmbed";
@@ -14,13 +15,30 @@ export interface WatchMember {
   id: string;
   title: string;
   score: number;
+  status: string;
+  lastAccessAt?: string | null;
 }
 
-// O que muda de uma mídia para outra na lista e nos rótulos.
+// Quantos gêneros cabem numa linha da lista.
+const GENRE_LIMIT = 3;
+
+// O que muda de uma mídia para outra na lista e nos rótulos. Tudo sai do que já
+// está salvo na biblioteca — a lista não busca nada.
 export interface WatchConfig<M> {
   getCover: (member: M) => string | null;
-  // Segunda linha da linha de um item (ex.: "2009 · Zerado").
-  getMeta: (member: M) => string;
+  getYear: (member: M) => number | null;
+  // O que vem depois do ano na linha de fatos de um item (ex.: "TV", "24 eps").
+  getFacts: (member: M) => (string | null)[];
+  getGenres?: (member: M) => readonly string[] | null | undefined;
+  // Aviso de lançamento do item (ex.: "Em exibição", "Em breve").
+  getBadge?: (member: M) => string | null;
+  statusLabel: (member: M) => string;
+  // Total da coleção somado dos itens (ex.: "148 eps", "19h 20min").
+  getTotal?: (members: M[]) => string | null;
+  // Gêneros e aviso da coleção quando não saem dos itens (séries: são da série,
+  // não das temporadas). Sem eles os gêneros são os mais comuns entre os itens.
+  getGroupGenres?: (group: CollectionGroup<M>) => readonly string[] | null | undefined;
+  getGroupBadge?: (group: CollectionGroup<M>) => string | null;
   placeholder: string;
   labels: {
     // Nome da lista para leitor de tela (ex.: "Coleções").
@@ -32,6 +50,10 @@ export interface WatchConfig<M> {
     // Singular e plural dos itens (ex.: "jogo", "jogos").
     one: string;
     many: string;
+    // Itens concluídos, no progresso da coleção (ex.: "zerados").
+    completed: string;
+    // Verbo do último acesso (ex.: "visto", "jogado").
+    accessed: string;
     previous: string;
     next: string;
   };
@@ -65,8 +87,6 @@ interface CollectionWatchProps<M> extends WatchListProps<M> {
   // Palco e cabeçalho: o invólucro da mídia busca o detalhe e entrega pronto.
   title: string;
   subtitle?: string | null;
-  // Rótulo do botão de status do item aberto (ex.: "Zerado").
-  statusLabel: string;
   trailerId?: string | null;
   stageImage?: string | null;
   loading: boolean;
@@ -82,6 +102,10 @@ function scoreLabel(score: number): string {
   return `★ ${score.toFixed(1)}`;
 }
 
+function joinFacts(parts: (string | number | null | undefined)[]): string {
+  return parts.filter((part) => part !== null && part !== undefined && part !== "").join(" · ");
+}
+
 function Cover({ src, className, placeholder }: { src: string | null; className: string; placeholder: string }) {
   return (
     <CoverImage
@@ -90,6 +114,27 @@ function Cover({ src, className, placeholder }: { src: string | null; className:
       alt=""
       fallback={<div className={`${className} ${styles.coverPlaceholder}`}>{placeholder}</div>}
     />
+  );
+}
+
+// Linha de fatos de um item ou de uma coleção, com o aviso de lançamento no fim.
+function Facts({ text, badge }: { text: string; badge?: string | null }) {
+  if (!text && !badge) return null;
+  return (
+    <span className={styles.rowMeta}>
+      {text}
+      {text && badge ? " · " : ""}
+      {badge && <span className={styles.rowBadge}>{badge}</span>}
+    </span>
+  );
+}
+
+function LastAccess({ iso, verb }: { iso: string | null | undefined; verb: string }) {
+  if (!iso) return null;
+  return (
+    <span className={styles.rowAccess} title={`Último acesso: ${formatLastAccessExact(iso)}`}>
+      {verb} {formatLastAccess(iso)}
+    </span>
   );
 }
 
@@ -112,7 +157,6 @@ export function CollectionWatch<M extends WatchMember>({
   config,
   title,
   subtitle,
-  statusLabel,
   trailerId,
   stageImage,
   loading,
@@ -173,6 +217,7 @@ export function CollectionWatch<M extends WatchMember>({
 
   const itemRow = (member: M) => {
     const current = member.id === entry.id;
+    const genres = config.getGenres?.(member)?.slice(0, GENRE_LIMIT) ?? [];
     return (
       <li key={member.id}>
         <button
@@ -186,9 +231,69 @@ export function CollectionWatch<M extends WatchMember>({
           <Cover className={styles.rowCover} src={config.getCover(member)} placeholder={placeholder} />
           <span className={styles.rowText}>
             <span className={styles.rowTitle} title={member.title}>{member.title}</span>
-            <span className={styles.rowMeta}>{config.getMeta(member)}</span>
-            {member.score > 0 && <span className={styles.rowScore}>{scoreLabel(member.score)}</span>}
+            <Facts
+              text={joinFacts([config.getYear(member), ...config.getFacts(member)])}
+              badge={config.getBadge?.(member)}
+            />
+            {genres.length > 0 && <span className={styles.rowGenres}>{genres.join(", ")}</span>}
+            <span className={styles.rowFoot}>
+              <span className={styles.status} data-tone={statusTone(member.status)}>
+                {config.statusLabel(member)}
+              </span>
+              {member.score > 0 && <span className={styles.rowScore}>{scoreLabel(member.score)}</span>}
+              <LastAccess iso={member.lastAccessAt} verb={labels.accessed} />
+            </span>
           </span>
+        </button>
+      </li>
+    );
+  };
+
+  const groupRow = (group: CollectionGroup<M>) => {
+    const playing = group === currentGroup;
+    const average = averageScore(group.members);
+    const completed = group.members.filter((member) => isCompleted(member.status)).length;
+    const genres = (
+      config.getGroupGenres
+        ? [...(config.getGroupGenres(group) ?? [])]
+        : topGenres(group.members.map((member) => config.getGenres?.(member)), GENRE_LIMIT)
+    ).slice(0, GENRE_LIMIT);
+    // Com filtro o numerador é quantos batem, como no selo da grade.
+    const count = group.completedCount === group.count ? group.count : `${group.completedCount}/${group.count}`;
+    return (
+      <li key={group.key}>
+        <button
+          type="button"
+          className={`${styles.row} ${playing ? styles.rowCurrent : ""}`}
+          aria-current={playing ? "true" : undefined}
+          onClick={() => onOpenGroup(group.key)}
+        >
+          <Cover className={styles.rowCover} src={config.getCover(group.representative)} placeholder={placeholder} />
+          <span className={styles.rowText}>
+            <span className={styles.rowTitle} title={group.representative.title}>
+              {group.representative.title}
+            </span>
+            <Facts
+              text={joinFacts([
+                `${labels.collection} · ${count} ${labels.many}`,
+                yearSpan(group.members.map(config.getYear)),
+                config.getTotal?.(group.members),
+              ])}
+              badge={config.getGroupBadge?.(group)}
+            />
+            {genres.length > 0 && <span className={styles.rowGenres}>{genres.join(", ")}</span>}
+            <span className={styles.rowFoot}>
+              <span className={styles.progress} aria-hidden="true">
+                <span className={styles.progressFill} style={{ width: `${(completed / group.count) * 100}%` }} />
+              </span>
+              <span className={styles.progressLabel}>
+                {completed}/{group.count} {labels.completed}
+              </span>
+              {average > 0 && <span className={styles.rowScore}>{scoreLabel(average)}</span>}
+              <LastAccess iso={latestAccess(group.members)} verb={labels.accessed} />
+            </span>
+          </span>
+          <span className={styles.chevron} aria-hidden="true">›</span>
         </button>
       </li>
     );
@@ -203,9 +308,13 @@ export function CollectionWatch<M extends WatchMember>({
             overlay={nav && <DrawerNav index={nav.index} total={nav.total} onPrev={goPrev} onNext={goNext} variant="float" />}
             autoPlay={autoPlay}
           />
+        ) : loading ? (
+          // Enquanto o detalhe não chega não se sabe se há trailer: o palco fica
+          // vazio, porque a capa aqui piscaria antes de o vídeo entrar.
+          <div className={`${styles.stage} ${styles.stageLoading}`} data-testid="watch-stage-loading" />
         ) : (
-          // Sem trailer (ou enquanto o detalhe carrega) o palco é uma imagem:
-          // banner ou imagem de fundo, e a capa quando nem isso existe.
+          // Sem trailer o palco é uma imagem: banner ou imagem de fundo, e a capa
+          // quando nem isso existe (ou quando o detalhe falhou).
           <div className={styles.stage} data-testid="watch-stage">
             {stageImage ? (
               <CoverImage
@@ -255,7 +364,7 @@ export function CollectionWatch<M extends WatchMember>({
             </>
           )}
           <button type="button" className={styles.action} onClick={onEdit} title="Status e nota">
-            {statusLabel}
+            {config.statusLabel(entry)}
             {entry.score > 0 && ` · ${scoreLabel(entry.score)}`}
           </button>
         </div>
@@ -301,43 +410,8 @@ export function CollectionWatch<M extends WatchMember>({
         <ul className={styles.queueList} ref={list}>
           {openGroup
             ? openGroup.members.map(itemRow)
-            : groups.map((group) => {
-                // Coleção de um item só é o próprio item: abre direto no palco.
-                if (group.count < 2) return itemRow(group.members[0]);
-                const playing = group === currentGroup;
-                const average = averageScore(group.members);
-                return (
-                  <li key={group.key}>
-                    <button
-                      type="button"
-                      className={`${styles.row} ${playing ? styles.rowCurrent : ""}`}
-                      aria-current={playing ? "true" : undefined}
-                      onClick={() => onOpenGroup(group.key)}
-                    >
-                      <Cover
-                        className={styles.rowCover}
-                        src={config.getCover(group.representative)}
-                        placeholder={placeholder}
-                      />
-                      <span className={styles.rowText}>
-                        <span className={styles.rowTitle} title={group.representative.title}>
-                          {group.representative.title}
-                        </span>
-                        {/* Com filtro o numerador é quantos batem, como no selo da grade. */}
-                        <span className={styles.rowMeta}>
-                          {labels.collection} ·{" "}
-                          {group.completedCount === group.count
-                            ? group.count
-                            : `${group.completedCount}/${group.count}`}{" "}
-                          {labels.many}
-                        </span>
-                        {average > 0 && <span className={styles.rowScore}>{scoreLabel(average)}</span>}
-                      </span>
-                      <span className={styles.chevron} aria-hidden="true">›</span>
-                    </button>
-                  </li>
-                );
-              })}
+            : // Coleção de um item só é o próprio item: abre direto no palco.
+              groups.map((group) => (group.count < 2 ? itemRow(group.members[0]) : groupRow(group)))}
         </ul>
       </aside>
     </div>

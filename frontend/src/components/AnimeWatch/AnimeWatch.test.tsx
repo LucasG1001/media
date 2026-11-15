@@ -64,11 +64,11 @@ const FRANCHISE = [anime(1, { franchiseId: 5, score: 9 }), anime(2, { franchiseI
 const SINGLE = anime(7);
 const GROUPS = buildFranchiseGroups([...FRANCHISE, SINGLE]);
 
-function setup(entry: LibraryEntry = SINGLE) {
+function setup(entry: LibraryEntry = SINGLE, groups = GROUPS) {
   render(
     <AnimeWatch
       entry={entry}
-      groups={GROUPS}
+      groups={groups}
       autoPlay={false}
       onOpenGroup={vi.fn()}
       onCloseGroup={vi.fn()}
@@ -119,7 +119,23 @@ describe("AnimeWatch", () => {
     const panel = within(screen.getByRole("complementary", { name: "Franquias" }));
     const text = panel.getAllByRole("listitem").map((row) => row.textContent);
     expect(text.some((row) => row?.includes("Franquia · 2 títulos") && row.includes("★ 9.0"))).toBe(true);
-    expect(text.some((row) => row?.includes("Anime 7") && row.includes("2017 · Assistido"))).toBe(true);
+    expect(text.some((row) => row?.includes("Anime 7") && row.includes("2017") && row.includes("Assistido"))).toBe(true);
+  });
+
+  it("a linha de um título traz formato, episódios e gêneros, e avisa quando está em exibição", () => {
+    const airing = anime(7, { format: "OVA", animeStatus: "RELEASING", genres: ["Ação", "Drama"] });
+    setup(airing, buildFranchiseGroups([airing]));
+    const row = within(screen.getByRole("complementary", { name: "Franquias" })).getByRole("listitem").textContent;
+    expect(row).toContain("2017 · OVA · 12 eps · Em exibição");
+    expect(row).toContain("Ação, Drama");
+  });
+
+  it("a linha da franquia soma os episódios e mostra o período e o progresso", () => {
+    setup();
+    const panel = within(screen.getByRole("complementary", { name: "Franquias" }));
+    const text = panel.getAllByRole("listitem").map((row) => row.textContent);
+    expect(text.some((row) => row?.includes("Franquia · 2 títulos · 2011–2012 · 24 eps"))).toBe(true);
+    expect(text.some((row) => row?.includes("1/2 assistidos"))).toBe(true);
   });
 
   it("anda pela franquia do título aberto", () => {

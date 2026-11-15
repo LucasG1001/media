@@ -28,6 +28,10 @@ export interface SeasonMember {
   // Série de temporada única: o card representa a série (nome + capa) mas o
   // estado é o da única temporada. Não é coleção — vira card simples.
   isOnlySeason?: boolean;
+  // Da série, repetidos em todo membro: a lista da visão de detalhe mostra os
+  // gêneros e a exibição na linha da série.
+  genres?: string[] | null;
+  airStatus?: string | null;
 }
 
 export type SeasonGroup = CollectionGroup<SeasonMember>;
@@ -60,6 +64,8 @@ function seriesRepresentative(
     notes: null,
     lastAccessAt: entry.lastAccessAt,
     hasSeasons,
+    genres: entry.genres ?? null,
+    airStatus: entry.airStatus,
   };
 }
 
@@ -106,6 +112,8 @@ export function buildSeasonGroups(
         notes: st.notes ?? null,
         lastAccessAt: st.lastAccessAt ?? null,
         isCover: entry.coverSeason === s.number,
+        genres: entry.genres ?? null,
+        airStatus: entry.airStatus,
       };
     });
 

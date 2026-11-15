@@ -62,11 +62,11 @@ const TRILOGY = [
 const SINGLE = movie(9, { score: 6.5 });
 const GROUPS = buildMovieCollectionGroups([...TRILOGY, SINGLE]);
 
-function setup(entry: MovieLibraryEntry = SINGLE) {
+function setup(entry: MovieLibraryEntry = SINGLE, groups = GROUPS) {
   render(
     <MovieWatch
       entry={entry}
-      groups={GROUPS}
+      groups={groups}
       autoPlay={false}
       onOpenGroup={vi.fn()}
       onCloseGroup={vi.fn()}
@@ -115,7 +115,23 @@ describe("MovieWatch", () => {
     const text = panel.getAllByRole("listitem").map((row) => row.textContent);
     // Média só dos avaliados: (8 + 7) / 2.
     expect(text.some((row) => row?.includes("Coleção · 3 filmes") && row.includes("★ 7.5"))).toBe(true);
-    expect(text.some((row) => row?.includes("Filme 9") && row.includes("2009 · Assistido"))).toBe(true);
+    expect(text.some((row) => row?.includes("Filme 9") && row.includes("2009 · 2h") && row.includes("Assistido"))).toBe(true);
+  });
+
+  it("a linha da coleção soma a duração e mostra o período e o progresso", () => {
+    setup();
+    const panel = within(screen.getByRole("complementary", { name: "Coleções" }));
+    const text = panel.getAllByRole("listitem").map((row) => row.textContent);
+    expect(text.some((row) => row?.includes("Coleção · 3 filmes · 2001–2003 · 6h"))).toBe(true);
+    expect(text.some((row) => row?.includes("2/3 assistidos"))).toBe(true);
+  });
+
+  it("filme que ainda não lançou leva o aviso, e sem duração a linha fica só com o ano", () => {
+    const upcoming = movie(9, { movieStatus: "UPCOMING", runtime: null, status: "plan_to_watch", genres: ["Ficção"] });
+    setup(upcoming, buildMovieCollectionGroups([upcoming]));
+    const row = within(screen.getByRole("complementary", { name: "Coleções" })).getByRole("listitem").textContent;
+    expect(row).toContain("2009 · Em breve");
+    expect(row).toContain("Ficção");
   });
 
   it("anda pela coleção do filme aberto", () => {

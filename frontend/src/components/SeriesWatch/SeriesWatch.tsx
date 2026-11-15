@@ -2,7 +2,8 @@ import type { SeriesDetail } from "../../types/series";
 import type { SeriesLibraryStatus } from "../../types/seriesLibrary";
 import { SERIES_LIBRARY_STATUS_LABELS } from "../../types/seriesLibrary";
 import type { SeasonMember } from "../../utils/seasonGroups";
-import { findGroupOf } from "../../utils/collectionWatch";
+import { episodesLabel, findGroupOf, yearOf } from "../../utils/collectionWatch";
+import { getAirStatusLabel } from "../../utils/seriesFormat";
 import { useSeasonDetail } from "../../hooks/useMediaDetail";
 import { CollectionWatch, type WatchConfig, type WatchListProps } from "../CollectionWatch/CollectionWatch";
 import { SeriesDetailSections } from "../SeriesDrawer/SeriesDetailSections";
@@ -18,9 +19,27 @@ function statusLabel(member: SeasonMember): string {
   return SERIES_LIBRARY_STATUS_LABELS[member.status as SeriesLibraryStatus] ?? member.status;
 }
 
+// Gêneros e exibição são da série: só entram na linha que a representa (a
+// coleção, a série de temporada única e a série sem temporadas), não na de uma
+// temporada dentro da série aberta.
+function standsForSeries(member: SeasonMember): boolean {
+  return member.kind === "series" || member.isOnlySeason === true;
+}
+
+function airLabel(member: SeasonMember | undefined): string | null {
+  return member?.airStatus ? getAirStatusLabel(member.airStatus) : null;
+}
+
 const CONFIG: WatchConfig<SeasonMember> = {
   getCover: (member) => member.poster,
-  getMeta: (member) => `${member.airDate ? `${member.airDate.slice(0, 4)} · ` : ""}${statusLabel(member)}`,
+  getYear: (member) => yearOf(member.airDate),
+  getFacts: (member) => [episodesLabel(member.episodeCount)],
+  getGenres: (member) => (standsForSeries(member) ? member.genres : null),
+  getBadge: (member) => (standsForSeries(member) ? airLabel(member) : null),
+  statusLabel,
+  getTotal: (members) => episodesLabel(members.reduce((sum, member) => sum + (member.episodeCount ?? 0), 0)),
+  getGroupGenres: (group) => group.members[0]?.genres,
+  getGroupBadge: (group) => airLabel(group.members[0]),
   placeholder: "📺",
   labels: {
     list: "Séries",
@@ -28,6 +47,8 @@ const CONFIG: WatchConfig<SeasonMember> = {
     collection: "Série",
     one: "temporada",
     many: "temporadas",
+    completed: "assistidas",
+    accessed: "vista",
     previous: "Temporada anterior",
     next: "Próxima temporada",
   },
@@ -59,7 +80,6 @@ export function SeriesWatch({ entry, onSeriesLoad, onNotesChange, ...list }: Ser
       config={CONFIG}
       title={seriesTitle}
       subtitle={isSeason ? seasonLabel : series?.tagline}
-      statusLabel={statusLabel(entry)}
       trailerId={series?.trailerKey}
       stageImage={series?.backdropImage ?? null}
       loading={loading}

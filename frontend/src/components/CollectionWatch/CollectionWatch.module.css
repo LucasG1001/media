@@ -37,6 +37,17 @@
   justify-content: center;
 }
 
+.stageLoading {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-tertiary) 25%,
+    var(--color-bg-hover) 50%,
+    var(--color-bg-tertiary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
 .stageImage {
   width: 100%;
   height: 100%;
@@ -213,7 +224,7 @@
 
 .row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--spacing-md);
   width: 100%;
   padding: var(--spacing-xs);
@@ -242,8 +253,8 @@
 
 /* Capa de jogo é retrato: miniatura em pé, não a 16:9 do YouTube. */
 .rowCover {
-  flex: 0 0 54px;
-  width: 54px;
+  flex: 0 0 72px;
+  width: 72px;
   aspect-ratio: 3 / 4;
   border-radius: var(--radius-sm);
   object-fit: cover;
@@ -269,22 +280,98 @@
   overflow: hidden;
 }
 
+/* A linha de fatos da coleção (contagem, período, total) não cabe sempre numa
+   linha só: quebra em até duas em vez de cortar o fim. */
 .rowMeta {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rowBadge {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-status-airing);
+}
+
+.rowGenres {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.rowScore {
+.rowFoot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs) var(--spacing-sm);
+  margin-top: var(--spacing-xs);
   font-size: var(--font-size-sm);
+}
+
+.status {
+  padding: 0 var(--spacing-sm);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  background: var(--color-info-subtle);
+  color: var(--color-info);
+}
+
+.status[data-tone="done"] {
+  background: var(--color-success-subtle);
+  color: var(--color-success);
+}
+
+.status[data-tone="revisit"] {
+  background: var(--color-accent-subtle);
+  color: var(--color-text-accent);
+}
+
+.status[data-tone="dropped"] {
+  background: var(--color-error-subtle);
+  color: var(--color-error);
+}
+
+.progress {
+  flex: 0 0 3rem;
+  height: var(--spacing-xs);
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-success);
+}
+
+.progressLabel {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.rowScore {
   font-weight: var(--font-weight-medium);
   color: var(--color-warning);
+  white-space: nowrap;
+}
+
+.rowAccess {
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
 }
 
 .chevron {
   flex-shrink: 0;
+  align-self: center;
   font-size: var(--font-size-lg);
   color: var(--color-text-tertiary);
 }

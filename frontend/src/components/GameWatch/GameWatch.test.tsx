@@ -123,6 +123,31 @@ describe("GameWatch — palco", () => {
     expect(onGameLoad).toHaveBeenCalledWith(expect.objectContaining({ id: 9 }));
   });
 
+  // A capa aqui piscaria antes de o vídeo entrar: só se sabe se há trailer
+  // quando o detalhe chega.
+  it("enquanto o detalhe carrega o palco fica vazio, sem a capa", async () => {
+    setup();
+    expect(screen.getByTestId("watch-stage-loading")).toBeTruthy();
+    expect(screen.queryByTestId("watch-stage")).toBeNull();
+
+    await screen.findByText("Descrição do jogo 9");
+    expect(screen.queryByTestId("watch-stage-loading")).toBeNull();
+    expect(screen.getByTestId("watch-stage")).toBeTruthy();
+  });
+
+  it("com trailer o vídeo entra direto, sem imagem antes", async () => {
+    let deliver: (game: GameDetail) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise<GameDetail>((resolve) => { deliver = resolve; }));
+    setup();
+    expect(screen.queryByTestId("watch-stage")).toBeNull();
+    expect(screen.queryByTitle("Trailer")).toBeNull();
+
+    deliver(detail(9, { trailer: { youtubeId: "abc" } }));
+    expect(await screen.findByTitle("Trailer")).toBeTruthy();
+    expect(screen.queryByTestId("watch-stage")).toBeNull();
+    expect(screen.queryByTestId("watch-stage-loading")).toBeNull();
+  });
+
   it("sem trailer o palco é uma imagem, não um player", async () => {
     setup();
     await screen.findByText("Descrição do jogo 9");
@@ -148,6 +173,8 @@ describe("GameWatch — palco", () => {
     setup({ entry: game(9, { notes: "minha nota" }) });
     expect(await screen.findByText(/Não deu para carregar os detalhes/)).toBeTruthy();
     expect(screen.getByRole("textbox")).toHaveProperty("value", "minha nota");
+    // Sem detalhe não há trailer nem imagem de fundo: o palco cai na capa.
+    expect(screen.getByTestId("watch-stage")).toBeTruthy();
   });
 
   it("troca a anotação ao mudar de jogo, sem remontar a tela", async () => {
@@ -178,8 +205,64 @@ describe("GameWatch — lista de coleções", () => {
     // Média só dos avaliados: (8 + 6) / 2.
     expect(saga.textContent).toContain("★ 7.0");
     const single = rows[GROUPS.findIndex((group) => group.key === "single-9")];
-    expect(single.textContent).toContain("2009 · Zerado");
+    expect(single.textContent).toContain("2009");
+    expect(single.textContent).toContain("Zerado");
     expect(single.textContent).toContain("★ 9.5");
+  });
+
+  it("a linha de um jogo traz ano, Metacritic, modos, gêneros e último acesso", () => {
+    const rich = game(9, {
+      metacritic: 92,
+      gameModes: ["singleplayer", "coop", "mmo"],
+      genres: ["RPG", "Ação", "Aventura", "Puzzle"],
+      lastAccessAt: new Date().toISOString(),
+    });
+    setup({ entry: rich, groups: buildGameCollectionGroups([rich]) });
+    const row = panel().getByRole("listitem").textContent;
+    // Só os dois primeiros modos e os três primeiros gêneros cabem.
+    expect(row).toContain("2009 · Metacritic 92 · Um jogador, Cooperativo");
+    expect(row).not.toContain("MMO");
+    expect(row).toContain("RPG, Ação, Aventura");
+    expect(row).not.toContain("Puzzle");
+    expect(row).toContain("jogado hoje");
+  });
+
+  it("jogo sem os dados extras fica só com ano, status e nota", () => {
+    setup();
+    const single = panel().getAllByRole("listitem")[GROUPS.findIndex((group) => group.key === "single-9")];
+    expect(single.textContent).not.toContain("Metacritic");
+    expect(single.textContent).not.toContain("jogado");
+    expect(single.textContent).not.toContain("Em breve");
+  });
+
+  it("jogo que ainda não lançou leva o aviso", () => {
+    const upcoming = game(9, { gameStatus: "UPCOMING", status: "plan_to_play" });
+    setup({ entry: upcoming, groups: buildGameCollectionGroups([upcoming]) });
+    expect(panel().getByRole("listitem").textContent).toContain("2009 · Em breve");
+  });
+
+  it("o status de cada linha leva o tom do papel dele", () => {
+    setup({ entry: SAGA[0], openGroup: SAGA_GROUP });
+    const tones = SAGA_GROUP.members.map((member) => {
+      const row = panel().getByTitle(member.title).closest("li")!;
+      return row.querySelector("[data-tone]")?.getAttribute("data-tone");
+    });
+    expect(tones).toEqual(SAGA_GROUP.members.map((member) => (member.status === "beaten" ? "done" : "plan")));
+  });
+
+  it("a linha da coleção traz o período, os gêneros mais comuns e o progresso", () => {
+    const saga = [
+      game(1, { collectionId: 7, genres: ["RPG", "Ação"], lastAccessAt: "2020-01-01T00:00:00Z" }),
+      game(2, { collectionId: 7, genres: ["RPG"], status: "plan_to_play" }),
+      game(3, { collectionId: 7, genres: ["Ação", "RPG", "Terror"], status: "replaying" }),
+    ];
+    setup({ entry: saga[0], groups: buildGameCollectionGroups(saga) });
+    const row = panel().getByRole("listitem").textContent;
+    expect(row).toContain("Coleção · 3 jogos · 2001–2003");
+    expect(row).toContain("RPG, Ação, Terror");
+    // A revisita conta como concluído.
+    expect(row).toContain("2/3 zerados");
+    expect(row).toContain("jogado há");
   });
 
   it("com filtro mostra quantos jogos da coleção batem", () => {

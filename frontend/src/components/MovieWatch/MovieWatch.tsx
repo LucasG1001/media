@@ -2,6 +2,8 @@ import type { MovieDetail } from "../../types/movie";
 import type { MovieLibraryEntry } from "../../types/movieLibrary";
 import { MOVIE_LIBRARY_STATUS_LABELS } from "../../types/movieLibrary";
 import { useMovieDetail } from "../../hooks/useMediaDetail";
+import { yearOf } from "../../utils/collectionWatch";
+import { formatRuntime } from "../../utils/formatRuntime";
 import { CollectionWatch, type WatchConfig, type WatchListProps } from "../CollectionWatch/CollectionWatch";
 import { MovieDetailSections } from "../MovieDrawer/MovieDetailSections";
 
@@ -12,8 +14,15 @@ interface MovieWatchProps extends WatchListProps<MovieLibraryEntry> {
 
 const CONFIG: WatchConfig<MovieLibraryEntry> = {
   getCover: (entry) => entry.posterImage,
-  getMeta: (entry) =>
-    `${entry.releaseDate ? `${entry.releaseDate.slice(0, 4)} · ` : ""}${MOVIE_LIBRARY_STATUS_LABELS[entry.status]}`,
+  getYear: (entry) => yearOf(entry.releaseDate),
+  getFacts: (entry) => [entry.runtime ? formatRuntime(entry.runtime) : null],
+  getGenres: (entry) => entry.genres,
+  getBadge: (entry) => (entry.movieStatus === "UPCOMING" ? "Em breve" : null),
+  statusLabel: (entry) => MOVIE_LIBRARY_STATUS_LABELS[entry.status],
+  getTotal: (entries) => {
+    const minutes = entries.reduce((sum, entry) => sum + (entry.runtime ?? 0), 0);
+    return minutes > 0 ? formatRuntime(minutes) : null;
+  },
   placeholder: "🎬",
   labels: {
     list: "Coleções",
@@ -21,6 +30,8 @@ const CONFIG: WatchConfig<MovieLibraryEntry> = {
     collection: "Coleção",
     one: "filme",
     many: "filmes",
+    completed: "assistidos",
+    accessed: "visto",
     previous: "Filme anterior",
     next: "Próximo filme",
   },
@@ -38,7 +49,6 @@ export function MovieWatch({ entry, onMovieLoad, onNotesChange, ...list }: Movie
       config={CONFIG}
       title={movie?.title ?? entry.title}
       subtitle={movie?.tagline}
-      statusLabel={MOVIE_LIBRARY_STATUS_LABELS[entry.status]}
       trailerId={movie?.trailerKey}
       stageImage={movie?.backdropImage ?? null}
       loading={loading}

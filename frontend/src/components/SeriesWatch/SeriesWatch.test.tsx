@@ -110,12 +110,17 @@ const SEASON_ONE = groupOf(1).members.find((member) => member.seasonNumber === 1
 const ONLY_SEASON = groupOf(2).members[0];
 const NO_SEASONS = groupOf(3).members[0];
 
-function setup(entry: SeasonMember, onNotesChange: ((notes: string) => void) | undefined = vi.fn()) {
+function setup(
+  entry: SeasonMember,
+  onNotesChange: ((notes: string) => void) | undefined = vi.fn(),
+  list: { groups?: SeasonGroup[]; openGroup?: SeasonGroup } = {}
+) {
   const onSeriesLoad = vi.fn();
   render(
     <SeriesWatch
       entry={entry}
-      groups={GROUPS}
+      groups={list.groups ?? GROUPS}
+      openGroup={list.openGroup}
       autoPlay={false}
       onOpenGroup={vi.fn()}
       onCloseGroup={vi.fn()}
@@ -151,7 +156,9 @@ describe("SeriesWatch — temporada", () => {
     const { onSeriesLoad } = setup(SEASON_ONE);
     expect(await screen.findByText("Piloto da temporada 1")).toBeTruthy();
     expect(screen.queryByText("Sinopse da série 1")).toBeNull();
-    expect(screen.getByText("Finalizada")).toBeTruthy();
+    // A lista também mostra a exibição: a que vale aqui é a da ficha.
+    const aside = screen.getByRole("complementary");
+    expect(screen.getAllByText("Finalizada").some((element) => !aside.contains(element))).toBe(true);
     expect(seasonMock).toHaveBeenCalledWith(1, 1);
     expect(onSeriesLoad).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
   });
@@ -205,8 +212,46 @@ describe("SeriesWatch — lista", () => {
     const rows = panel.getAllByRole("listitem").map((row) => row.textContent);
     expect(rows).toHaveLength(3);
     expect(rows.some((row) => row?.includes("Série 1") && row.includes("Série · 2 temporadas") && row.includes("★ 9.0"))).toBe(true);
-    expect(rows.some((row) => row?.includes("Série 2") && row.includes("2011 · Planejo Assistir"))).toBe(true);
-    expect(rows.some((row) => row?.includes("Série 3") && row.includes("2015 · Assistido"))).toBe(true);
+    expect(rows.some((row) => row?.includes("Série 2") && row.includes("2011 · 8 eps") && row.includes("Planejo Assistir"))).toBe(true);
+    expect(rows.some((row) => row?.includes("Série 3") && row.includes("2015") && row.includes("Assistido"))).toBe(true);
+  });
+
+  it("a linha da série soma os episódios e mostra período, exibição, gêneros e progresso", () => {
+    const { groups } = buildSeasonGroups([
+      series(1, {
+        genres: ["Drama", "Crime"],
+        airStatus: "Returning Series",
+        seasonList: [seasonMeta(1), seasonMeta(2)],
+        seasonStates: { "1": { status: "watched", score: 9 }, "2": { status: "plan_to_watch", score: 0 } },
+      }),
+    ]);
+    setup(groups[0].members[0], vi.fn(), { groups });
+    const row = within(screen.getByRole("complementary", { name: "Séries" })).getByRole("listitem").textContent;
+    expect(row).toContain("Série · 2 temporadas · 2011–2012 · 16 eps · Em exibição");
+    expect(row).toContain("Drama, Crime");
+    expect(row).toContain("1/2 assistidas");
+  });
+
+  // Gêneros e exibição são da série, não da temporada.
+  it("a temporada dentro da série aberta não repete os gêneros nem a exibição", () => {
+    const { groups } = buildSeasonGroups([
+      series(1, { genres: ["Drama"], seasonList: [seasonMeta(1), seasonMeta(2)] }),
+    ]);
+    setup(groups[0].members[0], vi.fn(), { groups, openGroup: groups[0] });
+    const rows = within(screen.getByRole("complementary", { name: "Séries" }))
+      .getAllByRole("listitem")
+      .map((row) => row.textContent);
+    expect(rows).toHaveLength(2);
+    expect(rows.every((row) => row?.includes("8 eps"))).toBe(true);
+    expect(rows.some((row) => row?.includes("Drama") || row?.includes("Finalizada"))).toBe(false);
+  });
+
+  it("a série de temporada única leva os gêneros e a exibição na própria linha", () => {
+    const { groups } = buildSeasonGroups([series(2, { genres: ["Comédia"], seasonList: [seasonMeta(1)] })]);
+    setup(groups[0].members[0], vi.fn(), { groups });
+    const row = within(screen.getByRole("complementary", { name: "Séries" })).getByRole("listitem").textContent;
+    expect(row).toContain("2011 · 8 eps · Finalizada");
+    expect(row).toContain("Comédia");
   });
 
   it("com a série aberta lista as temporadas dela e a saída", async () => {
