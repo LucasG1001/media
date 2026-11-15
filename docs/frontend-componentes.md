@@ -69,6 +69,9 @@ O painel tem `panelWidth`: `"wide"` fixa no teto de 560 px, `"fit"` cresce com o
 teto — `max-content`, porque o painel é absoluto dentro do botão e o shrink-to-fit resolveria pela
 largura dele.
 
+O slot **`trailing`** põe um controle da página ao lado de Filtros/Ordenação. Hoje só Jogos usa, com
+o `ViewToggle` (Grade | Detalhe) — ver `docs/frontend-jogos-detalhe.md`.
+
 ## 6. `NotesBlock`
 
 Bloco de anotação livre no fim do `content` dos drawers: textarea auto-grow com autosave por

@@ -3,6 +3,8 @@ import { TabNav } from "../../components/TabNav/TabNav";
 import { MediaGrid } from "../../components/MediaGrid/MediaGrid";
 import { FranchiseGrid } from "../../components/FranchiseGrid/FranchiseGrid";
 import { GameDrawer } from "../../components/GameDrawer/GameDrawer";
+import { GameWatch } from "../../components/GameWatch/GameWatch";
+import { ViewToggle, GridViewIcon, DetailViewIcon } from "../../components/ViewToggle/ViewToggle";
 import { GameLibraryModal } from "../../components/GameLibraryModal/GameLibraryModal";
 import { SearchBar } from "../../components/SearchBar/SearchBar";
 import { gameCardConfig } from "../../config/cards";
@@ -19,6 +21,7 @@ import { getCurrentYear, getRecentYears } from "../../utils/year";
 import { buildGameCollectionGroups, releaseTimeOf } from "../../utils/gameCollectionGroups";
 import { gameLibraryEntryToCard } from "../../utils/gameLibraryEntryToCard";
 import { collectionNav } from "../../utils/collectionNav";
+import { pickWatchEntry } from "../../utils/gameWatch";
 import { filterGroupsBySearch } from "../../utils/filterGroupsBySearch";
 import { sortGroupsByAvgScore, sortGroupsByMemberDate } from "../../utils/sortGroups";
 import { lastAccessTimeOf } from "../../utils/lastAccess";
@@ -41,6 +44,15 @@ const RELEASE_OPTIONS: [string, string][] = [
   ["UPCOMING", "Em breve"],
 ];
 
+// Duas formas de ver a biblioteca: a grade de capas e a visão de detalhe (palco
+// + lista de coleções, no desenho da tela do YouTube).
+type LibraryView = "grid" | "watch";
+const VIEW_STORAGE_KEY = "games-library-view";
+const VIEW_OPTIONS = [
+  { id: "grid" as const, label: "Grade", icon: <GridViewIcon /> },
+  { id: "watch" as const, label: "Detalhe", icon: <DetailViewIcon /> },
+];
+
 export function GamesPage() {
   const { activeTab, setActiveTab, disabledTabs } = useOfflineTab(TABS, "upcoming");
   const [searchQuery, setSearchQuery] = useState("");
@@ -54,6 +66,16 @@ export function GamesPage() {
   const sort = useSingleSort("release");
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
   const [selectedMonth, setSelectedMonth] = useState(0);
+  const [libraryView, setLibraryView] = useState<LibraryView>(() =>
+    localStorage.getItem(VIEW_STORAGE_KEY) === "watch" ? "watch" : "grid"
+  );
+  // Visão de detalhe: o jogo que alguém escolheu (null = ninguém escolheu, vale
+  // o primeiro da lista) e a coleção aberta na lista da direita.
+  const [watchChoice, setWatchChoice] = useState<number | null>(null);
+  const [openGroupKey, setOpenGroupKey] = useState<string | null>(null);
+  // O trailer só toca sozinho para um jogo escolhido nesta visita à visão: a
+  // tela abre num item que ninguém pediu, e voltar para ela não é pedir de novo.
+  const [trailerArmed, setTrailerArmed] = useState(false);
   const debouncedSearch = useDebounce(searchQuery, 400);
 
   const { games, loading, error, hasNextPage, loadPopular, loadUpcoming, search, loadMore, reset } = useGames();
@@ -87,6 +109,18 @@ export function GamesPage() {
     setActiveTab(tabId);
     setSearchQuery("");
     setLibrarySearch("");
+    setTrailerArmed(false);
+  };
+
+  const changeLibraryView = (view: LibraryView) => {
+    setLibraryView(view);
+    setTrailerArmed(false);
+    localStorage.setItem(VIEW_STORAGE_KEY, view);
+  };
+
+  const pickWatchGame = (igdbId: number) => {
+    setWatchChoice(igdbId);
+    setTrailerArmed(true);
   };
 
   const handleCardClick = (game: GameCard) => {
@@ -202,6 +236,15 @@ export function GamesPage() {
       ? `popular-${selectedYear}-${selectedMonth}`
       : activeTab;
 
+  // Sem jogo para mostrar (biblioteca vazia, carregando, filtro sem resultado) a
+  // visão de detalhe cai na grade, que já tem os estados de vazio/erro.
+  const watchEntry =
+    activeTab === "library" && libraryView === "watch"
+      ? pickWatchEntry(collectionGroups, watchChoice)
+      : undefined;
+  // Coleção que o filtro tirou de vista deixa de estar aberta por derivação.
+  const openGroup = collectionGroups.find((group) => group.key === openGroupKey && group.count > 1);
+
   const drawerEntry = selectedGameId !== null ? findByIgdbId(selectedGameId) : undefined;
 
   // Navegar pela coleção sem fechar o drawer. A sequência é a que está na tela
@@ -313,10 +356,33 @@ export function GamesPage() {
             ],
             onSelect: sort.select,
           }}
+          trailing={
+            <ViewToggle
+              label="Visualização da biblioteca"
+              options={VIEW_OPTIONS}
+              value={libraryView}
+              onChange={changeLibraryView}
+            />
+          }
         />
       )}
 
-      {activeTab === "library" ? (
+      {watchEntry ? (
+        <GameWatch
+          // Sem `key`: remontar a cada jogo recriaria o player.
+          entry={watchEntry}
+          groups={collectionGroups}
+          openGroup={openGroup}
+          onOpenGroup={setOpenGroupKey}
+          onCloseGroup={() => setOpenGroupKey(null)}
+          onSelect={pickWatchGame}
+          autoPlay={trailerArmed && watchChoice === watchEntry.igdbId}
+          navKeys={selectedGameForModal === null}
+          onEdit={() => handleOpenLibraryModal(gameLibraryEntryToCard(watchEntry))}
+          onGameLoad={handleGameLoad}
+          onNotesChange={(notes) => { void updateEntry(watchEntry.id, { notes }); }}
+        />
+      ) : activeTab === "library" ? (
         <FranchiseGrid
           groups={collectionGroups}
           loading={libraryLoading}

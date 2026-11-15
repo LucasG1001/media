@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 // Setas dentro de campo de texto movem o cursor — o NotesBlock é uma textarea.
-function isTyping(target: EventTarget | null): boolean {
+export function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { SearchBar } from "../SearchBar/SearchBar";
 import { ControlPopover } from "./ControlPopover";
 import { FilterCheckboxGroup, type FilterGroupConfig } from "./FilterCheckboxGroup";
@@ -13,8 +13,6 @@ export interface SortConfig {
   onSelect: (field: string) => void;
 }
 
-// Botão liga/desliga da barra, ao lado de Filtros/Ordenação (hoje: revelar o
-// último acesso nos cards). Não abre painel — só alterna.
 interface LibraryControlsProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
@@ -23,6 +21,9 @@ interface LibraryControlsProps {
   filterGroups: FilterGroupConfig[];
   onClearFilters: () => void;
   sort?: SortConfig;
+  // Controle extra da página ao lado de Filtros/Ordenação (hoje: o alternador
+  // Grade | Detalhe de Jogos).
+  trailing?: ReactNode;
 }
 
 function SortDirectionIcon({ asc }: { asc: boolean }) {
@@ -43,6 +44,7 @@ export function LibraryControls({
   filterGroups,
   onClearFilters,
   sort,
+  trailing,
 }: LibraryControlsProps) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -155,6 +157,8 @@ export function LibraryControls({
           </div>
         </ControlPopover>
       )}
+
+      {trailing && <div className={styles.control}>{trailing}</div>}
 
       {count > 0 && (
         <span className={styles.count}>

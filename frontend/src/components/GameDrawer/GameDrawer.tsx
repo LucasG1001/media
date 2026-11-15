@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
 import type { GameDetail } from "../../types/game";
-import { fetchGameById } from "../../services/gameService";
+import { useGameDetail } from "../../hooks/useGameDetail";
+import { GameDetailSections } from "../GameDetailSections/GameDetailSections";
 import { TrailerEmbed } from "../TrailerEmbed/TrailerEmbed";
 import { NotesBlock } from "../NotesBlock/NotesBlock";
 import { DrawerNav, type DrawerNavProps } from "../DrawerNav/DrawerNav";
@@ -24,54 +24,10 @@ interface GameDrawerProps {
   onNotesChange?: (notes: string) => void;
 }
 
-function getStatusLabel(status: string): string {
-  switch (status) {
-    case "RELEASED": return "Lançado";
-    case "UPCOMING": return "Em breve";
-    default: return status;
-  }
-}
-
-function formatReleased(date: string | null): string {
-  if (!date) return "N/A";
-  return new Date(`${date}T00:00:00`).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 export function GameDrawer({ gameId, onClose, onGameLoad, notes, onNotesChange, nav, fallback }: GameDrawerProps) {
-  // Guardados junto com o id a que pertencem, e loading/error derivados daí:
-  // navegar troca o id sem remontar o drawer, e estado solto seguiria falando do
-  // item anterior (mostrando-o enquanto busca, ou grudando um erro antigo).
-  const [loaded, setLoaded] = useState<{ id: number; data: GameDetail } | null>(null);
-  const [failedId, setFailedId] = useState<number | null>(null);
-  const game = loaded?.id === gameId ? loaded.data : null;
-  const error = failedId === gameId;
-  const loading = !game && !error;
-
-  const onGameLoadRef = useRef(onGameLoad);
-  useEffect(() => {
-    onGameLoadRef.current = onGameLoad;
-  });
-
-  useEffect(() => {
-    let active = true;
-    fetchGameById(gameId)
-      .then((data) => {
-        if (!active) return;
-        setLoaded({ id: gameId, data });
-        onGameLoadRef.current?.(data);
-      })
-      .catch(() => {
-        if (active) setFailedId(gameId);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [gameId]);
+  // Navegar troca o id sem remontar o drawer; o hook guarda o payload junto com
+  // o id a que pertence.
+  const { game, loading, error } = useGameDetail(gameId, onGameLoad);
 
   useDrawerKeys(onClose, nav);
 
@@ -119,80 +75,7 @@ export function GameDrawer({ gameId, onClose, onGameLoad, notes, onNotesChange, 
                 />
               )}
 
-              {game.screenshots.length > 0 && (
-                <div className={styles.screenshots}>
-                  {game.screenshots.map((src) => (
-                    <CoverImage key={src} className={styles.screenshot} src={src} alt="" />
-                  ))}
-                </div>
-              )}
-
-              {game.description && <div className={styles.description}>{game.description}</div>}
-
-              <div className={styles.infoGrid}>
-                <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>Status</span>
-                  <span className={styles.infoValue}>{getStatusLabel(game.gameStatus)}</span>
-                </div>
-                <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>Lançamento</span>
-                  <span className={styles.infoValue}>{formatReleased(game.released)}</span>
-                </div>
-                <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>Crítica</span>
-                  <span className={styles.infoValue}>{game.metacritic ?? "N/A"}</span>
-                </div>
-                <div className={styles.infoItem}>
-                  <span className={styles.infoLabel}>Nota IGDB</span>
-                  <span className={styles.infoValue}>
-                    {game.rating
-                      ? `★ ${game.rating.toFixed(1)}${game.ratingsCount ? ` (${game.ratingsCount.toLocaleString("pt-BR")})` : ""}`
-                      : "N/A"}
-                  </span>
-                </div>
-                {game.esrb && (
-                  <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>Classificação</span>
-                    <span className={styles.infoValue}>{game.esrb}</span>
-                  </div>
-                )}
-                {game.platforms.length > 0 && (
-                  <div className={styles.infoItem}>
-                    <span className={styles.infoLabel}>Plataformas</span>
-                    <span className={styles.infoValue}>{game.platforms.join(", ")}</span>
-                  </div>
-                )}
-              </div>
-
-              {game.genres.length > 0 && (
-                <div>
-                  <div className={styles.sectionTitle}>Gêneros</div>
-                  <div className={styles.genres}>
-                    {game.genres.map((g) => (
-                      <span key={g} className={styles.genreTag}>{g}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {game.stores.length > 0 && (
-                <div>
-                  <div className={styles.sectionTitle}>Onde comprar</div>
-                  <div className={styles.stores}>
-                    {game.stores.map((s) => (
-                      <a
-                        key={s.url}
-                        className={styles.store}
-                        href={s.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {s.name}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <GameDetailSections game={game} />
 
               {onNotesChange && <NotesBlock key={gameId} value={notes ?? null} onSave={onNotesChange} />}
             </div>
