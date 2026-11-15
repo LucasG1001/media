@@ -1,11 +1,16 @@
 /* Palco grande à esquerda, lista à direita — o desenho da tela do YouTube.
-   `minmax(0, 1fr)` deixa a coluna do palco encolher em vez de estourar a grade. */
+   `minmax(0, 1fr)` deixa a coluna do palco encolher em vez de estourar a grade.
+   O teto de largura sai da altura da janela: sem ele o palco 16:9 passa da
+   tela em monitor ultrawide. */
 .watch {
+  --queue-width: clamp(400px, 22vw, 480px);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 400px;
+  grid-template-columns: minmax(0, 1fr) var(--queue-width);
   gap: var(--spacing-xl);
   align-items: start;
-  max-width: 1760px;
+  max-width: calc(
+    (100vh - var(--topbar-height) - 2 * var(--page-padding)) * 16 / 9 + var(--queue-width) + var(--spacing-xl)
+  );
   scroll-margin-top: calc(var(--topbar-height) + var(--spacing-base));
 }
 

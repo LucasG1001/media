@@ -1,5 +1,5 @@
 .page {
-  padding: var(--spacing-2xl);
+  padding: var(--page-padding);
 }
 
 .srOnly {
@@ -61,10 +61,6 @@
 }
 
 @media (max-width: 768px) {
-  .page {
-    padding: var(--spacing-base);
-  }
-
   .tabWrapper,
   .searchWrapper,
   .seasonSelectorWrapper {

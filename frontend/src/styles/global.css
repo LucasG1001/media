@@ -113,6 +113,7 @@
   --topbar-height: 56px;
   --drawer-width: 520px;
   --mobile-nav-height: 64px;
+  --page-padding: var(--spacing-base);
 
   --breakpoint-mobile: 768px;
 }

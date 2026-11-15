@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-base);
-  padding: var(--spacing-2xl);
+  padding: var(--page-padding);
 }
 
 .srOnly {
@@ -84,12 +84,6 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-md);
   text-align: center;
-}
-
-@media (max-width: 768px) {
-  .page {
-    padding: var(--spacing-base);
-  }
 }
 
 /* Biblioteca vazia: sem lista não há abas, então a escolha de onde o primeiro

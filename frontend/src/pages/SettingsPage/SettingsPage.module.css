@@ -1,5 +1,5 @@
 .page {
-  padding: var(--spacing-2xl);
+  padding: var(--page-padding);
   max-width: 720px;
   margin: 0 auto;
 }

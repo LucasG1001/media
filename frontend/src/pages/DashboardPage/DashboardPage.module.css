@@ -1,7 +1,7 @@
 /* Largura total, como as páginas de biblioteca: é o que faz caber mais card no
    carrossel. */
 .page {
-  padding: var(--spacing-2xl);
+  padding: var(--page-padding);
 }
 
 .counters {
@@ -162,10 +162,6 @@
 }
 
 @media (max-width: 768px) {
-  .page {
-    padding: var(--spacing-base);
-  }
-
   .counters {
     grid-template-columns: repeat(5, 1fr);
     gap: var(--spacing-xs);

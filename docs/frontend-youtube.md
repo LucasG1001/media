@@ -72,9 +72,9 @@ direção** — ele só impede a ordem de trocar entre renders.
     outras páginas: ele é uma pílula com rótulo ancorada à esquerda e estouraria o painel.
   - **Agrupar por canal** e **Mostrar removidos** são botões liga/desliga (`aria-pressed`). O
     status não tem abas: "removido" é raro e o botão alterna `liked` ↔ `removed`.
-- **Música e vídeo usam a mesma linha** (miniatura grande com a duração por cima, título em duas
-  linhas, canal e visualizações). Uma linha compacta só para música foi testada e descartada: a
-  miniatura pequena ficou pior.
+- **Música e vídeo usam a mesma linha** (miniatura grande, de 200 px, com a duração por cima, título
+  em duas linhas, canal e visualizações). Uma linha compacta só para música foi testada e
+  descartada: a miniatura pequena ficou pior.
 - **A aba acompanha o item aberto até alguém escolher.** `kindChoice` começa `null` e a aba ativa é
   `kindChoice ?? watchEntry.kind`: abrir a página cai na aba do item tocado. Clicar numa aba fixa a
   escolha — e **mover um item também fixa**, senão mover o próprio item que toca levaria a lista

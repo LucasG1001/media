@@ -94,6 +94,8 @@ componente e **não é persistido**: toda carga começa fechada.
 - **`--topbar-height`** (56 px; **0 no celular**, via media query no `:root`) é o que o conteúdo e
   todo `position: sticky` de topo descontam — `OfflineBanner` e o painel do `YoutubeWatch` hoje.
   Sticky novo no topo usa o token em vez de `top: 0`, senão fica embaixo da barra.
+- **`--page-padding`** (16 px, o mesmo recuo lateral da barra) é a margem de toda página, no desktop
+  e no celular. Página nova usa o token no `.page` em vez de um `--spacing-*` próprio.
 - No **celular** (≤768 px) nada disso aparece: a navegação é a barra inferior + seletor de mídia.
 
 ### Cabeçalho da página na barra — `TopbarSlot`

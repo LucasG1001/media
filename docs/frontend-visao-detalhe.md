@@ -109,3 +109,8 @@ Para drawer e visão usarem o mesmo miolo:
 
 O CSS de layout do `CollectionWatch` repete o do `YoutubeWatch` de propósito: são telas parecidas,
 mas a do YouTube tem player e lista próprios.
+
+**Largura** (vale para as duas telas): a tela ocupa a largura toda da página, com a lista em
+`--queue-width` (400 px, crescendo até 480 px em tela larga) e o palco com o resto. Não há teto fixo
+em pixels — o `max-width` é calculado pela **altura** da janela, só para o palco 16:9 não ficar mais
+alto que a tela em monitor ultrawide. Mudou num, mude no outro.
