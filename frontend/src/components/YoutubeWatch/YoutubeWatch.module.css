@@ -459,11 +459,13 @@
    rola. `display: contents` tira a coluna do vídeo do caminho — sticky só anda
    dentro do bloco que o contém, e esse bloco precisa ser a tela inteira, com a
    lista junto. Flex em vez de grid pelo mesmo motivo: item de grid fica preso à
-   própria célula. */
+   própria célula. `align-items: stretch` desfaz o `start` da grade: com ele o
+   player encolheria para a largura do conteúdo em vez de ir até as bordas. */
 @media (max-width: 768px) {
   .watch {
     display: flex;
     flex-direction: column;
+    align-items: stretch;
     gap: var(--spacing-base);
   }
 
