@@ -109,10 +109,10 @@ export function SettingsIcon({ className }: IconProps) {
   );
 }
 
-export function ChevronIcon({ className }: IconProps) {
+export function MenuIcon({ className }: IconProps) {
   return (
     <Icon className={className}>
-      <path d="m15 18-6-6 6-6" />
+      <path d="M3 6h18M3 12h18M3 18h18" />
     </Icon>
   );
 }

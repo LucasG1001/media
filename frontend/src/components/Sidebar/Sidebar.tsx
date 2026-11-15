@@ -1,15 +1,16 @@
-import type { ComponentType } from "react";
-import { useState } from "react";
+import type { ComponentType, Ref } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useDismiss } from "../../hooks/useDismiss";
 import styles from "./Sidebar.module.css";
 import {
   AnimeIcon,
   BookIcon,
-  ChevronIcon,
   GameIcon,
   HomeIcon,
   LogoIcon,
   MediaIcon,
+  MenuIcon,
   MovieIcon,
   SeriesIcon,
   SettingsIcon,
@@ -33,14 +34,60 @@ const NAV_ITEMS: NavItem[] = [
   { path: "/youtube", label: "YouTube", icon: YoutubeIcon },
 ];
 
-interface SidebarProps {
-  collapsed: boolean;
+const MENU_ID = "main-menu";
+
+interface BrandProps {
+  open: boolean;
   onToggle: () => void;
+  onNavigate: () => void;
+  buttonRef: Ref<HTMLButtonElement>;
 }
 
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+// Hambúrguer + logo. Aparece na barra superior e de novo no cabeçalho do menu,
+// na mesma posição: com o menu aberto por cima, o botão não sai do lugar.
+function Brand({ open, onToggle, onNavigate, buttonRef }: BrandProps) {
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        className={styles.menuButton}
+        onClick={onToggle}
+        aria-label={open ? "Fechar menu" : "Abrir menu"}
+        aria-expanded={open}
+        aria-controls={MENU_ID}
+      >
+        <MenuIcon className={styles.menuIcon} />
+      </button>
+      <NavLink to="/" className={styles.logo} onClick={onNavigate}>
+        <span className={styles.logoIcon}>
+          <LogoIcon className={styles.logoMark} />
+        </span>
+        <span className={styles.logoText}>Media</span>
+      </NavLink>
+    </>
+  );
+}
+
+export function Sidebar() {
   const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [chooserOpen, setChooserOpen] = useState(false);
+  const topbarButton = useRef<HTMLButtonElement>(null);
+  const drawerButton = useRef<HTMLButtonElement>(null);
+  const drawer = useRef<HTMLElement>(null);
+
+  const closeMenu = () => {
+    // O menu fechado fica `inert`: o foco que estava dentro dele se perderia.
+    if (drawer.current?.contains(document.activeElement)) topbarButton.current?.focus();
+    setMenuOpen(false);
+  };
+
+  useDismiss(menuOpen, closeMenu);
+
+  useEffect(() => {
+    if (menuOpen) drawerButton.current?.focus();
+  }, [menuOpen]);
 
   // Prefixo, não igualdade: `/youtube/:videoId` ainda é a mídia YouTube.
   const current = NAV_ITEMS.find(
@@ -49,81 +96,66 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const CenterIcon = current ? current.icon : MediaIcon;
   const centerLabel = current ? current.label : "Mídia";
 
+  const navItemClass = ({ isActive }: { isActive: boolean }) =>
+    `${styles.navItem} ${isActive ? styles.navItemActive : ""}`;
+  const barItemClass = ({ isActive }: { isActive: boolean }) =>
+    `${styles.barItem} ${isActive ? styles.barItemActive : ""}`;
+
   return (
     <>
-    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ""}`}>
-      <div className={styles.logo}>
-        <div className={styles.logoIcon}>
-          <LogoIcon className={styles.logoMark} />
+      <header className={styles.topbar}>
+        <Brand
+          open={menuOpen}
+          onToggle={() => setMenuOpen(true)}
+          onNavigate={closeMenu}
+          buttonRef={topbarButton}
+        />
+      </header>
+
+      {menuOpen && <div className={styles.backdrop} data-testid="menu-backdrop" onClick={closeMenu} />}
+
+      <aside
+        ref={drawer}
+        id={MENU_ID}
+        className={`${styles.drawer} ${menuOpen ? styles.drawerOpen : ""}`}
+        inert={!menuOpen}
+      >
+        <div className={styles.drawerHeader}>
+          <Brand open={menuOpen} onToggle={closeMenu} onNavigate={closeMenu} buttonRef={drawerButton} />
         </div>
-        <span className={styles.logoText}>Media</span>
-        <button
-          type="button"
-          className={styles.toggle}
-          onClick={onToggle}
-          title={collapsed ? "Expandir menu" : "Recolher menu"}
-          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-        >
-          <ChevronIcon className={styles.toggleIcon} />
-        </button>
-      </div>
 
-      <nav className={styles.nav}>
-        <NavLink
-          to="/"
-          end
-          title="Início"
-          className={({ isActive }) => `${styles.navItem} ${isActive ? styles.navItemActive : ""}`}
-        >
-          <HomeIcon className={styles.navIcon} />
-          <span className={styles.navLabel}>Início</span>
-        </NavLink>
-        <NavLink
-          to="/tierlist"
-          title="Tier List"
-          className={({ isActive }) => `${styles.navItem} ${isActive ? styles.navItemActive : ""}`}
-        >
-          <TierIcon className={styles.navIcon} />
-          <span className={styles.navLabel}>Tier List</span>
-        </NavLink>
+        <nav className={styles.nav} aria-label="Menu principal">
+          <NavLink to="/" end className={navItemClass} onClick={closeMenu}>
+            <HomeIcon className={styles.navIcon} />
+            <span className={styles.navLabel}>Início</span>
+          </NavLink>
+          <NavLink to="/tierlist" className={navItemClass} onClick={closeMenu}>
+            <TierIcon className={styles.navIcon} />
+            <span className={styles.navLabel}>Tier List</span>
+          </NavLink>
 
-        <span className={styles.navSection}>Biblioteca</span>
-        {NAV_ITEMS.map((item) => {
-          const ItemIcon = item.icon;
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              title={item.label}
-              className={({ isActive }) =>
-                `${styles.navItem} ${isActive ? styles.navItemActive : ""}`
-              }
-            >
-              <ItemIcon className={styles.navIcon} />
-              <span className={styles.navLabel}>{item.label}</span>
-              {item.badge && <span className={styles.navBadge}>{item.badge}</span>}
-            </NavLink>
-          );
-        })}
+          <span className={styles.navSection}>Biblioteca</span>
+          {NAV_ITEMS.map((item) => {
+            const ItemIcon = item.icon;
+            return (
+              <NavLink key={item.path} to={item.path} className={navItemClass} onClick={closeMenu}>
+                <ItemIcon className={styles.navIcon} />
+                <span className={styles.navLabel}>{item.label}</span>
+                {item.badge && <span className={styles.navBadge}>{item.badge}</span>}
+              </NavLink>
+            );
+          })}
 
-        <span className={styles.navSection}>Sistema</span>
-        <NavLink
-          to="/config"
-          title="Configurações"
-          className={({ isActive }) => `${styles.navItem} ${isActive ? styles.navItemActive : ""}`}
-        >
-          <SettingsIcon className={styles.navIcon} />
-          <span className={styles.navLabel}>Configurações</span>
-        </NavLink>
-      </nav>
+          <span className={styles.navSection}>Sistema</span>
+          <NavLink to="/config" className={navItemClass} onClick={closeMenu}>
+            <SettingsIcon className={styles.navIcon} />
+            <span className={styles.navLabel}>Configurações</span>
+          </NavLink>
+        </nav>
+      </aside>
 
       <nav className={styles.mobileNav}>
-        <NavLink
-          to="/"
-          end
-          aria-label="Início"
-          className={({ isActive }) => `${styles.barItem} ${isActive ? styles.barItemActive : ""}`}
-        >
+        <NavLink to="/" end aria-label="Início" className={barItemClass}>
           <HomeIcon className={styles.barIcon} />
         </NavLink>
 
@@ -138,48 +170,39 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           <CenterIcon className={styles.barIcon} />
         </button>
 
-        <NavLink
-          to="/tierlist"
-          aria-label="Tier List"
-          className={({ isActive }) => `${styles.barItem} ${isActive ? styles.barItemActive : ""}`}
-        >
+        <NavLink to="/tierlist" aria-label="Tier List" className={barItemClass}>
           <TierIcon className={styles.barIcon} />
         </NavLink>
 
-        <NavLink
-          to="/config"
-          aria-label="Configurações"
-          className={({ isActive }) => `${styles.barItem} ${isActive ? styles.barItemActive : ""}`}
-        >
+        <NavLink to="/config" aria-label="Configurações" className={barItemClass}>
           <SettingsIcon className={styles.barIcon} />
         </NavLink>
       </nav>
-    </aside>
 
-    {chooserOpen && (
-      <div className={styles.chooserOverlay} onClick={() => setChooserOpen(false)}>
-        <div className={styles.chooserSheet} onClick={(event) => event.stopPropagation()}>
-          <div className={styles.chooserGrid}>
-            {NAV_ITEMS.map((item) => {
-              const ItemIcon = item.icon;
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setChooserOpen(false)}
-                  className={({ isActive }) =>
-                    `${styles.chooserItem} ${isActive ? styles.chooserItemActive : ""}`
-                  }
-                >
-                  <ItemIcon className={styles.chooserIcon} />
-                  <span>{item.label}</span>
-                </NavLink>
-              );
-            })}
+      {chooserOpen && (
+        <div className={styles.chooserOverlay} onClick={() => setChooserOpen(false)}>
+          <div className={styles.chooserSheet} onClick={(event) => event.stopPropagation()}>
+            <div className={styles.chooserGrid}>
+              {NAV_ITEMS.map((item) => {
+                const ItemIcon = item.icon;
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setChooserOpen(false)}
+                    className={({ isActive }) =>
+                      `${styles.chooserItem} ${isActive ? styles.chooserItemActive : ""}`
+                    }
+                  >
+                    <ItemIcon className={styles.chooserIcon} />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
     </>
   );
 }

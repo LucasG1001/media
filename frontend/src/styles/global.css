@@ -110,11 +110,19 @@
   --transition-slow: 400ms ease;
 
   --sidebar-width: 240px;
-  --sidebar-collapsed: 72px;
+  --topbar-height: 56px;
   --drawer-width: 520px;
   --mobile-nav-height: 64px;
 
   --breakpoint-mobile: 768px;
+}
+
+/* A barra superior só existe no desktop: no celular o token zera, para quem
+   desconta a altura dela (sticky, padding do conteúdo) não precisar de media query. */
+@media (max-width: 768px) {
+  :root {
+    --topbar-height: 0px;
+  }
 }
 
 *, *::before, *::after {

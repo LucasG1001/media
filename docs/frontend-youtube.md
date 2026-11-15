@@ -74,7 +74,8 @@ direção** — ele só impede a ordem de trocar entre renders.
   não da aba. O mesmo botão existe abaixo do player para o item atual.
 - **Reprodução automática**: ao terminar, toca o próximo. O interruptor fica em `localStorage`
   (`youtube-autoplay`; ausente = ligado).
-- **Rolagem**: no desktop o painel é `sticky` e a lista rola por dentro; quando o item atual sai da
+- **Rolagem**: no desktop o painel é `sticky` (logo abaixo da barra superior — `top` e `max-height`
+  descontam `--topbar-height`) e a lista rola por dentro; quando o item atual sai da
   parte visível (avanço automático), o `scrollTop` **da lista** é ajustado — não `scrollIntoView`,
   que rolaria a página junto. No celular a lista rola com a página, e a tela só sobe até o player se
   o topo dele já saiu da vista.

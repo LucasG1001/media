@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Sidebar } from "./components/Sidebar/Sidebar";
 import { LibraryProvider } from "./context/LibraryContext";
@@ -15,30 +14,14 @@ import { SettingsPage } from "./pages/SettingsPage/SettingsPage";
 import { TierListPage } from "./pages/TierListPage/TierListPage";
 import styles from "./App.module.css";
 
-const SIDEBAR_STORAGE_KEY = "sidebar-collapsed";
-
 function App() {
-  const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true"
-  );
-
-  const toggleSidebar = () => {
-    setCollapsed((prev) => {
-      const next = !prev;
-      localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next));
-      return next;
-    });
-  };
-
   return (
     <BrowserRouter>
       <ConnectivityProvider>
         <LibraryProvider>
           <div className={styles.layout}>
-            <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
-            <main
-              className={`${styles.content} ${collapsed ? styles.contentCollapsed : ""}`}
-            >
+            <Sidebar />
+            <main className={styles.content}>
               <OfflineBanner />
               <Routes>
                 <Route path="/" element={<DashboardPage />} />

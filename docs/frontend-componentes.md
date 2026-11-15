@@ -2,7 +2,7 @@
 
 Props, slots de inversão de controle e comportamento de painel dos componentes que todas as páginas
 de mídia reusam. Consulte antes de mexer em `MediaCard`, `MediaGrid`, `FranchiseGrid`,
-`LibraryModalBase`, `LibraryControls`, `CoverImage` ou `NotesBlock`.
+`LibraryModalBase`, `LibraryControls`, `CoverImage`, `NotesBlock` ou `Sidebar`.
 
 Config visual por mídia (cores, ícones, labels de status) fica em **`config/cards.tsx`**.
 
@@ -74,3 +74,20 @@ largura dele.
 Bloco de anotação livre no fim do `content` dos drawers: textarea auto-grow com autosave por
 debounce de 1 s + flush no unmount, já que fechar o drawer desmonta antes do timer. Quem monta o
 bloco (e por que ele leva `key` por item) está em `docs/frontend-drawers.md`.
+
+## 7. Navegação — `Sidebar`
+
+No **desktop** é uma barra superior fixa (hambúrguer + logo) e um menu que fica **fechado por
+padrão**: o hambúrguer o abre já com rótulos, deslizando **por cima** do conteúdo com fundo
+escurecido — o conteúdo nunca é empurrado e não existe estado "recolhido" (só ícones). Fecha pelo
+hambúrguer, clique no fundo, `Escape` (`useDismiss`) ou ao escolher um item. O estado é interno do
+componente e **não é persistido**: toda carga começa fechada.
+
+- O par hambúrguer + logo (`Brand`) é renderizado **duas vezes**, na barra e no cabeçalho do menu, na
+  mesma posição — é o que faz o botão "não sair do lugar" com o menu por cima. Fechado, o menu é
+  `inert` (fora do foco e da árvore de acessibilidade); ao abrir o foco vai para dentro dele e, ao
+  fechar, volta para o hambúrguer da barra.
+- **`--topbar-height`** (56 px; **0 no celular**, via media query no `:root`) é o que o conteúdo e
+  todo `position: sticky` de topo descontam — `OfflineBanner` e o painel do `YoutubeWatch` hoje.
+  Sticky novo no topo usa o token em vez de `top: 0`, senão fica embaixo da barra.
+- No **celular** (≤768 px) nada disso aparece: a navegação é a barra inferior + seletor de mídia.

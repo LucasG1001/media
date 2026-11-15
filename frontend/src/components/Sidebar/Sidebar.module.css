@@ -1,29 +1,56 @@
-.sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: var(--sidebar-width);
-  height: 100vh;
-  background: var(--color-bg-secondary);
-  border-right: 1px solid var(--color-border-subtle);
-  display: flex;
-  flex-direction: column;
-  z-index: 100;
-  overflow: hidden;
-  transition: width var(--transition-base);
-}
-
-.logo {
-  padding: var(--spacing-lg) var(--spacing-base);
+.topbar,
+.drawerHeader {
+  height: var(--topbar-height);
+  flex-shrink: 0;
+  padding: 0 var(--spacing-base);
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-bg-secondary);
+  z-index: 100;
+}
+
+.menuButton {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.menuButton:hover,
+.menuButton:focus-visible {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.menuIcon {
+  width: 22px;
+  height: 22px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  min-width: 0;
+}
+
 .logoIcon {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   background: linear-gradient(135deg, var(--color-accent), #a78bfa);
   border-radius: var(--radius-md);
   display: flex;
@@ -35,54 +62,57 @@
 }
 
 .logoMark {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 
 .logoText {
-  max-width: 160px;
   white-space: nowrap;
-  overflow: hidden;
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   letter-spacing: -0.015em;
   color: var(--color-text-primary);
-  transition: max-width var(--transition-base), opacity var(--transition-base);
 }
 
-.toggle {
-  flex-shrink: 0;
-  margin-left: auto;
-  width: 28px;
-  height: 28px;
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--color-bg-overlay);
+  z-index: 200;
+  animation: fadeIn var(--transition-fast);
+}
+
+/* Fechado, o menu fica fora da tela (e `inert` no markup); aberto, desliza por
+   cima do conteúdo sem empurrá-lo. */
+.drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--sidebar-width);
+  height: 100vh;
+  background: var(--color-bg-secondary);
+  border-right: 1px solid var(--color-border-subtle);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: color var(--transition-fast), background var(--transition-fast);
-}
-
-.toggle:hover {
-  color: var(--color-text-primary);
-  background: var(--color-bg-hover);
-}
-
-.toggleIcon {
-  width: 16px;
-  height: 16px;
+  flex-direction: column;
+  z-index: 201;
+  transform: translateX(-100%);
   transition: transform var(--transition-base);
+}
+
+.drawerOpen {
+  transform: none;
+  box-shadow: var(--shadow-lg);
 }
 
 .nav {
   flex: 1;
+  min-height: 0;
   padding: var(--spacing-base) var(--spacing-sm);
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xs);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .navSection {
@@ -93,9 +123,6 @@
   text-transform: uppercase;
   color: var(--color-text-tertiary);
   white-space: nowrap;
-  overflow: hidden;
-  transition: max-height var(--transition-base), opacity var(--transition-base),
-    padding var(--transition-base);
 }
 
 .navItem {
@@ -157,16 +184,14 @@
 }
 
 .navLabel {
-  max-width: 160px;
   white-space: nowrap;
   overflow: hidden;
-  transition: max-width var(--transition-base), opacity var(--transition-base);
+  text-overflow: ellipsis;
 }
 
 .navBadge {
   flex-shrink: 0;
   margin-left: auto;
-  max-width: 160px;
   white-space: nowrap;
   font-size: var(--font-size-xs);
   padding: 2px 8px;
@@ -174,47 +199,6 @@
   background: var(--color-bg-tertiary);
   color: var(--color-text-tertiary);
   font-weight: var(--font-weight-medium);
-  transition: max-width var(--transition-base), opacity var(--transition-base),
-    margin var(--transition-base), padding var(--transition-base);
-}
-
-.collapsed {
-  width: var(--sidebar-collapsed);
-}
-
-.collapsed .logo {
-  gap: 0;
-  justify-content: center;
-}
-
-.collapsed .navItem {
-  gap: 0;
-  justify-content: center;
-}
-
-.collapsed .logoText,
-.collapsed .navLabel,
-.collapsed .navBadge {
-  max-width: 0;
-  margin-left: 0;
-  padding-left: 0;
-  padding-right: 0;
-  opacity: 0;
-}
-
-.collapsed .navSection {
-  max-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  opacity: 0;
-}
-
-.collapsed .toggle {
-  margin-left: 0;
-}
-
-.collapsed .toggleIcon {
-  transform: rotate(180deg);
 }
 
 .mobileNav,
@@ -224,29 +208,25 @@
 }
 
 @media (max-width: 768px) {
-  .sidebar {
-    top: auto;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: var(--mobile-nav-height);
-    flex-direction: row;
-    border-right: none;
-    border-top: 1px solid var(--color-border-subtle);
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .logo,
-  .toggle,
-  .nav {
+  .topbar,
+  .backdrop,
+  .drawer {
     display: none;
   }
 
   .mobileNav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: var(--mobile-nav-height);
     display: flex;
     flex-direction: row;
-    width: 100%;
     align-items: stretch;
+    background: var(--color-bg-secondary);
+    border-top: 1px solid var(--color-border-subtle);
+    padding-bottom: env(safe-area-inset-bottom);
+    z-index: 100;
   }
 
   .barItem {

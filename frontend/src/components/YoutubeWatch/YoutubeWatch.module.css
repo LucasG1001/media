@@ -6,7 +6,7 @@
   gap: var(--spacing-xl);
   align-items: start;
   max-width: 1760px;
-  scroll-margin-top: var(--spacing-base);
+  scroll-margin-top: calc(var(--topbar-height) + var(--spacing-base));
 }
 
 .main {
@@ -146,12 +146,12 @@
    música atual fora de vista. */
 .queue {
   position: sticky;
-  top: var(--spacing-base);
+  top: calc(var(--topbar-height) + var(--spacing-base));
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
   min-width: 0;
-  max-height: calc(100vh - 2 * var(--spacing-base));
+  max-height: calc(100vh - var(--topbar-height) - 2 * var(--spacing-base));
 }
 
 .queueHeader {
