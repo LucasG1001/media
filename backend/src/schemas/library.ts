@@ -110,3 +110,17 @@ export const youtubeUpdateSchema = youtubeCreateSchema.partial().extend({ notes 
 
 // `kind` é a aba em que o link foi colado; ausente, entra como vídeo.
 export const youtubeFromUrlSchema = z.object({ url: z.string().min(1), kind: youtubeKind.optional() });
+
+// `guid` e não `uuid`: o Postgres aceita qualquer 8-4-4-4-12 hexadecimal, e o
+// que importa aqui é barrar o que estouraria o cast (id temporário do cliente).
+const entryIds = z.array(z.guid()).max(5000);
+const playlistName = z.string().trim().min(1).max(120);
+
+export const youtubePlaylistCreateSchema = z.object({
+  name: playlistName,
+  kind: youtubeKind,
+  entryIds: entryIds.optional(),
+});
+export const youtubePlaylistRenameSchema = z.object({ name: playlistName });
+export const youtubePlaylistItemsSchema = z.object({ entryIds: entryIds.min(1) });
+export const youtubePlaylistIdSchema = z.guid();

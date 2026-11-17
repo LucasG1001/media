@@ -293,8 +293,107 @@
   box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
-.groupOpen > .channelRow .rowTitle {
+.groupOpen > .groupHead .rowTitle {
   color: var(--color-text-accent);
+}
+
+/* Cabeçalho do grupo: a linha que abre e, em modo de seleção, a caixa que marca
+   o grupo inteiro — irmã da linha, pelo mesmo motivo do botão de mover. */
+.groupHead {
+  display: flex;
+  align-items: center;
+}
+
+.groupHead > .channelRow {
+  flex: 1;
+  min-width: 0;
+}
+
+.groupSelect {
+  flex-shrink: 0;
+  display: flex;
+  margin-left: var(--spacing-sm);
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.groupSelect .check {
+  position: static;
+}
+
+/* Playlist usa miniatura retangular (a do primeiro item) para não se confundir
+   com o avatar redondo do canal. */
+.playlistCover,
+.playlistCoverPlaceholder {
+  flex: 0 0 72px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-tertiary);
+}
+
+.playlistCover {
+  object-fit: cover;
+}
+
+.playlistCoverPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+}
+
+.groupEmpty,
+.listNote {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.groupEmpty {
+  padding: 0 var(--spacing-base) var(--spacing-sm);
+}
+
+.listNote {
+  padding: var(--spacing-sm);
+}
+
+/* Separa o bloco de playlists da lista de baixo sem gastar uma linha de título. */
+.divider {
+  flex-shrink: 0;
+  height: 1px;
+  margin: var(--spacing-xs) 0;
+  background: var(--color-border);
+}
+
+/* Modo de seleção: a caixa fica no canto da miniatura, onde no modo normal vai
+   o selo do item atual. */
+.check {
+  position: absolute;
+  left: var(--spacing-xs);
+  top: var(--spacing-xs);
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-overlay);
+  border: 2px solid var(--color-text-primary);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+}
+
+.checkOn {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.rowPicked,
+.rowPicked:hover {
+  background: var(--color-accent-subtle);
 }
 
 .members {

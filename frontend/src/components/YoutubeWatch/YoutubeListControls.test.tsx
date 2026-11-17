@@ -20,6 +20,8 @@ function setup(props: Partial<Parameters<typeof YoutubeListControls>[0]> = {}) {
     onSearchChange: vi.fn(),
     onSortSelect: vi.fn(),
     onGroupByChannelChange: vi.fn(),
+    onShowPlaylistsChange: vi.fn(),
+    onSelectingChange: vi.fn(),
   };
   render(
     <YoutubeListControls
@@ -28,6 +30,8 @@ function setup(props: Partial<Parameters<typeof YoutubeListControls>[0]> = {}) {
       sortField="alpha"
       sortDir="asc"
       groupByChannel={false}
+      showPlaylists={false}
+      selecting={false}
       {...handlers}
       {...props}
     />
@@ -119,5 +123,35 @@ describe("YoutubeListControls", () => {
     expect(pressed.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(pressed);
     expect(grouped.onGroupByChannelChange).toHaveBeenCalledWith(false);
+  });
+
+  // O bloco de playlists é independente do agrupamento por canal.
+  it("liga e desliga o bloco de playlists sem mexer no agrupamento", () => {
+    const { onShowPlaylistsChange, onGroupByChannelChange } = setup();
+    const toggle = screen.getByRole("button", { name: "Mostrar playlists" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(toggle);
+    expect(onShowPlaylistsChange).toHaveBeenCalledWith(true);
+    expect(onGroupByChannelChange).not.toHaveBeenCalled();
+    cleanup();
+    const shown = setup({ showPlaylists: true });
+    const pressed = screen.getByRole("button", { name: "Mostrar playlists" });
+    expect(pressed.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(pressed);
+    expect(shown.onShowPlaylistsChange).toHaveBeenCalledWith(false);
+  });
+
+  it("entra e sai do modo de seleção", () => {
+    const { onSelectingChange } = setup();
+    const toggle = screen.getByRole("button", { name: "Selecionar vários" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(toggle);
+    expect(onSelectingChange).toHaveBeenCalledWith(true);
+    cleanup();
+    const selecting = setup({ selecting: true });
+    const pressed = screen.getByRole("button", { name: "Selecionar vários" });
+    expect(pressed.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(pressed);
+    expect(selecting.onSelectingChange).toHaveBeenCalledWith(false);
   });
 });

@@ -75,7 +75,11 @@ export async function createFromUrl(req: Request, res: Response): Promise<void> 
         return;
       }
       const imported = await bulkInsertVideos(videos, kind);
-      res.status(201).json({ playlist: { name: title, imported, total: videos.length } });
+      // `videoIds` vai na ordem da playlist do YouTube, inclusive os que já
+      // estavam na biblioteca: é com eles que a tela oferece criar a playlist.
+      res.status(201).json({
+        playlist: { name: title, imported, total: videos.length, videoIds: videos.map((video) => video.videoId) },
+      });
       return;
     }
 

@@ -8,7 +8,45 @@ import {
   youtubeCreateSchema,
   youtubeUpdateSchema,
   youtubeFromUrlSchema,
+  youtubePlaylistCreateSchema,
+  youtubePlaylistRenameSchema,
+  youtubePlaylistItemsSchema,
+  youtubePlaylistIdSchema,
 } from "./library.js";
+
+const ENTRY_ID = "3f2b1c9e-6a4d-4e8b-9c1f-0a2b3c4d5e6f";
+
+describe("youtube playlist schemas", () => {
+  it("accepts a playlist of each kind, with or without items", () => {
+    expect(youtubePlaylistCreateSchema.parse({ name: "Treino", kind: "music" })).toEqual({
+      name: "Treino",
+      kind: "music",
+    });
+    expect(
+      youtubePlaylistCreateSchema.safeParse({ name: "Aulas", kind: "video", entryIds: [ENTRY_ID] }).success
+    ).toBe(true);
+  });
+
+  // A playlist é de uma aba: sem `kind` não dá para saber de qual.
+  it("requires the kind and a non-blank name", () => {
+    expect(youtubePlaylistCreateSchema.safeParse({ name: "Treino" }).success).toBe(false);
+    expect(youtubePlaylistCreateSchema.safeParse({ name: "   ", kind: "music" }).success).toBe(false);
+    expect(youtubePlaylistRenameSchema.safeParse({ name: "" }).success).toBe(false);
+  });
+
+  it("trims the name", () => {
+    expect(youtubePlaylistRenameSchema.parse({ name: "  Foco  " })).toEqual({ name: "Foco" });
+  });
+
+  // Id temporário do cliente (`temp-1`) estouraria o cast para uuid no banco.
+  it("rejects ids that are not uuids and an empty item list", () => {
+    expect(youtubePlaylistItemsSchema.safeParse({ entryIds: ["temp-1"] }).success).toBe(false);
+    expect(youtubePlaylistItemsSchema.safeParse({ entryIds: [] }).success).toBe(false);
+    expect(youtubePlaylistItemsSchema.safeParse({ entryIds: [ENTRY_ID] }).success).toBe(true);
+    expect(youtubePlaylistIdSchema.safeParse("playlists").success).toBe(false);
+    expect(youtubePlaylistIdSchema.safeParse(ENTRY_ID).success).toBe(true);
+  });
+});
 
 describe("library schemas", () => {
   it("accepts a valid movie payload", () => {

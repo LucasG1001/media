@@ -111,3 +111,32 @@
 .menuDirection {
   font-weight: var(--font-weight-semibold);
 }
+
+/* Com cinco botões a busca ficaria espremida numa tela estreita: ela ganha a
+   linha inteira e os botões descem. No celular a lista rola com a página, então
+   a linha a mais custa pouco. */
+@media (max-width: 480px) {
+  .controls {
+    flex-wrap: wrap;
+  }
+
+  .search {
+    flex-basis: 100%;
+  }
+
+  .iconButton,
+  .sortWrap {
+    flex: 1 1 0;
+  }
+
+  .sortWrap > .iconButton {
+    flex: 1;
+  }
+
+  /* O botão de ordenar passa a ser o primeiro da linha: ancorado à direita, o
+     menu sairia pela esquerda da tela. */
+  .menu {
+    left: 0;
+    right: auto;
+  }
+}

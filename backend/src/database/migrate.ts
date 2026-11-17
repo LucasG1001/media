@@ -394,6 +394,35 @@ export async function migrate(): Promise<void> {
   `);
   await pool.query(`DROP TABLE IF EXISTS youtube_collection;`);
 
+  // Playlists do YouTube: N:N (um item pode estar em várias), separadas por
+  // `kind` e com ordem própria (`position`). O nome não reaproveita
+  // `youtube_collection` de propósito: essa é derrubada logo acima a cada boot.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS youtube_playlist (
+      id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name       TEXT NOT NULL,
+      kind       TEXT NOT NULL DEFAULT 'video',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS youtube_playlist_kind_name_key
+      ON youtube_playlist (kind, LOWER(name));
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS youtube_playlist_item (
+      playlist_id UUID NOT NULL REFERENCES youtube_playlist(id) ON DELETE CASCADE,
+      entry_id    UUID NOT NULL REFERENCES youtube_library(id) ON DELETE CASCADE,
+      position    INTEGER NOT NULL,
+      added_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (playlist_id, entry_id)
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS youtube_playlist_item_entry_idx ON youtube_playlist_item (entry_id);
+  `);
+
   // Anotação livre do usuário. NULL = nunca anotado. Séries não têm coluna: a
   // anotação é por temporada e mora dentro de season_states.
   await pool.query(`ALTER TABLE anime_library   ADD COLUMN IF NOT EXISTS notes TEXT;`);

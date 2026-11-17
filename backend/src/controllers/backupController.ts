@@ -8,7 +8,8 @@ import { seriesLibraryModel } from "../models/seriesLibraryModel.js";
 import { gameLibraryModel } from "../models/gameLibraryModel.js";
 import { bookLibraryModel } from "../models/bookLibraryModel.js";
 import { youtubeLibraryModel } from "../models/youtubeLibraryModel.js";
-import { youtubeRowsFromBackup } from "../lib/backupLegacy.js";
+import * as youtubePlaylistModel from "../models/youtubePlaylistModel.js";
+import { youtubeRowsFromBackup, youtubePlaylistsFromBackup } from "../lib/backupLegacy.js";
 import { notifyError } from "../services/notifyService.js";
 
 interface ColumnSpec {
@@ -182,13 +183,14 @@ const TABLES: TableSpec[] = [
 
 export async function exportAll(_req: Request, res: Response): Promise<void> {
   try {
-    const [anime, movies, series, games, books, youtube] = await Promise.all([
+    const [anime, movies, series, games, books, youtube, youtubePlaylists] = await Promise.all([
       libraryModel.findAll(),
       movieLibraryModel.findAll(),
       seriesLibraryModel.findAll(),
       gameLibraryModel.findAll(),
       bookLibraryModel.findAll(),
       youtubeLibraryModel.findAll(),
+      youtubePlaylistModel.findAllForBackup(),
     ]);
     res.json({
       version: 1,
@@ -199,6 +201,7 @@ export async function exportAll(_req: Request, res: Response): Promise<void> {
       games,
       books,
       youtube,
+      youtubePlaylists,
     });
   } catch (error) {
     void notifyError("API backup/export", error);
@@ -287,6 +290,11 @@ export async function importAll(req: Request, res: Response): Promise<void> {
       if (!Array.isArray(rows) || (spec.key === "youtube" && rows.length === 0)) continue;
       imported[spec.key] = await upsertRows(client, spec, rows as Record<string, unknown>[]);
     }
+    // Depois das linhas do YouTube: os itens da playlist são resolvidos por
+    // `video_id`, que precisa já estar no banco.
+    const playlists = youtubePlaylistsFromBackup(body);
+    for (const playlist of playlists) await youtubePlaylistModel.importPlaylist(client, playlist);
+    if (playlists.length > 0) imported.youtubePlaylists = playlists.length;
     await client.query("COMMIT");
     res.json({ imported });
   } catch (error) {

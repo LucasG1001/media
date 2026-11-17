@@ -4,9 +4,14 @@ import {
   channelGroups,
   trackNeighbors,
   pickInitialTrack,
+  playlistGroups,
+  playlistsOfKind,
+  shuffleTracks,
+  toggleSelection,
+  toggleGroupSelection,
   type YoutubeListOptions,
 } from "./youtubeList";
-import type { YoutubeLibraryEntry } from "../types/youtubeLibrary";
+import type { YoutubeLibraryEntry, YoutubePlaylist } from "../types/youtubeLibrary";
 
 function track(videoId: string, patch: Partial<YoutubeLibraryEntry> = {}): YoutubeLibraryEntry {
   return {
@@ -253,5 +258,146 @@ describe("pickInitialTrack", () => {
 
   it("não tem item inicial com a biblioteca vazia", () => {
     expect(pickInitialTrack([])).toBeUndefined();
+  });
+});
+
+function playlist(name: string, videoIds: string[], patch: Partial<YoutubePlaylist> = {}): YoutubePlaylist {
+  return { id: `pl-${name}`, name, kind: "music", itemIds: videoIds.map((id) => `uuid-${id}`), ...patch };
+}
+
+describe("playlistsOfKind", () => {
+  it("fica só com as playlists da aba, em ordem alfabética", () => {
+    const playlists = [playlist("treino", []), playlist("Aulas", [], { kind: "video" }), playlist("Água", [])];
+    expect(playlistsOfKind(playlists, "music").map((p) => p.name)).toEqual(["Água", "treino"]);
+    expect(playlistsOfKind(playlists, "video").map((p) => p.name)).toEqual(["Aulas"]);
+  });
+});
+
+describe("playlistGroups", () => {
+  const entries = [
+    track("a", { title: "Bohemian Rhapsody", channelTitle: "Queen" }),
+    track("b", { title: "Imagine", channelTitle: "John Lennon" }),
+    track("c", { title: "Zebra" }),
+    track("v", { kind: "video", title: "Aula 1" }),
+  ];
+
+  // A ordem é a da playlist (ordem de adição), não a alfabética da lista.
+  it("mantém os itens na ordem da playlist", () => {
+    const groups = playlistGroups([playlist("Mix", ["c", "a", "b"])], entries, "music", "");
+    expect(groups).toHaveLength(1);
+    expect(ids(groups[0].tracks)).toEqual(["c", "a", "b"]);
+  });
+
+  // Um item pode estar em mais de uma playlist.
+  it("repete o item em cada playlist que o contém", () => {
+    const groups = playlistGroups([playlist("Um", ["a", "b"]), playlist("Dois", ["b"])], entries, "music", "");
+    expect(groups.map((g) => [g.name, ids(g.tracks)])).toEqual([
+      ["Dois", ["b"]],
+      ["Um", ["a", "b"]],
+    ]);
+  });
+
+  it("mostra só as playlists da aba ativa", () => {
+    const playlists = [playlist("Músicas", ["a"]), playlist("Vídeos", ["v"], { kind: "video" })];
+    expect(playlistGroups(playlists, entries, "music", "").map((g) => g.name)).toEqual(["Músicas"]);
+    expect(playlistGroups(playlists, entries, "video", "").map((g) => g.name)).toEqual(["Vídeos"]);
+  });
+
+  // O vínculo fica guardado: restaurar ou mover de volta devolve o item.
+  it("esconde o item removido ou movido para a outra aba, sem tirar a playlist de vista", () => {
+    const changed = [
+      track("a", { status: "removed" }),
+      track("b", { kind: "video" }),
+      track("c"),
+    ];
+    const groups = playlistGroups([playlist("Mix", ["a", "b", "c"]), playlist("Só sumidos", ["a", "b"])], changed, "music", "");
+    expect(groups.map((g) => [g.name, ids(g.tracks)])).toEqual([
+      ["Mix", ["c"]],
+      ["Só sumidos", []],
+    ]);
+  });
+
+  it("ignora vínculo de item que não está mais na biblioteca", () => {
+    const groups = playlistGroups([playlist("Mix", ["fantasma", "a"])], entries, "music", "");
+    expect(ids(groups[0].tracks)).toEqual(["a"]);
+  });
+
+  it("sem busca, mostra a playlist vazia", () => {
+    expect(playlistGroups([playlist("Nova", [])], entries, "music", "").map((g) => g.name)).toEqual(["Nova"]);
+  });
+
+  it("a busca recorta os itens por título ou canal e esconde a playlist sem nenhum", () => {
+    const playlists = [playlist("Rock", ["a", "b"]), playlist("Bichos", ["c"]), playlist("Vazia", [])];
+    const groups = playlistGroups(playlists, entries, "music", " lennon ");
+    expect(groups.map((g) => [g.name, ids(g.tracks)])).toEqual([["Rock", ["b"]]]);
+  });
+
+  it("a busca que casa com o nome da playlist a mostra inteira", () => {
+    const playlists = [playlist("Rock clássico", ["a", "b"]), playlist("Bichos", ["c"])];
+    const groups = playlistGroups(playlists, entries, "music", "ROCK");
+    expect(groups.map((g) => [g.name, ids(g.tracks)])).toEqual([["Rock clássico", ["a", "b"]]]);
+  });
+});
+
+describe("shuffleTracks", () => {
+  const list = ["a", "b", "c", "d", "e", "f", "g", "h"].map((id) => track(id));
+
+  it("devolve os mesmos itens, sem perder nem repetir", () => {
+    expect(ids(shuffleTracks(list, 42)).sort()).toEqual(ids(list));
+  });
+
+  // A ordem não pode mudar entre renders: o "próximo" pularia a cada troca.
+  it("é estável para a mesma semente", () => {
+    expect(ids(shuffleTracks(list, 42))).toEqual(ids(shuffleTracks([...list].reverse(), 42)));
+  });
+
+  it("muda com a semente e sai da ordem original", () => {
+    const orders = new Set([1, 2, 3, 4, 5].map((seed) => ids(shuffleTracks(list, seed)).join("")));
+    expect(orders.size).toBeGreaterThan(1);
+    expect(orders.has(ids(list).join(""))).toBe(false);
+  });
+
+  // Tirar um item não reembaralha os que ficam.
+  it("mantém a ordem relativa dos outros quando um item sai", () => {
+    const full = ids(shuffleTracks(list, 7));
+    const without = ids(shuffleTracks(list.filter((t) => t.videoId !== "d"), 7));
+    expect(without).toEqual(full.filter((id) => id !== "d"));
+  });
+});
+
+describe("toggleSelection", () => {
+  const siblings = ["a", "b", "c", "d", "e"];
+
+  it("liga e desliga o item clicado", () => {
+    const on = toggleSelection(new Set(), "b", siblings, null);
+    expect([...on]).toEqual(["b"]);
+    expect([...toggleSelection(on, "b", siblings, null)]).toEqual([]);
+  });
+
+  it("com Shift marca o intervalo entre a âncora e o clicado, nos dois sentidos", () => {
+    expect([...toggleSelection(new Set(["b"]), "d", siblings, "b")]).toEqual(["b", "c", "d"]);
+    expect([...toggleSelection(new Set(["d"]), "a", siblings, "d")].sort()).toEqual(["a", "b", "c", "d"]);
+  });
+
+  // Intervalo só marca: quem já estava marcado no meio continua.
+  it("o intervalo não desmarca o que já estava marcado", () => {
+    expect([...toggleSelection(new Set(["a", "c"]), "d", siblings, "a")].sort()).toEqual(["a", "b", "c", "d"]);
+  });
+
+  // Âncora em outra lista (outro canal, outra playlist): vira clique simples.
+  it("sem âncora nesta lista, cai no clique simples", () => {
+    expect([...toggleSelection(new Set(["x"]), "c", siblings, "x")].sort()).toEqual(["c", "x"]);
+  });
+});
+
+describe("toggleGroupSelection", () => {
+  it("marca o grupo inteiro e, com todos marcados, desmarca só ele", () => {
+    const partial = toggleGroupSelection(new Set(["a", "z"]), ["a", "b"]);
+    expect([...partial].sort()).toEqual(["a", "b", "z"]);
+    expect([...toggleGroupSelection(partial, ["a", "b"])]).toEqual(["z"]);
+  });
+
+  it("grupo vazio não muda nada", () => {
+    expect([...toggleGroupSelection(new Set(["a"]), [])]).toEqual(["a"]);
   });
 });

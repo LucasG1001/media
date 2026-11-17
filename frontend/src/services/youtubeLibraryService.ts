@@ -16,8 +16,10 @@ export async function addToLibrary(entry: CreateYoutubeLibraryEntry): Promise<Yo
   return response.data;
 }
 
+// `videoIds`: todos os itens da playlist do YouTube, na ordem dela — inclusive
+// os que já estavam na biblioteca.
 export interface PlaylistImportResult {
-  playlist: { name: string; imported: number; total: number };
+  playlist: { name: string; imported: number; total: number; videoIds: string[] };
 }
 
 export type AddFromUrlResult = YoutubeLibraryEntry | PlaylistImportResult;

@@ -26,6 +26,7 @@ import { gameLibraryRoutes } from "./routes/gameLibraryRoutes.js";
 import { bookRoutes } from "./routes/bookRoutes.js";
 import { bookLibraryRoutes } from "./routes/bookLibraryRoutes.js";
 import { youtubeLibraryRoutes } from "./routes/youtubeLibraryRoutes.js";
+import { youtubePlaylistRoutes } from "./routes/youtubePlaylistRoutes.js";
 import { backupRoutes } from "./routes/backupRoutes.js";
 import { imageRoutes } from "./routes/imageRoutes.js";
 import { notFoundHandler, errorHandler } from "./middleware/errorHandler.js";
@@ -70,6 +71,8 @@ app.use("/api/game", gameRoutes);
 app.use("/api/game-library", gameLibraryRoutes);
 app.use("/api/book", bookRoutes);
 app.use("/api/book-library", bookLibraryRoutes);
+// Antes da biblioteca: `/playlists` não pode cair no `/:id` de lá.
+app.use("/api/youtube-library/playlists", youtubePlaylistRoutes);
 app.use("/api/youtube-library", youtubeLibraryRoutes);
 app.use("/api/backup", backupRoutes);
 app.use("/api/img", imageRoutes);

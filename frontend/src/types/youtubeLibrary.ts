@@ -61,3 +61,13 @@ export const YOUTUBE_KIND_LABELS: Record<YoutubeKind, string> = {
 export function otherKind(kind: YoutubeKind): YoutubeKind {
   return kind === "music" ? "video" : "music";
 }
+
+// Playlist é de uma aba só (`kind`). `itemIds` são ids da biblioteca, na ordem
+// da playlist, e guardam todo vínculo — inclusive o de item removido ou movido
+// para a outra aba, que a tela esconde sem desfazer.
+export interface YoutubePlaylist {
+  id: string;
+  name: string;
+  kind: YoutubeKind;
+  itemIds: string[];
+}

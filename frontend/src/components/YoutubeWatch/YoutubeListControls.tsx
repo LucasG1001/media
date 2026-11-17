@@ -16,6 +16,13 @@ interface YoutubeListControlsProps {
   onSortSelect: (field: string) => void;
   groupByChannel: boolean;
   onGroupByChannelChange: (value: boolean) => void;
+  // O bloco de playlists no topo da lista. Não é um agrupamento da lista de
+  // baixo: os dois botões são independentes.
+  showPlaylists: boolean;
+  onShowPlaylistsChange: (value: boolean) => void;
+  // Modo de seleção: clicar numa linha marca em vez de tocar.
+  selecting: boolean;
+  onSelectingChange: (value: boolean) => void;
 }
 
 const SORT_OPTIONS = [
@@ -55,6 +62,10 @@ export function YoutubeListControls({
   onSortSelect,
   groupByChannel,
   onGroupByChannelChange,
+  showPlaylists,
+  onShowPlaylistsChange,
+  selecting,
+  onSelectingChange,
 }: YoutubeListControlsProps) {
   const [sortOpen, setSortOpen] = useState(false);
   useDismiss(sortOpen, () => setSortOpen(false));
@@ -133,6 +144,33 @@ export function YoutubeListControls({
         <Icon>
           <circle cx="9" cy="8" r="3.5" />
           <path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8" />
+        </Icon>
+      </button>
+
+      <button
+        type="button"
+        className={`${styles.iconButton} ${showPlaylists ? styles.iconButtonOn : ""}`}
+        onClick={() => onShowPlaylistsChange(!showPlaylists)}
+        aria-pressed={showPlaylists}
+        aria-label="Mostrar playlists"
+        title="Mostrar playlists"
+      >
+        <Icon>
+          <path d="M3 6h13M3 12h9M3 18h9M16 13l5 3-5 3z" />
+        </Icon>
+      </button>
+
+      <button
+        type="button"
+        className={`${styles.iconButton} ${selecting ? styles.iconButtonOn : ""}`}
+        onClick={() => onSelectingChange(!selecting)}
+        aria-pressed={selecting}
+        aria-label="Selecionar vários"
+        title={selecting ? "Sair da seleção" : "Selecionar vários"}
+      >
+        <Icon>
+          <rect x="3" y="3" width="18" height="18" rx="3" />
+          <path d="M8 12l3 3 5-6" />
         </Icon>
       </button>
 

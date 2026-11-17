@@ -15,8 +15,8 @@ e biblioteca pessoal (CRUD em PostgreSQL):
 - **Livros** — Hardcover (GraphQL); coleções por **série** (`featured_series`), com dedupe
   obrigatório e trava de autor.
 - **YouTube** — músicas e vídeos salvos (YouTube Data API), na mesma tabela e separados por `kind`;
-  modelo à parte (status `liked`/`removed`, sem coleção nem tag) e sem grade: a página é a tela de
-  reprodução.
+  modelo à parte (status `liked`/`removed`, sem coleção nem tag; a organização é por **playlist**,
+  N:N e por aba) e sem grade: a página é a tela de reprodução.
 
 Recursos transversais: **Dashboard** agregado, **Tier List** (coleções em faixas pela nota), **sync de coleções** (descobre e adiciona novos
 lançamentos de franquias já concluídas), **notificações no Telegram** (novos episódios, itens de
@@ -160,9 +160,10 @@ Padrão em camadas por domínio: `types/` → `models/` (pg puro, mapper snake�
   `season_list`/`season_states`, e a nota da série é sempre a média das temporadas. **Ver
   `docs/frontend-series-temporadas.md`** antes de mexer em séries/temporadas.
 - **YouTube = tela de reprodução, sem grade nem drawer**: `/youtube` abre no último item tocado,
-  pausado; player pela IFrame API e a biblioteca como lista fixa ao lado, com abas Músicas | Vídeos
-  e agrupamento por canal. **Ver `docs/frontend-youtube.md`** antes de mexer na página do YouTube
-  ou no `YoutubePlayer`.
+  pausado; player pela IFrame API e a biblioteca como lista fixa ao lado, com abas Músicas | Vídeos,
+  agrupamento por canal e playlists (`?list=` prende a reprodução na playlist). **Ver
+  `docs/frontend-youtube.md`** antes de mexer na página do YouTube, nas playlists ou no
+  `YoutubePlayer`.
 - **Anime, filmes, séries e jogos têm duas visualizações da biblioteca**: Grade | Detalhe, este no
   desenho da tela do YouTube (palco + lista de coleções; `CollectionWatch` genérico + um invólucro
   por mídia). **Ver `docs/frontend-visao-detalhe.md`** antes de mexer neles.
@@ -194,7 +195,8 @@ coleção), timestamp de conclusão (`watched_at`/`finished_at`/`read_at`), colu
 coleção (`franchise_id`/`collection_id`) e `notes`
 (`TEXT`, anotação livre do usuário; `NULL` = nunca anotado) — este **menos em `series_library`**, onde
 a anotação é por temporada, dentro de `season_states`. **`youtube_library` é a exceção às duas de
-coleção**: não tem `is_cover` nem coluna de coleção.
+coleção**: não tem `is_cover` nem coluna de coleção — as playlists dela ficam fora da tabela, em
+`youtube_playlist`/`youtube_playlist_item` (ver `docs/frontend-youtube.md` §1).
 
 **`last_access_at`** (`TIMESTAMPTZ`; `NULL` = nunca) — última vez assistido/jogado, **distinto do
 timestamp de conclusão**, que marca a _primeira_ conclusão e é zerado ao sair do status concluído —

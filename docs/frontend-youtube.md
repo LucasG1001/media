@@ -2,10 +2,12 @@
 
 A mídia YouTube guarda **músicas e vídeos na mesma biblioteca**, separados por `kind`, e **não tem
 grade de biblioteca nem drawer**: a página é a tela de reprodução, com o player à esquerda e a
-biblioteca como lista ao lado. Não existem mais coleções nem tags (os dois modelos foram removidos,
-código e dados). Consulte antes de mexer em `YouTubePage`, `YoutubeWatch`, `YoutubeListControls`,
-`YoutubePlayer`, `utils/youtubeList.ts`, `utils/youtubeIframeApi.ts`, `useYoutubeLibrary` ou em
-`youtubeLibraryModel`/`Controller`.
+biblioteca como lista ao lado. Coleções e tags não existem mais (os dois modelos foram removidos,
+código e dados); a única organização é a **playlist** (§6), que é N:N e tem ordem própria. Consulte
+antes de mexer em `YouTubePage`, `YoutubeWatch`, `YoutubeListControls`, `YoutubePlaylistPicker`,
+`YoutubePlaylistActions`, `YoutubeSelectionBar`, `YoutubePlayer`, `utils/youtubeList.ts`,
+`utils/youtubeIframeApi.ts`, `useYoutubeLibrary`, `useYoutubePlaylists` ou em
+`youtubeLibraryModel`/`Controller` e `youtubePlaylistModel`/`Controller`.
 
 ---
 
@@ -29,6 +31,22 @@ capa.
   `lib/backupLegacy.ts` (`youtubeRowsFromBackup`): linha sem `kind` é vídeo, a chave antiga `music`
   entra como música (depois dos vídeos, para vencer um vídeo repetido) e `youtubeCollections` é
   ignorada.
+- **Playlists** moram em duas tabelas à parte — `youtube_playlist` (`name`, `kind`; índice único em
+  `(kind, LOWER(name))`) e `youtube_playlist_item` (`playlist_id`, `entry_id`, `position`; `ON DELETE
+  CASCADE` nos dois lados) — e **não tocam `youtube_library`** nem a factory dela. O nome
+  `youtube_collection` não pode ser reaproveitado: o `migrate()` derruba essa tabela a cada boot.
+  - API em `/api/youtube-library/playlists` (montada **antes** da biblioteca, para não cair no
+    `/:id` de lá): `GET /` devolve `{id, name, kind, itemIds[]}` com os ids da biblioteca na ordem
+    da playlist; `POST /` cria (aceita `entryIds`), `PUT /:id` renomeia, `DELETE /:id` exclui só a
+    playlist; `POST /:id/items` acrescenta no fim (idempotente — quem já está fica onde está, id
+    que não existe é ignorado) e `POST /:id/items/remove` tira. Nome repetido na aba dá `409`.
+  - **O vínculo sobrevive a "removido" e a mover de aba.** O servidor guarda tudo; quem esconde o
+    item `removed` ou de outro `kind` é a tela (`playlistGroups`), então restaurar ou mover de volta
+    devolve o item ao lugar em que estava. Só o `DELETE` do item na biblioteca desfaz (cascade).
+  - **Backup**: chave `youtubePlaylists`, com os itens por **`video_id`** (o uuid da linha muda em
+    outro banco). O import roda depois das linhas do YouTube, funde por `(kind, nome)` e só
+    acrescenta. Arquivo antigo, sem a chave, importa normalmente
+    (`youtubePlaylistsFromBackup` descarta playlist sem nome ou de tipo desconhecido).
 
 ## 2. Entrada
 
@@ -36,9 +54,16 @@ O campo de link fica na **barra superior** no desktop (`TopbarSlot`, ver
 `docs/frontend-componentes.md` §7) e no topo da página no celular; os avisos de erro e de
 "adicionado" ficam sempre na página. Colar o link: vídeo único entra como `liked`, **no tipo da aba ativa**; **playlist
 entra solta**, também no tipo da aba ativa (`bulkInsertVideos`, `ON CONFLICT (video_id) DO NOTHING`
-— item que já existe fica como está, inclusive o tipo). A resposta traz `imported` (novos) e `total`
-(da playlist). Adicionar não troca de item: o aviso verde é a confirmação. Com a biblioteca vazia
-não há lista, então as abas de tipo aparecem dentro do aviso de vazio.
+— item que já existe fica como está, inclusive o tipo). A resposta traz `imported` (novos), `total`
+(da playlist) e `videoIds` (todos, na ordem do YouTube, inclusive os que já estavam). Adicionar não
+troca de item: o aviso verde é a confirmação. Com a biblioteca vazia não há lista, então as abas de
+tipo aparecem dentro do aviso de vazio.
+
+Depois de uma playlist colada, o aviso verde ganha o botão **"Criar playlist «nome»"** (ou
+"Adicionar à playlist «nome»" se a aba já tem uma com esse nome): junta numa playlist daqui os itens
+daquele link, na ordem do YouTube — **só os do tipo da aba em que o link foi colado** (o que já
+estava na biblioteca como o outro tipo fica de fora). É uma oferta, não automático: colar continua
+entrando solto. É uma cópia do momento; não há vínculo com a playlist do YouTube.
 
 ## 3. A página é a tela de reprodução
 
@@ -51,8 +76,11 @@ Música) redireciona para `/youtube`.
 - **Uma rota só, com segmento opcional** (`/youtube/:videoId?`): a `YouTubePage` não desmonta ao
   trocar de item, então o player, a busca e a ordenação sobrevivem à troca. O `Sidebar` reconhece a
   mídia ativa por **prefixo** do caminho por causa disso.
-- **Não há seleção em lote.** Status, nota e remover são por item, no botão abaixo do vídeo
-  (`YoutubeLibraryModal`). Remover o item atual segue para o próximo da ordem de reprodução.
+- **Status, nota e remover são por item**, no botão abaixo do vídeo (`YoutubeLibraryModal`).
+  Remover o item atual segue para o próximo da ordem de reprodução. A seleção em lote existe só
+  para mandar itens a uma playlist (§6).
+- **`?list=<playlistId>` é o contexto de reprodução**: de qual playlist o item está tocando (§6).
+  Sem ele a página se comporta como sempre.
 
 ## 4. A lista da direita
 
@@ -63,9 +91,12 @@ vale `+Infinity` (não vira "o mais antigo") e o desempate por `videoId` **não 
 direção** — ele só impede a ordem de trocar entre renders.
 
 - **Os controles ocupam duas linhas, de propósito**: cada linha a mais é um item a menos à vista.
-  O cabeçalho do painel tem as abas de tipo e a **contagem** (`playOrder.length` — vale para lista
-  plana e para a agrupada por canal); abaixo vem o `YoutubeListControls` (slot `controls`), uma linha só:
-  busca + três botões de ícone.
+  O cabeçalho do painel tem as abas de tipo e a **contagem** da lista de baixo (plana ou agrupada
+  por canal — as playlists do topo repetem itens dela e não entram na conta); abaixo vem o
+  `YoutubeListControls` (slot `controls`), uma linha só: busca + cinco botões de ícone (ordenar,
+  agrupar por canal, mostrar playlists, selecionar vários, mostrar removidos). Abaixo de 480 px a
+  busca ganha a linha inteira e os botões descem — lá a lista rola com a página e a linha a mais
+  custa pouco.
   - **Ordenar** abre um menu (`role="menu"`) com os critérios; o ativo mostra a seta, e escolhê-lo
     de novo inverte a direção (contrato do `useSingleSort`) — por isso o menu **não fecha ao
     escolher**, só com `Escape`, clique fora ou no próprio botão. Não usa o `ControlPopover` das
@@ -123,12 +154,68 @@ trocava a lista pelos itens do canal, com uma barra "← Todos os canais"; não 
   agrupamento esvazia o conjunto.
 - **Anterior/próximo e a reprodução automática seguem `playOrder`**, que a página calcula: lista
   plana → a lista; agrupada → todos os itens, na ordem dos canais, **estejam abertos ou não** (a
-  reprodução atravessa de um canal para o seguinte). As linhas mostradas (`tracks`) e a ordem de
-  reprodução são props separadas no `YoutubeWatch` por causa do caso agrupado.
+  reprodução atravessa de um canal para o seguinte); tocando de dentro de uma playlist → os itens
+  dela (§6). As linhas mostradas (`tracks`) e a ordem de reprodução são props separadas no
+  `YoutubeWatch` por causa disso.
 - O destaque marca o **canal do item que está tocando** enquanto ele está fechado; aberto, quem
   aparece marcado é o item dentro dele.
 
-## 6. `YoutubePlayer` (IFrame Player API)
+## 6. Playlists
+
+Uma playlist é de **uma aba só** (músicas ou vídeos), um item pode estar em **várias**, e a ordem
+dentro dela é a **ordem de adição** (`position`), não a ordenação da lista. Não há reordenação
+manual.
+
+- **O bloco de playlists é um botão à parte** (`localStorage`: `youtube-show-playlists`),
+  independente de "Agrupar por canal". Ligado, as playlists da aba entram **no topo da lista**, em
+  sanfona (o mesmo `groupRow` dos canais, com miniatura retangular no lugar do avatar), e os itens
+  — ou os canais — **continuam embaixo**, depois de um divisor. O mesmo item aparece nos dois
+  lugares, de propósito.
+- **Dos filtros, só a busca chega nas playlists** (`playlistGroups`): casa com título/canal dos
+  itens (playlist sem nenhum casando sai de vista) **ou com o nome da playlist** (que então aparece
+  inteira). Ordenação e "Mostrar removidos" são da lista de baixo. Sem busca, playlist vazia
+  aparece — é assim que se vê a recém-criada.
+- **Contexto de reprodução (`?list=`)**. Escolher um item **de dentro** de uma playlist navega para
+  `/youtube/:videoId?list=<id>`; a partir daí `playOrder` são os itens dela, então
+  anterior/próximo/automático ficam presos ali, **em loop**. Escolher na lista de baixo navega sem
+  `list` e sai. O contexto mora na URL porque ela só identificava o vídeo, e o mesmo vídeo está em
+  mais de uma lista da tela: é o `list` que diz **qual linha destacar** (`activePlaylistId` — só a
+  linha de dentro da playlist ativa leva `aria-current`; com ela fechada, o cabeçalho dela; a linha
+  da lista de baixo e o canal do item ficam sem destaque).
+  - O contexto **só vale com a playlist na tela**: bloco desligado, outra aba ou playlist escondida
+    pela busca → a reprodução volta a seguir a lista de baixo, e retoma a playlist quando ela
+    reaparece (o `list` continua na URL). É derivação, sem efeito para limpar a URL.
+  - Abrir a página já com `?list=` mostra essa playlist aberta.
+- **Aleatório** (`localStorage`: `youtube-shuffle`): botão ao lado de "Auto", que **só existe
+  tocando de dentro de uma playlist**. Embaralha a **ordem de reprodução**, não as linhas — a lista
+  é fixa (§4). `shuffleTracks` ordena por um hash de `semente + videoId`: a ordem não muda entre
+  renders (senão o "próximo" pularia a cada troca) e tirar ou pôr um item não reembaralha os
+  outros. Ligar de novo sorteia outra semente.
+- **Pôr e tirar itens**:
+  - **Item atual**: botão "Playlists" abaixo do player (`YoutubePlaylistPicker` com `single`) —
+    lista as playlists **do tipo do item** com marcação; clicar alterna e o menu fica aberto. O
+    rótulo diz em quantas ele está ("Playlists · 2").
+  - **Em lote**: o botão "Selecionar vários" liga o modo de seleção, em que clicar numa linha
+    **marca em vez de tocar** (inclusive a do item atual) e os botões de linha somem. Shift+clique
+    marca o intervalo desde o último clicado **dentro da mesma lista** (a lista de baixo, um canal
+    ou uma playlist — `toggleSelection`); cada cabeçalho de grupo ganha uma caixa que marca o grupo
+    inteiro. A `YoutubeSelectionBar` (slot `footer`) fica à vista o modo inteiro, com "Todos" (a
+    lista de baixo) e "Adicionar à playlist", que abre o mesmo menu para cima — aqui ele **só
+    adiciona** e fecha. Os itens entram na ordem em que foram marcados. Trocar de aba ou de status
+    esvazia a seleção (playlist não mistura tipos).
+  - **Tirar**: dentro de uma playlist o botão de hover da linha é "✕ Tirar" no lugar de "→ Músicas".
+  - Criar ("Nova playlist…") é pelo menu, nos dois casos; em lote e na oferta do link colado (§2)
+    a playlist que recebeu os itens aparece (o bloco liga e ela abre).
+- **Renomear e excluir** ficam **dentro da playlist aberta** (`YoutubePlaylistActions`), não num
+  menu flutuante: a lista tem rolagem própria e cortaria um popover ancorado na linha. Excluir pede
+  confirmação e não apaga os itens.
+- **O menu vira folha de rodapé no celular** (`position: fixed`): o gatilho mora numa linha que
+  rola de lado (os botões abaixo do player), que cortaria um menu ancorado.
+- **`useYoutubePlaylists`** é otimista com rollback, mas lê a lista corrente de uma **ref**: o
+  snapshot não pode sair de dentro de um updater do `setState`, que o React pode rodar só no
+  próximo render — numa falha rápida o rollback restauraria lista vazia.
+
+## 7. `YoutubePlayer` (IFrame Player API)
 
 Diferente do `TrailerEmbed` dos drawers (iframe cru, `fs=0`, tela cheia do nosso wrapper), aqui o
 player é criado pela **IFrame Player API** (`utils/youtubeIframeApi.ts` carrega o script uma vez),
@@ -150,7 +237,8 @@ porque só ela avisa quando o vídeo **começa a tocar**, **termina** e **não p
   sozinha. A falha é guardada junto com o `videoId`, então trocar de item a desfaz por derivação.
   Falha ao carregar o script da API cai na mesma tela.
 
-## 7. Fora
+## 8. Fora
 
-O YouTube não entra no Dashboard nem no Tier List. Não há aleatório, prévia no hover nem
-recomendação externa (o `relatedToVideoId` da API foi desligado em agosto de 2023).
+O YouTube não entra no Dashboard nem no Tier List. Não há aleatório fora de playlist, reordenação
+manual de playlist, sincronia com playlist do YouTube, prévia no hover nem recomendação externa (o
+`relatedToVideoId` da API foi desligado em agosto de 2023).

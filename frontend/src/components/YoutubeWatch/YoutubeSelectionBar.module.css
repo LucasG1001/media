@@ -1,0 +1,92 @@
+/* No desktop a barra é o rodapé do painel da lista (que tem altura limitada e
+   rola por dentro), então fica sempre à vista sem flutuar. */
+.bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.close:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.count {
+  flex: 1;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.button,
+.primary {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.button:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-accent);
+}
+
+.primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Sem as duas colunas a lista rola com a página, e um rodapé no fim dela ficaria
+   fora de vista: a barra gruda no pé da tela enquanto a lista passa. `sticky` e
+   não `fixed`: continua na largura do painel, sem precisar saber da sidebar. */
+@media (max-width: 1100px) {
+  .bar {
+    position: sticky;
+    bottom: var(--spacing-base);
+    z-index: 150;
+    box-shadow: var(--shadow-lg);
+  }
+}
+
+@media (max-width: 768px) {
+  .bar {
+    bottom: calc(var(--mobile-nav-height) + var(--spacing-base) + env(safe-area-inset-bottom));
+  }
+}

@@ -1,5 +1,45 @@
 import { describe, it, expect } from "vitest";
-import { youtubeRowsFromBackup } from "./backupLegacy.js";
+import { youtubeRowsFromBackup, youtubePlaylistsFromBackup } from "./backupLegacy.js";
+
+describe("youtubePlaylistsFromBackup", () => {
+  it("keeps name, kind and the video ids in order", () => {
+    const playlists = youtubePlaylistsFromBackup({
+      youtubePlaylists: [{ name: "Treino", kind: "music", videoIds: ["c", "a", "b"] }],
+    });
+    expect(playlists).toEqual([{ name: "Treino", kind: "music", videoIds: ["c", "a", "b"] }]);
+  });
+
+  // Arquivo de antes das playlists não tem a chave.
+  it("returns nothing for a backup without playlists", () => {
+    expect(youtubePlaylistsFromBackup({ youtube: [{ videoId: "a" }] })).toEqual([]);
+    expect(youtubePlaylistsFromBackup({ youtubePlaylists: "oops" })).toEqual([]);
+  });
+
+  it("drops playlists without a name or with an unknown kind", () => {
+    const playlists = youtubePlaylistsFromBackup({
+      youtubePlaylists: [
+        { name: "  ", kind: "music", videoIds: ["a"] },
+        { kind: "video", videoIds: ["a"] },
+        { name: "Podcast", kind: "podcast", videoIds: ["a"] },
+        { name: " Ok ", kind: "video", videoIds: ["a"] },
+      ],
+    });
+    expect(playlists).toEqual([{ name: "Ok", kind: "video", videoIds: ["a"] }]);
+  });
+
+  it("keeps an empty playlist and ignores ids that are not text", () => {
+    const playlists = youtubePlaylistsFromBackup({
+      youtubePlaylists: [
+        { name: "Vazia", kind: "video" },
+        { name: "Suja", kind: "video", videoIds: ["a", 3, null, "", "b"] },
+      ],
+    });
+    expect(playlists).toEqual([
+      { name: "Vazia", kind: "video", videoIds: [] },
+      { name: "Suja", kind: "video", videoIds: ["a", "b"] },
+    ]);
+  });
+});
 
 describe("youtubeRowsFromBackup", () => {
   it("keeps the kind of rows exported after the merge", () => {

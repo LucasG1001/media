@@ -28,7 +28,7 @@ export default defineConfig({
           {
             // Bibliotecas: rede primeiro para não mostrar dado velho com conexão,
             // com cache de resgate quando a rede não responde a tempo.
-            urlPattern: /\/api\/[a-z-]*library(\/collections)?(\?.*)?$/,
+            urlPattern: /\/api\/[a-z-]*library(\/(collections|playlists))?(\?.*)?$/,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'media-library',

@@ -105,7 +105,7 @@ plugin). Em dev o plugin não registra nada — `npm run dev` segue igual.
 | Padrão | Estratégia | Por quê |
 |---|---|---|
 | `/api/img?…`, `/api/game/image/…` | CacheFirst, 1000 entradas / 90 dias | imagem servida pelo backend é imutável |
-| `GET /api/*library` (+ `/collections`) | NetworkFirst, `networkTimeoutSeconds: 5` | com rede, dado fresco; sem rede, o último estado |
+| `GET /api/*library` (+ `/collections`, `/playlists`) | NetworkFirst, `networkTimeoutSeconds: 5` | com rede, dado fresco; sem rede, o último estado |
 | `GET /api/{anime,movie,series,game,book}/<id>` (+ `/season/<n>`) | StaleWhileRevalidate | cobre o backend também estar fora |
 | Catálogo, `/api/health` e todo POST/PUT/DELETE | NetworkOnly (default) | não faz sentido offline |
 

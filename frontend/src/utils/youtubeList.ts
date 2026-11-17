@@ -1,4 +1,9 @@
-import type { YoutubeLibraryEntry, YoutubeLibraryStatus, YoutubeKind } from "../types/youtubeLibrary";
+import type {
+  YoutubeLibraryEntry,
+  YoutubeLibraryStatus,
+  YoutubeKind,
+  YoutubePlaylist,
+} from "../types/youtubeLibrary";
 import type { SortDir } from "../hooks/useSingleSort";
 import { lastAccessTimeOf } from "./lastAccess";
 
@@ -128,6 +133,100 @@ export function channelGroups(
       : compareNumbers(groupSortValue(a, sortField), groupSortValue(b, sortField));
     return sign * primary || a.key.localeCompare(b.key);
   });
+}
+
+export interface PlaylistGroup {
+  id: string;
+  name: string;
+  tracks: YoutubeLibraryEntry[];
+}
+
+// As playlists de uma aba, em ordem alfabética — é a lista dos menus.
+export function playlistsOfKind(playlists: YoutubePlaylist[], kind: YoutubeKind): YoutubePlaylist[] {
+  return playlists
+    .filter((playlist) => playlist.kind === kind)
+    .sort((a, b) => compareNames(a.name, b.name) || a.id.localeCompare(b.id));
+}
+
+// O bloco de playlists da aba: cada uma com os itens **na ordem da playlist**,
+// não na ordenação da lista. O vínculo de item removido ou movido para a outra
+// aba continua guardado, mas o item não aparece — e volta sozinho se for
+// restaurado ou movido de volta. Dos filtros, só a busca vale aqui: casa com
+// título/canal dos itens (a playlist sem nenhum casando sai de vista) ou com o
+// nome da playlist (que então aparece inteira). Sem busca, playlist vazia
+// aparece — é assim que se vê a recém-criada.
+export function playlistGroups(
+  playlists: YoutubePlaylist[],
+  entries: YoutubeLibraryEntry[],
+  kind: YoutubeKind,
+  search: string
+): PlaylistGroup[] {
+  const query = search.trim().toLowerCase();
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+  const groups: PlaylistGroup[] = [];
+  for (const playlist of playlistsOfKind(playlists, kind)) {
+    const members = playlist.itemIds
+      .map((id) => byId.get(id))
+      .filter((entry): entry is YoutubeLibraryEntry => !!entry && entry.kind === kind && entry.status === "liked");
+    const nameMatches = !query || playlist.name.toLowerCase().includes(query);
+    const tracks = nameMatches ? members : members.filter((entry) => matchesSearch(entry, query));
+    if (!nameMatches && tracks.length === 0) continue;
+    groups.push({ id: playlist.id, name: playlist.name, tracks });
+  }
+  return groups;
+}
+
+// FNV-1a de 32 bits: só precisa espalhar bem e ser determinístico.
+function hashOf(text: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+// Ordem aleatória da playlist. Cada item ganha uma chave que depende só da
+// semente e dele mesmo: a ordem não muda entre renders (o "próximo" não pula a
+// cada troca de item) e adicionar ou tirar um item não reembaralha os outros.
+// Semente nova = outra ordem.
+export function shuffleTracks(tracks: YoutubeLibraryEntry[], seed: number): YoutubeLibraryEntry[] {
+  return tracks
+    .map((track) => ({ track, key: hashOf(`${seed}:${track.videoId}`) }))
+    .sort((a, b) => compareNumbers(a.key, b.key) || a.track.videoId.localeCompare(b.track.videoId))
+    .map(({ track }) => track);
+}
+
+// Clique numa linha em modo de seleção. Simples: liga/desliga o item. Com Shift
+// e uma âncora (o último clicado) na mesma lista: marca o intervalo inteiro
+// entre os dois — só marca, não inverte, que é o que se espera de um intervalo.
+export function toggleSelection(
+  selected: ReadonlySet<string>,
+  id: string,
+  siblingIds: string[],
+  anchorId: string | null
+): Set<string> {
+  const next = new Set(selected);
+  const from = anchorId ? siblingIds.indexOf(anchorId) : -1;
+  const to = siblingIds.indexOf(id);
+  if (from !== -1 && to !== -1 && from !== to) {
+    for (let i = Math.min(from, to); i <= Math.max(from, to); i += 1) next.add(siblingIds[i]);
+  } else if (!next.delete(id)) {
+    next.add(id);
+  }
+  return next;
+}
+
+// A caixa de um grupo (canal, playlist ou "todos"): marca o grupo inteiro; com
+// todos já marcados, desmarca.
+export function toggleGroupSelection(selected: ReadonlySet<string>, groupIds: string[]): Set<string> {
+  const next = new Set(selected);
+  const all = groupIds.length > 0 && groupIds.every((id) => next.has(id));
+  for (const id of groupIds) {
+    if (all) next.delete(id);
+    else next.add(id);
+  }
+  return next;
 }
 
 export interface TrackNeighbors {

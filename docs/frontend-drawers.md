@@ -58,7 +58,7 @@ em cima do vídeo, controle que aparece a cada passada de mouse atrapalha. Na po
 costuma passar.
 
 **O YouTube não usa o `TrailerEmbed` nem drawer**: a tela de reprodução dele tem o `YoutubePlayer`
-(IFrame Player API, controles e tela cheia nativos) — ver `docs/frontend-youtube.md` §6.
+(IFrame Player API, controles e tela cheia nativos) — ver `docs/frontend-youtube.md` §7.
 
 ## 5. Anotações
 

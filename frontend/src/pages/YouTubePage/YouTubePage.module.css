@@ -93,3 +93,26 @@
   justify-content: center;
   margin-bottom: var(--spacing-base);
 }
+
+/* Ação pendurada no aviso verde (criar a playlist dos itens recém-colados). */
+.noticeAction {
+  margin-left: var(--spacing-md);
+  padding: 2px var(--spacing-md);
+  border-radius: var(--radius-full);
+  background: var(--color-success-subtle);
+  border: 1px solid var(--color-success);
+  color: var(--color-success);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.noticeAction:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.noticeAction:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
